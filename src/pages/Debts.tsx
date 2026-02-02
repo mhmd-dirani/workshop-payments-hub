@@ -93,41 +93,45 @@ export default function Debts() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Debt Management</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Debt Management</h2>
+            <p className="text-xs md:text-sm text-muted-foreground">
               Track debts you owe and debts owed to you
             </p>
           </div>
           
           <Button 
             onClick={() => setIsDebtFormOpen(true)} 
-            className="gap-2 gradient-primary text-primary-foreground"
+            size="sm"
+            className="gap-1.5 gradient-primary text-primary-foreground h-8 text-xs md:text-sm md:h-9"
           >
-            <Plus className="w-4 h-4" />
-            Add Debt
+            <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="hidden xs:inline">Add</span> Debt
           </Button>
         </div>
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 md:gap-4">
             <Card className="shadow-card border-destructive/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-destructive/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-destructive/10">
                     <ArrowUpCircle className="w-6 h-6 text-destructive" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-destructive">I Owe (Remaining)</p>
-                    <p className="text-2xl font-bold font-mono text-destructive">
-                      -{stats.iOweRemaining.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-destructive">
+                      <ArrowUpCircle className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">I Owe</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-destructive">
+                      -{stats.iOweRemaining.toLocaleString('fr-FR')}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      of {stats.iOweTotal.toLocaleString('fr-FR')} CFA total
+                    <p className="hidden md:block text-xs text-muted-foreground">
+                      of {stats.iOweTotal.toLocaleString('fr-FR')} total
                     </p>
                   </div>
                 </div>
@@ -135,18 +139,21 @@ export default function Debts() {
             </Card>
             
             <Card className="shadow-card border-success/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-success/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-success/10">
                     <ArrowDownCircle className="w-6 h-6 text-success" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-success">They Owe Me (Remaining)</p>
-                    <p className="text-2xl font-bold font-mono text-success">
-                      +{stats.theyOweRemaining.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-success">
+                      <ArrowDownCircle className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">They Owe</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-success">
+                      +{stats.theyOweRemaining.toLocaleString('fr-FR')}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      of {stats.theyOweTotal.toLocaleString('fr-FR')} CFA total
+                    <p className="hidden md:block text-xs text-muted-foreground">
+                      of {stats.theyOweTotal.toLocaleString('fr-FR')} total
                     </p>
                   </div>
                 </div>
@@ -154,17 +161,20 @@ export default function Debts() {
             </Card>
             
             <Card className="shadow-card border-primary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-primary/10">
                     <Wallet className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Net Balance</p>
-                    <p className="text-2xl font-bold font-mono text-primary">
-                      {stats.netBalance >= 0 ? '+' : ''}{stats.netBalance.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
+                      <Wallet className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Net</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-primary">
+                      {stats.netBalance >= 0 ? '+' : ''}{stats.netBalance.toLocaleString('fr-FR')}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="hidden md:block text-xs text-muted-foreground">
                       {stats.netBalance >= 0 ? 'People owe you more' : 'You owe more'}
                     </p>
                   </div>
@@ -173,12 +183,11 @@ export default function Debts() {
             </Card>
           </div>
         )}
-
         {/* Debts Tables */}
-        <Tabs defaultValue="they_owe" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="they_owe">They Owe Me</TabsTrigger>
-            <TabsTrigger value="i_owe">I Owe Them</TabsTrigger>
+        <Tabs defaultValue="they_owe" className="space-y-3 md:space-y-4">
+          <TabsList className="grid w-full grid-cols-2 h-9 md:h-10">
+            <TabsTrigger value="they_owe" className="text-xs md:text-sm">They Owe Me</TabsTrigger>
+            <TabsTrigger value="i_owe" className="text-xs md:text-sm">I Owe Them</TabsTrigger>
           </TabsList>
           
           <TabsContent value="they_owe">
