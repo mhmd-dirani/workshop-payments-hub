@@ -69,14 +69,33 @@ export default function UserIncomeTable() {
 
   return (
     <Card className="shadow-card border-success/20">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2 text-success">
-          <ArrowDownCircle className="w-5 h-5" />
+      <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+        <CardTitle className="text-sm md:text-lg flex items-center gap-2 text-success">
+          <ArrowDownCircle className="w-4 h-4 md:w-5 md:h-5" />
           Received from Admin
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="rounded-lg border overflow-hidden">
+      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-2">
+          {transfers.map((transfer) => (
+            <div key={transfer.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5 border-success/20">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{transfer.admin_name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{transfer.description || '-'}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {format(new Date(transfer.transfer_date), 'MMM d, yyyy')}
+                </p>
+              </div>
+              <span className="font-mono font-bold text-sm text-success flex-shrink-0">
+                +{Number(transfer.amount).toLocaleString('fr-FR')}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-success/5">

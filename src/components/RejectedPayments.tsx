@@ -107,80 +107,124 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value="rejected" className="border rounded-lg bg-card shadow-card">
-        <AccordionTrigger className="px-6 hover:no-underline">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-destructive/10">
-              <XCircle className="w-5 h-5 text-destructive" />
+        <AccordionTrigger className="px-3 md:px-6 hover:no-underline">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
+              <XCircle className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
             </div>
             <div className="text-left">
-              <p className="font-semibold">Rejected Payments</p>
-              <p className="text-sm text-muted-foreground font-normal">
-                {filteredPayments.length} rejected payment{filteredPayments.length !== 1 ? 's' : ''}
+              <p className="font-semibold text-sm md:text-base">Rejected Payments</p>
+              <p className="text-xs md:text-sm text-muted-foreground font-normal">
+                {filteredPayments.length} rejected
               </p>
             </div>
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-0 pb-0">
           <div className="border-t">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Paid To</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Rejected By</TableHead>
-                  <TableHead>Added By</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-mono text-sm">
-                      {format(new Date(payment.payment_date), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell className="font-medium">{payment.paid_to}</TableCell>
-                    <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
-                    <TableCell className="text-right font-mono font-medium">
-                      {Number(payment.amount).toLocaleString('fr-FR')} CFA
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{payment.rejector_name || 'Unknown'}</span>
-                        {payment.rejection_reason && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <MessageSquare className="w-4 h-4 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="font-medium text-xs mb-1">Rejection Reason:</p>
-                                <p className="text-xs">{payment.rejection_reason}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {payment.creator_name}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deletePayment.mutate(payment.id)}
-                        disabled={deletePayment.isPending}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
+            {/* Mobile Card View */}
+            <div className="md:hidden p-3 space-y-2">
+              {filteredPayments.map((payment) => (
+                <div key={payment.id} className="p-3 rounded-lg border bg-destructive/5 border-destructive/20">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{payment.paid_to}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{payment.reason}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {format(new Date(payment.payment_date), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-sm text-destructive flex-shrink-0">
+                      {Number(payment.amount).toLocaleString('fr-FR')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                    <div className="text-[10px] text-muted-foreground">
+                      <span>By: {payment.creator_name}</span>
+                      <span className="mx-1">•</span>
+                      <span>Rejected: {payment.rejector_name || 'Unknown'}</span>
+                      {payment.rejection_reason && (
+                        <p className="mt-0.5 text-destructive/80 truncate max-w-[200px]">
+                          "{payment.rejection_reason}"
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deletePayment.mutate(payment.id)}
+                      disabled={deletePayment.isPending}
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Paid To</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Rejected By</TableHead>
+                    <TableHead>Added By</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="font-mono text-sm">
+                        {format(new Date(payment.payment_date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="font-medium">{payment.paid_to}</TableCell>
+                      <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
+                      <TableCell className="text-right font-mono font-medium">
+                        {Number(payment.amount).toLocaleString('fr-FR')} CFA
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{payment.rejector_name || 'Unknown'}</span>
+                          {payment.rejection_reason && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <MessageSquare className="w-4 h-4 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="font-medium text-xs mb-1">Rejection Reason:</p>
+                                  <p className="text-xs">{payment.rejection_reason}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {payment.creator_name}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deletePayment.mutate(payment.id)}
+                          disabled={deletePayment.isPending}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </AccordionContent>
       </AccordionItem>

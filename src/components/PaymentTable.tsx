@@ -117,6 +117,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] }); // Sync with admin approvals page
       queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
