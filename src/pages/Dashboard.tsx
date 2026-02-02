@@ -155,6 +155,8 @@ export default function Dashboard() {
             <p className="text-xs md:text-sm text-muted-foreground">
               {role === 'admin' 
                 ? 'Manage all workshop payments and income' 
+                : role === 'co_admin'
+                ? 'View all workshop payments and add records'
                 : 'View and add your payment records'}
             </p>
           </div>
@@ -264,7 +266,7 @@ export default function Dashboard() {
         </Card>
 
         {/* User Balance Card (for non-admins - show global balance always) */}
-        {role !== 'admin' && <UserBalanceCard />}
+        {role !== 'admin' && role !== 'co_admin' && <UserBalanceCard />}
 
 
         {/* Stats Cards - 3 totals (admin only) */}

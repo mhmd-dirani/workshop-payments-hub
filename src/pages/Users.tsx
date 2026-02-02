@@ -152,7 +152,7 @@ export default function Users() {
   };
 
   const updateRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'user' }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'co_admin' | 'user' }) => {
       // First try to update existing role
       const { data: existing } = await supabase
         .from('user_roles')
@@ -196,6 +196,14 @@ export default function Users() {
         <Badge className="gap-1 bg-primary/10 text-primary border-primary/20">
           <Shield className="w-3 h-3" />
           Admin
+        </Badge>
+      );
+    }
+    if (role === 'co_admin') {
+      return (
+        <Badge className="gap-1 bg-accent/50 text-accent-foreground border-accent/30">
+          <Shield className="w-3 h-3" />
+          Co-Admin
         </Badge>
       );
     }
@@ -363,14 +371,15 @@ export default function Users() {
                               defaultValue={userRole}
                               onValueChange={(value) => updateRole.mutate({ 
                                 userId: user.user_id, 
-                                role: value as 'admin' | 'user' 
+                                role: value as 'admin' | 'co_admin' | 'user' 
                               })}
                             >
-                              <SelectTrigger className="w-20 h-7 text-xs">
+                              <SelectTrigger className="w-24 h-7 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="co_admin">Co-Admin</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
                             </Select>
@@ -430,14 +439,15 @@ export default function Users() {
                                   defaultValue={userRole}
                                   onValueChange={(value) => updateRole.mutate({ 
                                     userId: user.user_id, 
-                                    role: value as 'admin' | 'user' 
+                                    role: value as 'admin' | 'co_admin' | 'user' 
                                   })}
                                 >
-                                  <SelectTrigger className="w-28">
+                                  <SelectTrigger className="w-32">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="user">User</SelectItem>
+                                    <SelectItem value="co_admin">Co-Admin</SelectItem>
                                     <SelectItem value="admin">Admin</SelectItem>
                                   </SelectContent>
                                 </Select>
