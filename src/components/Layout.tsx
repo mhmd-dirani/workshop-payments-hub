@@ -8,7 +8,8 @@ import {
   Wallet,
   ClipboardCheck,
   Settings,
-  HandCoins
+  HandCoins,
+  Users2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +31,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     ...(role === 'admin' ? [
       { name: 'Pending Approvals', href: '/approvals', icon: ClipboardCheck },
+      { name: 'Team', href: '/team', icon: Users2 },
       { name: 'Debts', href: '/debts', icon: HandCoins },
       { name: 'Manage Users', href: '/users', icon: Settings },
     ] : []),

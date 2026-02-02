@@ -5,36 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
 
-interface UserBalanceCardProps {
-  workshopId: string;
-}
-
-export default function UserBalanceCard({ workshopId }: UserBalanceCardProps) {
+export default function UserBalanceCard() {
   const { user, role } = useAuth();
 
   const { data: balance, isLoading } = useQuery({
-    queryKey: ['user-balance', workshopId, user?.id],
+    queryKey: ['user-global-balance', user?.id],
     queryFn: async () => {
       if (!user) return null;
 
-      // Get total spent (approved payments created by this user)
+      // Get total received from team_transfers (global, not per-workshop)
+      const { data: transfers } = await supabase
+        .from('team_transfers')
+        .select('amount')
+        .eq('user_id', user.id);
+      
+      const totalReceived = transfers?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
+      // Get total spent (approved payments created by this user across ALL workshops)
       const { data: payments } = await supabase
         .from('payments')
         .select('amount')
-        .eq('workshop_id', workshopId)
         .eq('created_by', user.id)
         .eq('status', 'approved');
       
       const totalSpent = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-      // Get total received (transfers to this user)
-      const { data: transfers } = await supabase
-        .from('user_transfers')
-        .select('amount')
-        .eq('workshop_id', workshopId)
-        .eq('user_id', user.id);
-      
-      const totalReceived = transfers?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
 
       return {
         spent: totalSpent,
@@ -42,7 +36,7 @@ export default function UserBalanceCard({ workshopId }: UserBalanceCardProps) {
         balance: totalReceived - totalSpent,
       };
     },
-    enabled: !!workshopId && !!user && role !== 'admin',
+    enabled: !!user && role !== 'admin',
   });
 
   // Don't show for admins
@@ -59,7 +53,7 @@ export default function UserBalanceCard({ workshopId }: UserBalanceCardProps) {
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <Wallet className="w-5 h-5" />
-          Your Balance
+          Your Global Balance
         </CardTitle>
       </CardHeader>
       <CardContent>
