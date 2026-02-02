@@ -85,12 +85,19 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
 
   // Fetch previous payees for autocomplete
   const { data: previousPayees = [] } = useQuery({
-    queryKey: ['previous-payees'],
+    queryKey: ['previous-payees', user?.id, role],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('payments')
         .select('paid_to')
         .order('created_at', { ascending: false });
+      
+      // For non-admins, only show payees from their own payments
+      if (role !== 'admin' && user?.id) {
+        query = query.eq('created_by', user.id);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       
@@ -98,6 +105,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
       const uniquePayees = [...new Set(data.map(p => p.paid_to))];
       return uniquePayees;
     },
+    enabled: !!user,
   });
 
   useEffect(() => {
