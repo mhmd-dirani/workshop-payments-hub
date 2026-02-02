@@ -67,10 +67,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     
     let filtered = payments;
     
-    // For non-admins: only show approved payments OR their own payments
+    // For non-admins: only show their OWN payments (not others')
+    // Also hide rejected payments from non-admins
     if (role !== 'admin' && user) {
       filtered = filtered.filter(p => 
-        p.status === 'approved' || p.created_by === user.id
+        p.created_by === user.id && p.status !== 'rejected'
       );
     }
     
