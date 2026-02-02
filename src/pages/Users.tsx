@@ -31,7 +31,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { UserPlus, Loader2, Shield, User } from 'lucide-react';
+import { UserPlus, Loader2, Shield, User, FolderOpen } from 'lucide-react';
+import WorkshopAssignments from '@/components/WorkshopAssignments';
 
 interface UserRole {
   role: string;
@@ -50,6 +51,7 @@ export default function Users() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -71,6 +73,24 @@ export default function Users() {
         ...profile,
         user_roles: roles.filter(r => r.user_id === profile.user_id).map(r => ({ role: r.role }))
       })) as ProfileWithRoles[];
+    },
+  });
+
+  // Fetch workshop assignment counts per user
+  const { data: assignmentCounts } = useQuery({
+    queryKey: ['workshop-assignment-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workshop_assignments')
+        .select('user_id');
+      if (error) throw error;
+      
+      // Count assignments per user
+      const counts: Record<string, number> = {};
+      data.forEach(a => {
+        counts[a.user_id] = (counts[a.user_id] || 0) + 1;
+      });
+      return counts;
     },
   });
 
@@ -130,6 +150,16 @@ export default function Users() {
     );
   };
 
+  const getWorkshopCount = (userId: string, role: string) => {
+    if (role === 'admin') {
+      return <span className="text-muted-foreground">All (Admin)</span>;
+    }
+    const count = assignmentCounts?.[userId] || 0;
+    return count === 0 
+      ? <span className="text-destructive">None</span>
+      : <span>{count} workshop{count !== 1 ? 's' : ''}</span>;
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -137,7 +167,7 @@ export default function Users() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
             <p className="text-muted-foreground">
-              Manage user roles and permissions
+              Manage user roles and workshop access
             </p>
           </div>
           
@@ -176,7 +206,7 @@ export default function Users() {
           <CardHeader>
             <CardTitle>All Users</CardTitle>
             <CardDescription>
-              Click on a role to change it
+              Manage roles and workshop access for each user
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -194,47 +224,80 @@ export default function Users() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Workshops</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.full_name || 'No name set'}
-                      </TableCell>
-                      <TableCell>
-                        {getRoleBadge(user.user_roles)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(user.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Select
-                          defaultValue={user.user_roles?.[0]?.role || 'user'}
-                          onValueChange={(value) => updateRole.mutate({ 
-                            userId: user.user_id, 
-                            role: value as 'admin' | 'user' 
-                          })}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {users.map((user) => {
+                    const userRole = user.user_roles?.[0]?.role || 'user';
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.full_name || 'No name set'}
+                        </TableCell>
+                        <TableCell>
+                          {getRoleBadge(user.user_roles)}
+                        </TableCell>
+                        <TableCell>
+                          {getWorkshopCount(user.user_id, userRole)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(user.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {userRole !== 'admin' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => setAssignmentUser({ 
+                                  id: user.user_id, 
+                                  name: user.full_name || 'User' 
+                                })}
+                              >
+                                <FolderOpen className="w-3 h-3" />
+                                Workshops
+                              </Button>
+                            )}
+                            <Select
+                              defaultValue={userRole}
+                              onValueChange={(value) => updateRole.mutate({ 
+                                userId: user.user_id, 
+                                role: value as 'admin' | 'user' 
+                              })}
+                            >
+                              <SelectTrigger className="w-28">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Workshop Assignments Dialog */}
+      {assignmentUser && (
+        <WorkshopAssignments
+          userId={assignmentUser.id}
+          userName={assignmentUser.name}
+          open={!!assignmentUser}
+          onOpenChange={(open) => !open && setAssignmentUser(null)}
+        />
+      )}
     </Layout>
   );
 }
