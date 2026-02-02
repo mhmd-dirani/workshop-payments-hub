@@ -197,17 +197,17 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
       {/* Search Total Card */}
       {searchTerm.trim() && searchTotal !== null && (
-        <Card className="bg-destructive/5 border-destructive/20">
+        <Card className="bg-primary/5 border-primary/20">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <DollarSign className="w-5 h-5 text-destructive" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <DollarSign className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-primary font-medium">
                   Total paid to "{searchTerm}" (approved only)
                 </p>
-                <p className="text-xl font-bold font-mono text-destructive">
+                <p className="text-xl font-bold font-mono text-primary">
                   -{searchTotal.toLocaleString('fr-FR')} CFA
                 </p>
               </div>
@@ -237,7 +237,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                 </TableCell>
                 <TableCell className="font-medium">{payment.paid_to}</TableCell>
                 <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
-                <TableCell className="text-right font-mono font-medium text-destructive">
+                <TableCell className="text-right font-mono font-medium text-primary">
                   -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                 </TableCell>
                 <TableCell>{getStatusBadge(payment.status)}</TableCell>

@@ -25,19 +25,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
-// Validation schema for payment form
-const paymentSchema = z.object({
+// Validation schema for payment form (reason optional for team member payments)
+const createPaymentSchema = (isTeamMemberPayment: boolean) => z.object({
   paid_to: z.string()
     .trim()
     .min(1, 'Paid to is required')
     .max(200, 'Paid to must be less than 200 characters'),
-  reason: z.string()
-    .trim()
-    .min(1, 'Reason is required')
-    .max(1000, 'Reason must be less than 1000 characters'),
+  reason: isTeamMemberPayment 
+    ? z.string().max(1000, 'Reason must be less than 1000 characters').optional()
+    : z.string()
+        .trim()
+        .min(1, 'Reason is required')
+        .max(1000, 'Reason must be less than 1000 characters'),
   amount: z.number()
-    .min(0.01, 'Amount must be greater than 0')
-    .max(100000000, 'Amount must be less than 100,000,000'),
+    .min(0.01, 'Amount must be greater than 0'),
   payment_date: z.string()
     .min(1, 'Date is required')
     .refine((date) => {
@@ -197,7 +198,8 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form data with Zod schema
+    // Validate form data with Zod schema (reason optional for team member)
+    const paymentSchema = createPaymentSchema(payToUserMode);
     const result = paymentSchema.safeParse(formData);
     if (!result.success) {
       const firstError = result.error.errors[0];
@@ -284,15 +286,18 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             )}
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="reason">Reason *</Label>
-            <Textarea
-              id="reason"
-              placeholder="What was this payment for?"
-              value={formData.reason}
-              onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-            />
-          </div>
+          {/* Only show reason field for external payments */}
+          {!payToUserMode && (
+            <div className="space-y-2">
+              <Label htmlFor="reason">Reason *</Label>
+              <Textarea
+                id="reason"
+                placeholder="What was this payment for?"
+                value={formData.reason}
+                onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+              />
+            </div>
+          )}
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

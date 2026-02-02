@@ -20,8 +20,7 @@ import { z } from 'zod';
 
 const incomeSchema = z.object({
   amount: z.number()
-    .min(0.01, 'Amount must be greater than 0')
-    .max(100000000, 'Amount must be less than 100,000,000'),
+    .min(0.01, 'Amount must be greater than 0'),
   income_date: z.string()
     .min(1, 'Date is required')
     .refine((date) => {
