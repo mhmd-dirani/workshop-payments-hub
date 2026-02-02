@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,11 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Loader2, Trash2, Edit, Plus, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
@@ -182,15 +177,18 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                   const isExpanded = expandedDebt === debt.id;
 
                   return (
-                    <Collapsible key={debt.id} open={isExpanded} onOpenChange={() => setExpandedDebt(isExpanded ? null : debt.id)}>
+                    <Fragment key={debt.id}>
                       <TableRow>
                         <TableCell className="w-10 p-2">
                           {debtPayments.length > 0 && (
-                            <CollapsibleTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                              </Button>
-                            </CollapsibleTrigger>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6"
+                              onClick={() => setExpandedDebt(isExpanded ? null : debt.id)}
+                            >
+                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell className="font-medium">
@@ -252,51 +250,49 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                           </div>
                         </TableCell>
                       </TableRow>
-                      {debtPayments.length > 0 && (
-                        <CollapsibleContent asChild>
-                          <TableRow className="bg-muted/30">
-                            <TableCell colSpan={7} className="p-0">
-                              <div className="p-4">
-                                <p className="text-sm font-medium mb-2">Repayment History</p>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Date</TableHead>
-                                      <TableHead>Amount</TableHead>
-                                      <TableHead>Note</TableHead>
-                                      <TableHead className="w-10"></TableHead>
+                      {isExpanded && debtPayments.length > 0 && (
+                        <TableRow className="bg-muted/30">
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="p-4">
+                              <p className="text-sm font-medium mb-2">Repayment History</p>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Note</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {debtPayments.map((payment) => (
+                                    <TableRow key={payment.id}>
+                                      <TableCell>{format(new Date(payment.payment_date), 'dd/MM/yyyy')}</TableCell>
+                                      <TableCell className="font-mono text-success">
+                                        +{Number(payment.amount).toLocaleString('fr-FR')} CFA
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">
+                                        {payment.description || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => deletePayment.mutate(payment.id)}
+                                          className="h-6 w-6 text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
                                     </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {debtPayments.map((payment) => (
-                                      <TableRow key={payment.id}>
-                                        <TableCell>{format(new Date(payment.payment_date), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="font-mono text-success">
-                                          +{Number(payment.amount).toLocaleString('fr-FR')} CFA
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                          {payment.description || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => deletePayment.mutate(payment.id)}
-                                            className="h-6 w-6 text-destructive hover:text-destructive"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </CollapsibleContent>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </Collapsible>
+                    </Fragment>
                   );
                 })}
               </TableBody>
