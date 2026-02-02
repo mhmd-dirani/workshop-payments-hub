@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Wallet } from 'lucide-react';
+import LanguageSelector from '@/components/LanguageSelector';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
@@ -15,14 +17,21 @@ export default function Auth() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
+
+  // Set document direction on mount
+  useEffect(() => {
+    document.documentElement.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
       toast({
-        title: 'Error',
-        description: 'Please enter your email and password',
+        title: t('errors.error'),
+        description: t('validation.required'),
         variant: 'destructive',
       });
       return;
@@ -34,14 +43,14 @@ export default function Auth() {
 
     if (error) {
       toast({
-        title: 'Sign in failed',
-        description: error.message || 'Invalid email or password',
+        title: t('errors.error'),
+        description: t('auth.invalidCredentials'),
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Welcome back!',
-        description: 'You have successfully signed in',
+        title: t('auth.welcomeBack'),
+        description: t('auth.signInDescription'),
       });
       navigate('/');
     }
@@ -51,15 +60,20 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="absolute inset-0 gradient-surface opacity-50" />
       
+      {/* Language selector in top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSelector />
+      </div>
+      
       <Card className="w-full max-w-md relative shadow-elevated animate-fade-in">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
             <Wallet className="w-8 h-8 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Workshop Payments</CardTitle>
+            <CardTitle className="text-2xl font-bold">{t('auth.welcomeBack')}</CardTitle>
             <CardDescription className="mt-2">
-              Sign in to manage workshop payment records
+              {t('auth.signInDescription')}
             </CardDescription>
           </div>
         </CardHeader>
@@ -67,11 +81,11 @@ export default function Auth() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t('auth.email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
@@ -80,11 +94,11 @@ export default function Auth() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder={t('auth.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -100,17 +114,13 @@ export default function Auth() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  {t('common.loading')}
                 </>
               ) : (
-                'Sign In'
+                t('auth.signIn')
               )}
             </Button>
           </form>
-          
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Contact your administrator for account access
-          </p>
         </CardContent>
       </Card>
     </div>
