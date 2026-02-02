@@ -162,20 +162,22 @@ export default function Users() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
-            <p className="text-muted-foreground">
-              Manage user roles and workshop access
+      <div className="space-y-4 md:space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">User Management</h2>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
+              Manage user roles and access
             </p>
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 gradient-primary text-primary-foreground">
-                <UserPlus className="w-4 h-4" />
-                Add User
+              <Button size="sm" className="gap-1.5 md:gap-2 gradient-primary text-primary-foreground shrink-0">
+                <UserPlus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">Add User</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -203,13 +205,13 @@ export default function Users() {
         </div>
 
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>All Users</CardTitle>
-            <CardDescription>
-              Manage roles and workshop access for each user
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-base md:text-lg">All Users</CardTitle>
+            <CardDescription className="text-xs md:text-sm">
+              Manage roles and workshop access
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 md:px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -219,47 +221,43 @@ export default function Users() {
                 <p>No users found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Workshops</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-2">
                   {users.map((user) => {
                     const userRole = user.user_roles?.[0]?.role || 'user';
                     return (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.full_name || 'No name set'}
-                        </TableCell>
-                        <TableCell>
+                      <div key={user.id} className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">
+                              {user.full_name || 'No name set'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Joined {format(new Date(user.created_at), 'MMM d, yyyy')}
+                            </p>
+                          </div>
                           {getRoleBadge(user.user_roles)}
-                        </TableCell>
-                        <TableCell>
-                          {getWorkshopCount(user.user_id, userRole)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(user.created_at), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="text-xs text-muted-foreground">
+                            <FolderOpen className="w-3 h-3 inline mr-1" />
+                            {getWorkshopCount(user.user_id, userRole)}
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             {userRole !== 'admin' && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-1"
+                                className="h-7 text-xs px-2"
                                 onClick={() => setAssignmentUser({ 
                                   id: user.user_id, 
                                   name: user.full_name || 'User' 
                                 })}
                               >
-                                <FolderOpen className="w-3 h-3" />
-                                Workshops
+                                <FolderOpen className="w-3 h-3 mr-1" />
+                                Assign
                               </Button>
                             )}
                             <Select
@@ -269,7 +267,7 @@ export default function Users() {
                                 role: value as 'admin' | 'user' 
                               })}
                             >
-                              <SelectTrigger className="w-28">
+                              <SelectTrigger className="w-20 h-7 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -278,26 +276,85 @@ export default function Users() {
                               </SelectContent>
                             </Select>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                      </div>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Workshops</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => {
+                        const userRole = user.user_roles?.[0]?.role || 'user';
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">
+                              {user.full_name || 'No name set'}
+                            </TableCell>
+                            <TableCell>
+                              {getRoleBadge(user.user_roles)}
+                            </TableCell>
+                            <TableCell>
+                              {getWorkshopCount(user.user_id, userRole)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {format(new Date(user.created_at), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {userRole !== 'admin' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => setAssignmentUser({ 
+                                      id: user.user_id, 
+                                      name: user.full_name || 'User' 
+                                    })}
+                                  >
+                                    <FolderOpen className="w-3 h-3" />
+                                    Workshops
+                                  </Button>
+                                )}
+                                <Select
+                                  defaultValue={userRole}
+                                  onValueChange={(value) => updateRole.mutate({ 
+                                    userId: user.user_id, 
+                                    role: value as 'admin' | 'user' 
+                                  })}
+                                >
+                                  <SelectTrigger className="w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="user">User</SelectItem>
+                                    <SelectItem value="admin">Admin</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Workshop Assignments Dialog */}
-      {assignmentUser && (
-        <WorkshopAssignments
-          userId={assignmentUser.id}
-          userName={assignmentUser.name}
-          open={!!assignmentUser}
-          onOpenChange={(open) => !open && setAssignmentUser(null)}
-        />
-      )}
     </Layout>
   );
 }
