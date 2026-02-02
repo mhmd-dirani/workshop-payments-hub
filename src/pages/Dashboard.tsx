@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
-
+  const [wealthRevealed, setWealthRevealed] = useState(false);
   // Fetch global wealth stats for admin (all workshops combined + debts)
   const { data: globalStats } = useQuery({
     queryKey: ['global-wealth-stats'],
@@ -162,7 +162,10 @@ export default function Dashboard() {
 
         {/* Global Wealth Stats for Admin (always visible) */}
         {role === 'admin' && globalStats && (
-          <div className="grid grid-cols-3 gap-2 md:gap-4">
+          <div 
+            className="grid grid-cols-3 gap-2 md:gap-4 cursor-pointer select-none"
+            onClick={() => setWealthRevealed(!wealthRevealed)}
+          >
             <Card className="shadow-card border-primary/20">
               <CardContent className="p-2 md:pt-6 md:px-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
@@ -174,7 +177,7 @@ export default function Dashboard() {
                       <TrendingUp className="w-3 h-3 md:hidden" />
                       <p className="text-[10px] md:text-sm font-medium">Projects</p>
                     </div>
-                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.totalBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.totalBalance >= 0 ? 'text-primary' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.totalBalance >= 0 ? '+' : ''}{globalStats.totalBalance.toLocaleString('fr-FR')}
                     </p>
                   </div>
@@ -193,7 +196,7 @@ export default function Dashboard() {
                       <HandCoins className="w-3 h-3 md:hidden" />
                       <p className="text-[10px] md:text-sm font-medium">Net Debts</p>
                     </div>
-                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.netDebts >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.netDebts >= 0 ? 'text-success' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.netDebts >= 0 ? '+' : ''}{globalStats.netDebts.toLocaleString('fr-FR')}
                     </p>
                   </div>
@@ -212,7 +215,7 @@ export default function Dashboard() {
                       <Crown className="w-3 h-3 md:hidden" />
                       <p className="text-[10px] md:text-sm font-medium">Overall</p>
                     </div>
-                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.overallWealth >= 0 ? 'text-accent' : 'text-destructive'}`}>
+                    <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.overallWealth >= 0 ? 'text-accent' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.overallWealth >= 0 ? '+' : ''}{globalStats.overallWealth.toLocaleString('fr-FR')}
                     </p>
                   </div>
