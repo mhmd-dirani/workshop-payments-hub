@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,6 +13,7 @@ import {
   Users2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import LanguageSelector from '@/components/LanguageSelector';
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +21,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { user, role, signOut } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,12 +31,12 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
     ...(role === 'admin' ? [
-      { name: 'Pending Approvals', href: '/approvals', icon: ClipboardCheck },
-      { name: 'Team', href: '/team', icon: Users2 },
-      { name: 'Debts', href: '/debts', icon: HandCoins },
-      { name: 'Manage Users', href: '/users', icon: Settings },
+      { name: t('nav.pendingApprovals'), href: '/approvals', icon: ClipboardCheck },
+      { name: t('nav.team'), href: '/team', icon: Users2 },
+      { name: t('nav.debts'), href: '/debts', icon: HandCoins },
+      { name: t('nav.manageUsers'), href: '/users', icon: Settings },
     ] : []),
   ];
 
@@ -82,7 +85,8 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <LanguageSelector />
             <Button 
               variant="ghost" 
               size="sm" 
@@ -90,7 +94,7 @@ export default function Layout({ children }: LayoutProps) {
               className="gap-1 h-8 px-2 md:px-3"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
+              <span className="hidden sm:inline">{t('auth.signOut')}</span>
             </Button>
           </div>
         </div>
