@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -5,6 +6,16 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Check, X, Loader2, ClipboardCheck } from 'lucide-react';
@@ -13,11 +24,14 @@ export default function Approvals() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const { data: pendingPayments, isLoading } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: async () => {
-      // Fetch pending payments with workshops
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
@@ -28,15 +42,12 @@ export default function Approvals() {
         .order('created_at', { ascending: false });
       if (paymentsError) throw paymentsError;
       
-      // Fetch all profiles to join with payments
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, full_name');
       
-      // Create a lookup map
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
       
-      // Join the data
       return paymentsData.map(payment => ({
         ...payment,
         creator_name: profileMap.get(payment.created_by) || 'Unknown'
@@ -45,13 +56,22 @@ export default function Approvals() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ paymentId, status }: { paymentId: string; status: 'approved' | 'rejected' }) => {
+    mutationFn: async ({ 
+      paymentId, 
+      status, 
+      rejectionReason 
+    }: { 
+      paymentId: string; 
+      status: 'approved' | 'rejected';
+      rejectionReason?: string;
+    }) => {
       const { error } = await supabase
         .from('payments')
         .update({ 
           status, 
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
+          rejection_reason: status === 'rejected' ? rejectionReason || null : null,
         })
         .eq('id', paymentId);
       if (error) throw error;
@@ -59,10 +79,14 @@ export default function Approvals() {
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-payments'] });
       toast({
         title: status === 'approved' ? 'Payment Approved' : 'Payment Rejected',
         description: `The payment has been ${status}`,
       });
+      setRejectDialogOpen(false);
+      setSelectedPaymentId(null);
+      setRejectionReason('');
     },
     onError: (error: Error) => {
       toast({
@@ -72,6 +96,22 @@ export default function Approvals() {
       });
     },
   });
+
+  const handleRejectClick = (paymentId: string) => {
+    setSelectedPaymentId(paymentId);
+    setRejectionReason('');
+    setRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (selectedPaymentId) {
+      updateStatus.mutate({ 
+        paymentId: selectedPaymentId, 
+        status: 'rejected',
+        rejectionReason: rejectionReason.trim() || undefined
+      });
+    }
+  };
 
   return (
     <Layout>
@@ -137,7 +177,7 @@ export default function Approvals() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateStatus.mutate({ paymentId: payment.id, status: 'rejected' })}
+                        onClick={() => handleRejectClick(payment.id)}
                         disabled={updateStatus.isPending}
                         className="gap-2 text-destructive hover:text-destructive"
                       >
@@ -161,6 +201,48 @@ export default function Approvals() {
           </div>
         )}
       </div>
+
+      {/* Rejection Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject this payment? You can optionally provide a reason.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">Reason for rejection (optional)</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Enter the reason for rejecting this payment..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={updateStatus.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={updateStatus.isPending}
+              className="gap-2"
+            >
+              {updateStatus.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Reject Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

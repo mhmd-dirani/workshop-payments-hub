@@ -25,6 +25,7 @@ export type Database = {
           paid_to: string
           payment_date: string
           reason: string
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
           workshop_id: string
@@ -39,6 +40,7 @@ export type Database = {
           paid_to: string
           payment_date: string
           reason: string
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           workshop_id: string
@@ -53,6 +55,7 @@ export type Database = {
           paid_to?: string
           payment_date?: string
           reason?: string
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           workshop_id?: string
