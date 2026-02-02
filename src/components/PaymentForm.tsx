@@ -140,32 +140,35 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           .eq('id', payment.id);
         if (error) throw error;
       } else {
-        // Create new payment
-        const { error: paymentError } = await supabase
+        // Create new payment and get the ID back
+        const { data: newPayment, error: paymentError } = await supabase
           .from('payments')
           .insert([{
             workshop_id: workshopId,
             paid_to: data.paid_to,
-            reason: data.reason,
+            reason: data.reason || '',
             amount: data.amount,
             payment_date: data.payment_date,
             created_by: user?.id,
             // Admin payments are auto-approved
             status: role === 'admin' ? 'approved' : 'pending',
-          }]);
+          }])
+          .select('id')
+          .single();
         if (paymentError) throw paymentError;
 
-        // If admin is paying a user, also create a transfer record
-        if (role === 'admin' && payToUserMode && data.paid_to_user_id) {
+        // If admin is paying a user, also create a transfer record linked to the payment
+        if (role === 'admin' && payToUserMode && data.paid_to_user_id && newPayment) {
           const { error: transferError } = await supabase
             .from('user_transfers')
             .insert([{
               workshop_id: workshopId,
               user_id: data.paid_to_user_id,
               amount: data.amount,
-              description: data.reason,
+              description: data.reason || null,
               transfer_date: data.payment_date,
               created_by: user?.id,
+              payment_id: newPayment.id, // Link to payment for cascade delete
             }]);
           if (transferError) throw transferError;
         }

@@ -163,6 +163,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          payment_id: string | null
           transfer_date: string
           user_id: string
           workshop_id: string
@@ -173,6 +174,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           transfer_date: string
           user_id: string
           workshop_id: string
@@ -183,11 +185,19 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           transfer_date?: string
           user_id?: string
           workshop_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_transfers_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_transfers_workshop_id_fkey"
             columns: ["workshop_id"]

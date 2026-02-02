@@ -117,11 +117,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card (for non-admins) */}
-        {selectedWorkshop && <UserBalanceCard workshopId={selectedWorkshop} />}
+        {/* User Balance Card (for non-admins only - replaces the stats cards) */}
+        {selectedWorkshop && role !== 'admin' && <UserBalanceCard workshopId={selectedWorkshop} />}
 
-        {/* Stats Cards - 3 totals */}
-        {selectedWorkshop && stats && (
+        {/* Stats Cards - 3 totals (admin only) */}
+        {selectedWorkshop && stats && role === 'admin' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="shadow-card border-success/20">
               <CardContent className="pt-6">
@@ -139,15 +139,15 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             
-            <Card className="shadow-card border-primary/20">
+            <Card className="shadow-card border-destructive/20">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10">
-                    <ArrowUpCircle className="w-6 h-6 text-primary" />
+                  <div className="p-3 rounded-xl bg-destructive/10">
+                    <ArrowUpCircle className="w-6 h-6 text-destructive" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-primary">Total Paid</p>
-                    <p className="text-2xl font-bold font-mono text-primary">
+                    <p className="text-sm font-medium text-destructive">Total Paid</p>
+                    <p className="text-2xl font-bold font-mono text-destructive">
                       -{stats.totalPaid.toLocaleString('fr-FR')} CFA
                     </p>
                   </div>
@@ -155,15 +155,15 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             
-            <Card className="shadow-card">
+            <Card className="shadow-card border-primary/20">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${stats.balance >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                    <Wallet className={`w-6 h-6 ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`} />
+                  <div className="p-3 rounded-xl bg-primary/10">
+                    <Wallet className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className={`text-sm font-medium ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`}>Balance</p>
-                    <p className={`text-2xl font-bold font-mono ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    <p className="text-sm font-medium text-primary">Balance</p>
+                    <p className="text-2xl font-bold font-mono text-primary">
                       {stats.balance >= 0 ? '+' : ''}{stats.balance.toLocaleString('fr-FR')} CFA
                     </p>
                   </div>
