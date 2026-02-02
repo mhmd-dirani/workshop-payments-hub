@@ -143,10 +143,13 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.paid_to.trim() || !formData.reason.trim() || formData.amount <= 0) {
+    // Validate form data with Zod schema
+    const result = paymentSchema.safeParse(formData);
+    if (!result.success) {
+      const firstError = result.error.errors[0];
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields',
+        description: firstError.message,
         variant: 'destructive',
       });
       return;
