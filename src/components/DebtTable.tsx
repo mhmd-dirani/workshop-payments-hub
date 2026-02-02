@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Trash2, Edit, Plus, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
+import { Loader2, Trash2, Edit, Plus, ChevronDown, ChevronRight, CheckCircle, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface DebtTableProps {
   debtType: 'i_owe' | 'they_owe';
@@ -26,6 +27,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedDebt, setExpandedDebt] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { data: debts, isLoading } = useQuery({
     queryKey: ['debts', debtType],
@@ -137,19 +139,56 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
     );
   }
 
-  const activeDebts = debts?.filter(d => !d.is_settled) || [];
+  const allActiveDebts = debts?.filter(d => !d.is_settled) || [];
   const settledDebts = debts?.filter(d => d.is_settled) || [];
+  
+  // Filter by search term
+  const activeDebts = searchTerm.trim()
+    ? allActiveDebts.filter(d => 
+        d.person_name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : allActiveDebts;
+  
+  // Calculate filtered total
+  const filteredTotal = activeDebts.reduce((sum, d) => {
+    const remaining = getRemaining(d);
+    return sum + remaining;
+  }, 0);
 
   return (
     <div className="space-y-4">
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg">
-            {debtType === 'they_owe' ? 'People Who Owe Me' : 'People I Owe'}
-          </CardTitle>
-          <CardDescription>
-            {activeDebts.length} active debt{activeDebts.length !== 1 ? 's' : ''}
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg">
+                {debtType === 'they_owe' ? 'People Who Owe Me' : 'People I Owe'}
+              </CardTitle>
+              <CardDescription>
+                {activeDebts.length} active debt{activeDebts.length !== 1 ? 's' : ''}
+                {searchTerm && ` matching "${searchTerm}"`}
+              </CardDescription>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+          {searchTerm && activeDebts.length > 0 && (
+            <div className="mt-3 p-3 rounded-lg bg-muted/50">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Total remaining from filtered results: </span>
+                <span className={`font-mono font-bold ${debtType === 'they_owe' ? 'text-success' : 'text-destructive'}`}>
+                  {debtType === 'they_owe' ? '+' : '-'}{filteredTotal.toLocaleString('fr-FR')} CFA
+                </span>
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {activeDebts.length === 0 ? (
