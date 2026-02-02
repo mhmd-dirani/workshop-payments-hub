@@ -103,7 +103,7 @@ export default function Approvals() {
                       <div>
                         <span className="text-muted-foreground">Amount:</span>{' '}
                         <span className="font-mono font-medium">
-                          ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {Number(payment.amount).toLocaleString('fr-FR')} CFA
                         </span>
                       </div>
                       <div>

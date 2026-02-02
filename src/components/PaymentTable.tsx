@@ -145,7 +145,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
               <TableCell className="font-medium">{payment.paid_to}</TableCell>
               <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
               <TableCell className="text-right font-mono font-medium">
-                ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {Number(payment.amount).toLocaleString('fr-FR')} CFA
               </TableCell>
               <TableCell>{getStatusBadge(payment.status)}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
