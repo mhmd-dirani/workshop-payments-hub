@@ -454,6 +454,16 @@ export default function Users() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Workshop Assignments Dialog */}
+      {assignmentUser && (
+        <WorkshopAssignments
+          userId={assignmentUser.id}
+          userName={assignmentUser.name}
+          open={!!assignmentUser}
+          onOpenChange={(open) => !open && setAssignmentUser(null)}
+        />
+      )}
     </Layout>
   );
 }
