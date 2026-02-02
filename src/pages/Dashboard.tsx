@@ -6,6 +6,7 @@ import Layout from '@/components/Layout';
 import WorkshopSelector from '@/components/WorkshopSelector';
 import PaymentTable from '@/components/PaymentTable';
 import PaymentForm from '@/components/PaymentForm';
+import RejectedPayments from '@/components/RejectedPayments';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, DollarSign, Clock, CheckCircle } from 'lucide-react';
@@ -137,7 +138,10 @@ export default function Dashboard() {
 
         {/* Payment Table */}
         {selectedWorkshop ? (
-          <PaymentTable workshopId={selectedWorkshop} onEdit={handleEdit} />
+          <>
+            <PaymentTable workshopId={selectedWorkshop} onEdit={handleEdit} />
+            <RejectedPayments workshopId={selectedWorkshop} />
+          </>
         ) : (
           <Card className="shadow-card">
             <CardContent className="py-12 text-center text-muted-foreground">
