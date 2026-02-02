@@ -30,7 +30,7 @@ const paymentSchema = z.object({
     .max(1000, 'Reason must be less than 1000 characters'),
   amount: z.number()
     .min(0.01, 'Amount must be greater than 0')
-    .max(10000000, 'Amount must be less than 10,000,000'),
+    .max(100000000, 'Amount must be less than 100,000,000'),
   payment_date: z.string()
     .min(1, 'Date is required')
     .refine((date) => {
