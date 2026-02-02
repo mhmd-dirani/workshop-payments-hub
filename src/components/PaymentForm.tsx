@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
@@ -48,6 +55,7 @@ interface Payment {
   amount: number;
   payment_date: string;
   status?: string;
+  paid_to_user_id?: string | null;
 }
 
 interface PaymentFormProps {
@@ -67,6 +75,29 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     reason: '',
     amount: 0,
     payment_date: new Date().toISOString().split('T')[0],
+    paid_to_user_id: null,
+  });
+
+  const [payToUserMode, setPayToUserMode] = useState(false);
+
+  // Fetch users for admin to select as payment recipients
+  const { data: users } = useQuery({
+    queryKey: ['users-for-payment'],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      // Filter to only non-admin users
+      return profiles?.filter(p => roleMap.get(p.user_id) !== 'admin') || [];
+    },
+    enabled: role === 'admin' && open,
   });
 
   useEffect(() => {
@@ -76,14 +107,18 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         reason: payment.reason,
         amount: payment.amount,
         payment_date: payment.payment_date,
+        paid_to_user_id: payment.paid_to_user_id || null,
       });
+      setPayToUserMode(false);
     } else {
       setFormData({
         paid_to: '',
         reason: '',
         amount: 0,
         payment_date: new Date().toISOString().split('T')[0],
+        paid_to_user_id: null,
       });
+      setPayToUserMode(false);
     }
   }, [payment, open]);
 
@@ -104,8 +139,8 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           .eq('id', payment.id);
         if (error) throw error;
       } else {
-        // Create new
-        const { error } = await supabase
+        // Create new payment
+        const { error: paymentError } = await supabase
           .from('payments')
           .insert([{
             workshop_id: workshopId,
@@ -117,18 +152,37 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             // Admin payments are auto-approved
             status: role === 'admin' ? 'approved' : 'pending',
           }]);
-        if (error) throw error;
+        if (paymentError) throw paymentError;
+
+        // If admin is paying a user, also create a transfer record
+        if (role === 'admin' && payToUserMode && data.paid_to_user_id) {
+          const { error: transferError } = await supabase
+            .from('user_transfers')
+            .insert([{
+              workshop_id: workshopId,
+              user_id: data.paid_to_user_id,
+              amount: data.amount,
+              description: data.reason,
+              transfer_date: data.payment_date,
+              created_by: user?.id,
+            }]);
+          if (transferError) throw transferError;
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? 'Payment updated' : 'Payment added',
-        description: role === 'admin' 
-          ? 'The payment has been saved' 
-          : 'Your payment is pending admin approval',
+        description: payToUserMode 
+          ? 'Payment recorded and added to user balance'
+          : (role === 'admin' 
+            ? 'The payment has been saved' 
+            : 'Your payment is pending admin approval'),
       });
     },
     onError: (error: Error) => {
@@ -171,14 +225,63 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          {/* Admin user selection toggle */}
+          {role === 'admin' && !payment?.id && users && users.length > 0 && (
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <Select 
+                value={payToUserMode ? 'user' : 'external'} 
+                onValueChange={(v) => {
+                  setPayToUserMode(v === 'user');
+                  if (v === 'external') {
+                    setFormData(prev => ({ ...prev, paid_to_user_id: null, paid_to: '' }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="external">Pay External (company/person)</SelectItem>
+                  <SelectItem value="user">Pay Team Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="paid_to">Paid To *</Label>
-            <Input
-              id="paid_to"
-              placeholder="Name of person or company"
-              value={formData.paid_to}
-              onChange={(e) => setFormData(prev => ({ ...prev, paid_to: e.target.value }))}
-            />
+            {payToUserMode && role === 'admin' ? (
+              <Select 
+                value={formData.paid_to_user_id || ''} 
+                onValueChange={(userId) => {
+                  const selectedUser = users?.find(u => u.user_id === userId);
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    paid_to_user_id: userId,
+                    paid_to: selectedUser?.full_name || 'Team Member'
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users?.map(u => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.full_name || 'Unnamed User'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="paid_to"
+                placeholder="Name of person or company"
+                value={formData.paid_to}
+                onChange={(e) => setFormData(prev => ({ ...prev, paid_to: e.target.value }))}
+              />
+            )}
           </div>
           
           <div className="space-y-2">
