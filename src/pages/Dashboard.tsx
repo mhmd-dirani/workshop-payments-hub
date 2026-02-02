@@ -8,6 +8,7 @@ import PaymentTable from '@/components/PaymentTable';
 import PaymentForm from '@/components/PaymentForm';
 import IncomeForm from '@/components/IncomeForm';
 import IncomeTable from '@/components/IncomeTable';
+import UserIncomeTable from '@/components/UserIncomeTable';
 import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
 import { Button } from '@/components/ui/button';
@@ -129,7 +130,7 @@ export default function Dashboard() {
                     <ArrowDownCircle className="w-6 h-6 text-success" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Income</p>
+                    <p className="text-sm font-medium text-success">Total Income</p>
                     <p className="text-2xl font-bold font-mono text-success">
                       +{stats.totalIncome.toLocaleString('fr-FR')} CFA
                     </p>
@@ -138,15 +139,15 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             
-            <Card className="shadow-card border-destructive/20">
+            <Card className="shadow-card border-primary/20">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-destructive/10">
-                    <ArrowUpCircle className="w-6 h-6 text-destructive" />
+                  <div className="p-3 rounded-xl bg-primary/10">
+                    <ArrowUpCircle className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Paid</p>
-                    <p className="text-2xl font-bold font-mono text-destructive">
+                    <p className="text-sm font-medium text-primary">Total Paid</p>
+                    <p className="text-2xl font-bold font-mono text-primary">
                       -{stats.totalPaid.toLocaleString('fr-FR')} CFA
                     </p>
                   </div>
@@ -161,7 +162,7 @@ export default function Dashboard() {
                     <Wallet className={`w-6 h-6 ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`} />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Balance</p>
+                    <p className={`text-sm font-medium ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`}>Balance</p>
                     <p className={`text-2xl font-bold font-mono ${stats.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {stats.balance >= 0 ? '+' : ''}{stats.balance.toLocaleString('fr-FR')} CFA
                     </p>
@@ -175,6 +176,11 @@ export default function Dashboard() {
         {/* Income Table (admin only) */}
         {selectedWorkshop && role === 'admin' && (
           <IncomeTable workshopId={selectedWorkshop} />
+        )}
+
+        {/* User Income Table (transfers received - for non-admins) */}
+        {selectedWorkshop && role !== 'admin' && (
+          <UserIncomeTable workshopId={selectedWorkshop} />
         )}
 
         {/* Payment Table */}
