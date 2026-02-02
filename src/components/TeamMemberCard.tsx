@@ -24,41 +24,41 @@ export default function TeamMemberCard({ member, onClick, onAddMoney }: TeamMemb
       className="cursor-pointer hover:shadow-md transition-shadow border-border/50"
       onClick={onClick}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
+      <CardContent className="p-3 md:p-4">
+        <div className="flex items-start justify-between mb-2 md:mb-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">
+              <h3 className="font-semibold text-foreground text-sm md:text-base">
                 {member.full_name || 'Unnamed User'}
               </h3>
-              <p className="text-xs text-muted-foreground">Team Member</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Team Member</p>
             </div>
           </div>
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 w-8 p-0"
+            className="h-7 w-7 md:h-8 md:w-8 p-0"
             onClick={(e) => {
               e.stopPropagation();
               onAddMoney();
             }}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </Button>
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
           <div className="flex items-center gap-1 text-muted-foreground">
-            <Wallet className="w-4 h-4" />
-            <span className="text-xs">Balance</span>
+            <Wallet className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="text-[10px] md:text-xs">Balance</span>
           </div>
-          <span className={`font-mono font-bold ${
+          <span className={`font-mono font-bold text-sm md:text-base ${
             isNegative ? 'text-destructive' : 'text-success'
           }`}>
-            {member.balance >= 0 ? '+' : ''}{member.balance.toLocaleString('fr-FR')} CFA
+            {member.balance >= 0 ? '+' : ''}{member.balance.toLocaleString('fr-FR')}
           </span>
         </div>
       </CardContent>
