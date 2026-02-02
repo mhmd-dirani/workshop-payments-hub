@@ -68,8 +68,8 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     // Hide rejected payments from dashboard for everyone
     let filtered = payments.filter(p => p.status !== 'rejected');
     
-    // For non-admins: only show their OWN payments
-    if (role !== 'admin' && user) {
+    // Admins and co_admins can see all payments, regular users only see their own
+    if (role !== 'admin' && role !== 'co_admin' && user) {
       filtered = filtered.filter(p => p.created_by === user.id);
     }
     
@@ -163,11 +163,15 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const canEdit = (payment: any) => {
     if (role === 'admin') return true;
+    // Co-admins cannot edit any payments
+    if (role === 'co_admin') return false;
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
   const canDelete = (payment: any) => {
     if (role === 'admin') return true;
+    // Co-admins cannot delete any payments
+    if (role === 'co_admin') return false;
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
