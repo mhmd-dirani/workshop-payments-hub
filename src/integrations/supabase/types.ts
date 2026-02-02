@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      debt_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          debt_id: string
+          description: string | null
+          id: string
+          payment_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          debt_id: string
+          description?: string | null
+          id?: string
+          payment_date: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          debt_id?: string
+          description?: string | null
+          id?: string
+          payment_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_payments_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debts: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          debt_date: string
+          debt_type: string
+          description: string | null
+          id: string
+          is_settled: boolean
+          person_name: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          debt_date: string
+          debt_type: string
+          description?: string | null
+          id?: string
+          is_settled?: boolean
+          person_name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          debt_date?: string
+          debt_type?: string
+          description?: string | null
+          id?: string
+          is_settled?: boolean
+          person_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       income: {
         Row: {
           amount: number
