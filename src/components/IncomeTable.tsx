@@ -81,14 +81,46 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
 
   return (
     <Card className="shadow-card border-success/20">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2 text-success">
-          <TrendingUp className="w-5 h-5" />
+      <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
+        <CardTitle className="text-base md:text-lg flex items-center gap-2 text-success">
+          <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
           Income Records
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="rounded-lg border overflow-hidden">
+      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-2">
+          {incomeRecords.map((income) => (
+            <div key={income.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5 border-success/20">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground truncate">
+                  {income.description || 'No description'}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {format(new Date(income.income_date), 'MMM d, yyyy')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 ml-2">
+                <span className="font-mono font-bold text-sm text-success">
+                  +{Number(income.amount).toLocaleString('fr-FR')}
+                </span>
+                {role === 'admin' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteIncome.mutate(income.id)}
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-success/5">
