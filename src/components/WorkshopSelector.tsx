@@ -38,13 +38,17 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
   const [newWorkshop, setNewWorkshop] = useState({ name: '', description: '' });
 
   const { data: workshops, isLoading } = useQuery({
-    queryKey: ['workshops'],
+    queryKey: ['workshops', role],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('workshops')
         .select('*')
         .order('name');
       if (error) throw error;
+      // Hide "Dettes" workshop from non-admin users
+      if (role !== 'admin') {
+        return data.filter(w => w.name.toLowerCase() !== 'dettes');
+      }
       return data;
     },
   });
