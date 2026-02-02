@@ -17,8 +17,14 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import { XCircle } from 'lucide-react';
+import { XCircle, MessageSquare } from 'lucide-react';
 
 interface RejectedPaymentsProps {
   workshopId: string;
@@ -39,7 +45,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
 
       if (paymentsError) throw paymentsError;
 
-      // Fetch profiles for creator names
+      // Fetch profiles for creator names and rejector names
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, full_name');
@@ -48,7 +54,8 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
 
       return paymentsData.map(payment => ({
         ...payment,
-        creator_name: profileMap.get(payment.created_by) || 'Unknown'
+        creator_name: profileMap.get(payment.created_by) || 'Unknown',
+        rejector_name: payment.approved_by ? profileMap.get(payment.approved_by) || 'Unknown' : null
       }));
     },
     enabled: !!workshopId,
@@ -92,7 +99,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                   <TableHead>Paid To</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Rejected By</TableHead>
                   <TableHead>Added By</TableHead>
                 </TableRow>
               </TableHeader>
@@ -108,10 +115,22 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                       {Number(payment.amount).toLocaleString('fr-FR')} CFA
                     </TableCell>
                     <TableCell>
-                      <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
-                        <XCircle className="w-3 h-3" />
-                        Rejected
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{payment.rejector_name || 'Unknown'}</span>
+                        {payment.rejection_reason && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <MessageSquare className="w-4 h-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="font-medium text-xs mb-1">Rejection Reason:</p>
+                                <p className="text-xs">{payment.rejection_reason}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {payment.creator_name}
