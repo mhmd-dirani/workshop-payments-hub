@@ -65,14 +65,12 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
     
-    let filtered = payments;
+    // Hide rejected payments from dashboard for everyone
+    let filtered = payments.filter(p => p.status !== 'rejected');
     
-    // For non-admins: only show their OWN payments (not others')
-    // Also hide rejected payments from non-admins
+    // For non-admins: only show their OWN payments
     if (role !== 'admin' && user) {
-      filtered = filtered.filter(p => 
-        p.created_by === user.id && p.status !== 'rejected'
-      );
+      filtered = filtered.filter(p => p.created_by === user.id);
     }
     
     // Apply search filter
