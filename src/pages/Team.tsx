@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Plus, Search, Users2 } from 'lucide-react';
+import { ArrowLeft, Search, Users2, Wallet } from 'lucide-react';
 
 interface TeamMember {
   user_id: string;
@@ -27,6 +27,20 @@ export default function Team() {
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferToMember, setTransferToMember] = useState<TeamMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch total given to team
+  const { data: totalGiven } = useQuery({
+    queryKey: ['total-team-transfers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_transfers')
+        .select('amount');
+      
+      if (error) throw error;
+      return data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+    },
+    enabled: role === 'admin',
+  });
 
   // Fetch all team members (non-admin users) with their balances
   const { data: teamMembers, isLoading } = useQuery({
@@ -162,6 +176,23 @@ export default function Team() {
             </p>
           </div>
         </div>
+
+        {/* Total Given to Team */}
+        <Card className="shadow-card border-success/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-success/10">
+                <Wallet className="w-6 h-6 text-success" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-success">Total Given to Team</p>
+                <p className="text-2xl font-bold font-mono text-success">
+                  {totalGiven !== undefined ? `+${totalGiven.toLocaleString('fr-FR')} CFA` : '...'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="pb-3">
