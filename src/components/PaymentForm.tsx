@@ -16,6 +16,30 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { z } from 'zod';
+
+// Validation schema for payment form
+const paymentSchema = z.object({
+  paid_to: z.string()
+    .trim()
+    .min(1, 'Paid to is required')
+    .max(200, 'Paid to must be less than 200 characters'),
+  reason: z.string()
+    .trim()
+    .min(1, 'Reason is required')
+    .max(1000, 'Reason must be less than 1000 characters'),
+  amount: z.number()
+    .min(0.01, 'Amount must be greater than 0')
+    .max(10000000, 'Amount must be less than 10,000,000'),
+  payment_date: z.string()
+    .min(1, 'Date is required')
+    .refine((date) => {
+      const d = new Date(date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return d <= today;
+    }, 'Date cannot be in the future'),
+});
 
 interface Payment {
   id?: string;
