@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 import {
   Accordion,
   AccordionContent,
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -24,7 +26,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import { XCircle, MessageSquare } from 'lucide-react';
+import { XCircle, MessageSquare, Trash2 } from 'lucide-react';
 
 interface RejectedPaymentsProps {
   workshopId: string;
@@ -32,6 +34,8 @@ interface RejectedPaymentsProps {
 
 export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) {
   const { user, role } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: rejectedPayments, isLoading } = useQuery({
     queryKey: ['rejected-payments', workshopId],
@@ -59,6 +63,32 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
       }));
     },
     enabled: !!workshopId,
+  });
+
+  const deletePayment = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rejected-payments', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats', workshopId] });
+      toast({
+        title: 'Payment deleted',
+        description: 'The rejected payment has been removed',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
   });
 
   // Filter based on role - users only see their own rejected payments
@@ -101,6 +131,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Rejected By</TableHead>
                   <TableHead>Added By</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,6 +165,17 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {payment.creator_name}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deletePayment.mutate(payment.id)}
+                        disabled={deletePayment.isPending}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
