@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -31,8 +33,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { UserPlus, Loader2, Shield, User, FolderOpen } from 'lucide-react';
+import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff } from 'lucide-react';
 import WorkshopAssignments from '@/components/WorkshopAssignments';
+import { z } from 'zod';
+
+// Validation schema
+const createUserSchema = z.object({
+  full_name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
+  email: z.string().trim().email('Invalid email address').max(255, 'Email must be less than 255 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(72, 'Password must be less than 72 characters'),
+});
 
 interface UserRole {
   role: string;
@@ -52,6 +62,12 @@ export default function Users() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+  });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -93,6 +109,47 @@ export default function Users() {
       return counts;
     },
   });
+
+  const createUser = useMutation({
+    mutationFn: async (data: { full_name: string; email: string; password: string }) => {
+      const { data: response, error } = await supabase.functions.invoke('create-user', {
+        body: data,
+      });
+      
+      if (error) throw error;
+      if (response.error) throw new Error(response.error);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsDialogOpen(false);
+      setNewUserForm({ full_name: '', email: '', password: '' });
+      toast({
+        title: 'User Created',
+        description: 'The new user has been added successfully',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCreateUser = () => {
+    const result = createUserSchema.safeParse(newUserForm);
+    if (!result.success) {
+      toast({
+        title: 'Validation Error',
+        description: result.error.errors[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    createUser.mutate(newUserForm);
+  };
 
   const updateRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'user' }) => {
@@ -184,20 +241,62 @@ export default function Users() {
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>
                 <DialogDescription>
-                  To add a new user, have them sign up through the authentication page, then assign their role here.
+                  Create a new user account with name, email, and password
                 </DialogDescription>
               </DialogHeader>
-              <div className="py-4 text-sm text-muted-foreground">
-                <p className="mb-4">Steps to add a new user:</p>
-                <ol className="list-decimal list-inside space-y-2">
-                  <li>Share the app URL with the new user</li>
-                  <li>Create their account in the database (contact support)</li>
-                  <li>Come back here to assign their role</li>
-                </ol>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name *</Label>
+                  <Input
+                    id="full_name"
+                    placeholder="Enter full name"
+                    value={newUserForm.full_name}
+                    onChange={(e) => setNewUserForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter password (min 6 characters)"
+                      value={newUserForm.password}
+                      onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Close
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCreateUser}
+                  disabled={createUser.isPending}
+                  className="gradient-primary text-primary-foreground"
+                >
+                  {createUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create User
                 </Button>
               </DialogFooter>
             </DialogContent>
