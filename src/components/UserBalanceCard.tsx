@@ -65,11 +65,11 @@ export default function UserBalanceCard({ workshopId }: UserBalanceCardProps) {
       <CardContent>
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-primary mb-1">
+            <div className="flex items-center justify-center gap-1 text-destructive mb-1">
               <ArrowUpCircle className="w-4 h-4" />
               <span className="text-xs font-medium">Spent</span>
             </div>
-            <p className="text-lg font-bold font-mono text-primary">
+            <p className="text-lg font-bold font-mono text-destructive">
               -{balance.spent.toLocaleString('fr-FR')}
             </p>
           </div>
@@ -87,8 +87,8 @@ export default function UserBalanceCard({ workshopId }: UserBalanceCardProps) {
               <Wallet className="w-4 h-4" />
               <span className="text-xs font-medium">Balance</span>
             </div>
-            <p className={`text-lg font-bold font-mono ${balance.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {balance.balance.toLocaleString('fr-FR')}
+            <p className="text-lg font-bold font-mono text-primary">
+              {balance.balance >= 0 ? '+' : ''}{balance.balance.toLocaleString('fr-FR')}
             </p>
           </div>
         </div>
