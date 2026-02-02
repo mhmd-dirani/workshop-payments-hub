@@ -98,7 +98,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm text-muted-foreground">Total Approved</p>
                     <p className="text-2xl font-bold font-mono">
-                      ${stats.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {stats.total.toLocaleString('fr-FR')} CFA
                     </p>
                   </div>
                 </div>
