@@ -13,7 +13,7 @@ import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
+import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
 
 export default function Dashboard() {
   const { role } = useAuth();
@@ -21,6 +21,84 @@ export default function Dashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
+
+  // Fetch global wealth stats for admin (all workshops combined + debts)
+  const { data: globalStats } = useQuery({
+    queryKey: ['global-wealth-stats'],
+    queryFn: async () => {
+      // Get all workshops income
+      const { data: allIncome } = await supabase
+        .from('income')
+        .select('amount');
+      const totalIncome = allIncome?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
+
+      // Get all approved payments
+      const { data: allPayments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'approved');
+      const totalPaid = allPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+      // Total balance across all workshops
+      const totalBalance = totalIncome - totalPaid;
+
+      // Get debts - what others owe me (they_owe type)
+      const { data: theyOweDebts } = await supabase
+        .from('debts')
+        .select('amount, is_settled')
+        .eq('debt_type', 'they_owe')
+        .eq('is_settled', false);
+      
+      // Get debt payments for they_owe
+      const theyOweIds = theyOweDebts?.map(d => d) || [];
+      const { data: theyOwePayments } = await supabase
+        .from('debt_payments')
+        .select('amount, debt_id');
+      
+      // Calculate net they owe (original - payments made)
+      const { data: allTheyOweDebts } = await supabase
+        .from('debts')
+        .select('id, amount')
+        .eq('debt_type', 'they_owe')
+        .eq('is_settled', false);
+      
+      let theyOweTotal = 0;
+      allTheyOweDebts?.forEach(debt => {
+        const payments = theyOwePayments?.filter(p => p.debt_id === debt.id) || [];
+        const paidSoFar = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        theyOweTotal += Number(debt.amount) - paidSoFar;
+      });
+
+      // Get debts - what I owe others (i_owe type)
+      const { data: allIOweDebts } = await supabase
+        .from('debts')
+        .select('id, amount')
+        .eq('debt_type', 'i_owe')
+        .eq('is_settled', false);
+      
+      let iOweTotal = 0;
+      allIOweDebts?.forEach(debt => {
+        const payments = theyOwePayments?.filter(p => p.debt_id === debt.id) || [];
+        const paidSoFar = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        iOweTotal += Number(debt.amount) - paidSoFar;
+      });
+
+      // Net debts = what they owe me - what I owe them
+      const netDebts = theyOweTotal - iOweTotal;
+
+      // Overall wealth = total balance + net debts
+      const overallWealth = totalBalance + netDebts;
+
+      return {
+        totalBalance,
+        netDebts,
+        theyOweTotal,
+        iOweTotal,
+        overallWealth,
+      };
+    },
+    enabled: role === 'admin',
+  });
 
   const { data: stats } = useQuery({
     queryKey: ['workshop-stats', selectedWorkshop],
@@ -80,30 +158,93 @@ export default function Dashboard() {
                 : 'View and add your payment records'}
             </p>
           </div>
-          
-          {selectedWorkshop && (
-            <div className="flex gap-2">
-              {role === 'admin' && (
-                <Button 
-                  onClick={() => setIsIncomeFormOpen(true)} 
-                  size="sm"
-                  className="gap-1.5 bg-success text-success-foreground hover:bg-success/90 h-8 text-xs md:text-sm md:h-9"
-                >
-                  <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  <span className="hidden xs:inline">Add</span> Income
-                </Button>
-              )}
+        </div>
+
+        {/* Global Wealth Stats for Admin (always visible) */}
+        {role === 'admin' && globalStats && (
+          <div className="grid grid-cols-3 gap-2 md:gap-4">
+            <Card className="shadow-card border-primary/20">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-primary/10">
+                    <TrendingUp className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
+                      <TrendingUp className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Projects</p>
+                    </div>
+                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.totalBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {globalStats.totalBalance >= 0 ? '+' : ''}{globalStats.totalBalance.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-card border-warning/20">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-warning/10">
+                    <HandCoins className="w-6 h-6 text-warning" />
+                  </div>
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-warning">
+                      <HandCoins className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Net Debts</p>
+                    </div>
+                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.netDebts >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {globalStats.netDebts >= 0 ? '+' : ''}{globalStats.netDebts.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-card border-accent/20 bg-gradient-to-br from-accent/5 to-primary/5">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-accent/10">
+                    <Crown className="w-6 h-6 text-accent" />
+                  </div>
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-accent">
+                      <Crown className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Overall</p>
+                    </div>
+                    <p className={`text-sm md:text-2xl font-bold font-mono ${globalStats.overallWealth >= 0 ? 'text-accent' : 'text-destructive'}`}>
+                      {globalStats.overallWealth >= 0 ? '+' : ''}{globalStats.overallWealth.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        {selectedWorkshop && (
+          <div className="flex gap-2">
+            {role === 'admin' && (
               <Button 
-                onClick={() => setIsFormOpen(true)} 
+                onClick={() => setIsIncomeFormOpen(true)} 
                 size="sm"
-                className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-8 text-xs md:text-sm md:h-9"
+                className="gap-1.5 bg-success text-success-foreground hover:bg-success/90 h-8 text-xs md:text-sm md:h-9"
               >
                 <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="hidden xs:inline">Add</span> Payment
+                <span className="hidden xs:inline">Add</span> Income
               </Button>
-            </div>
-          )}
-        </div>
+            )}
+            <Button 
+              onClick={() => setIsFormOpen(true)} 
+              size="sm"
+              className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-8 text-xs md:text-sm md:h-9"
+            >
+              <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="hidden xs:inline">Add</span> Payment
+            </Button>
+          </div>
+        )}
 
         {/* Workshop Selector */}
         <Card className="shadow-card">
