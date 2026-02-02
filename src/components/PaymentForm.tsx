@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { z } from 'zod';
 
 // Validation schema for payment form
@@ -60,12 +74,30 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [paidToOpen, setPaidToOpen] = useState(false);
   
   const [formData, setFormData] = useState<Payment>({
     paid_to: '',
     reason: '',
     amount: 0,
     payment_date: new Date().toISOString().split('T')[0],
+  });
+
+  // Fetch previous payees for autocomplete
+  const { data: previousPayees = [] } = useQuery({
+    queryKey: ['previous-payees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('paid_to')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Get unique payees
+      const uniquePayees = [...new Set(data.map(p => p.paid_to))];
+      return uniquePayees;
+    },
   });
 
   useEffect(() => {
@@ -172,13 +204,56 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="paid_to">Paid To *</Label>
-            <Input
-              id="paid_to"
-              placeholder="Name of person or company"
-              value={formData.paid_to}
-              onChange={(e) => setFormData(prev => ({ ...prev, paid_to: e.target.value }))}
-            />
+            <Label>Paid To *</Label>
+            <Popover open={paidToOpen} onOpenChange={setPaidToOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={paidToOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {formData.paid_to || "Select or type a name..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="Search or add new..." 
+                    value={formData.paid_to}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      <div className="py-2 px-2 text-sm">
+                        Press enter or click outside to use "<span className="font-medium">{formData.paid_to}</span>"
+                      </div>
+                    </CommandEmpty>
+                    <CommandGroup heading="Previous Recipients">
+                      {previousPayees.map((payee) => (
+                        <CommandItem
+                          key={payee}
+                          value={payee}
+                          onSelect={(value) => {
+                            setFormData(prev => ({ ...prev, paid_to: value }));
+                            setPaidToOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.paid_to === payee ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {payee}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           
           <div className="space-y-2">
