@@ -29,16 +29,27 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', workshopId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select(`
-          *,
-          profiles:created_by(full_name)
-        `)
+        .select('*')
         .eq('workshop_id', workshopId)
         .order('payment_date', { ascending: false });
-      if (error) throw error;
-      return data;
+      if (paymentsError) throw paymentsError;
+      
+      // Fetch all profiles to join with payments
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      // Create a lookup map
+      const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
+      
+      // Join the data
+      return paymentsData.map(payment => ({
+        ...payment,
+        creator_name: profileMap.get(payment.created_by) || 'Unknown'
+      }));
     },
     enabled: !!workshopId,
   });
@@ -149,7 +160,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
               </TableCell>
               <TableCell>{getStatusBadge(payment.status)}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {(payment.profiles as any)?.full_name || 'Unknown'}
+                {payment.creator_name}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
