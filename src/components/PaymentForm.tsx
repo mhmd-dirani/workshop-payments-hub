@@ -83,20 +83,15 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     payment_date: new Date().toISOString().split('T')[0],
   });
 
-  // Fetch previous payees for autocomplete (all payees visible to help with data entry)
+  // Fetch all payees for autocomplete (uses security definer function to bypass RLS)
   const { data: previousPayees = [] } = useQuery({
     queryKey: ['previous-payees'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('paid_to')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_all_payees');
       
       if (error) throw error;
       
-      // Get unique payees
-      const uniquePayees = [...new Set(data.map(p => p.paid_to))];
-      return uniquePayees;
+      return data?.map((p: { paid_to: string }) => p.paid_to) || [];
     },
   });
 
