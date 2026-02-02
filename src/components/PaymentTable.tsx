@@ -92,15 +92,34 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   }, [filteredPayments, searchTerm]);
 
   const deletePayment = useMutation({
-    mutationFn: async (paymentId: string) => {
+    mutationFn: async (payment: any) => {
+      // First, delete any transfers linked to this payment (for legacy data without payment_id)
+      // Try to match by workshop_id, amount, and date
+      await supabase
+        .from('user_transfers')
+        .delete()
+        .eq('workshop_id', workshopId)
+        .eq('amount', payment.amount)
+        .eq('transfer_date', payment.payment_date);
+
+      // Also delete by payment_id if it exists (cascade should handle this, but be explicit)
+      await supabase
+        .from('user_transfers')
+        .delete()
+        .eq('payment_id', payment.id);
+
+      // Now delete the payment
       const { error } = await supabase
         .from('payments')
         .delete()
-        .eq('id', paymentId);
+        .eq('id', payment.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['user-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       toast({
         title: 'Payment deleted',
         description: 'The payment record has been removed',
@@ -260,7 +279,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deletePayment.mutate(payment.id)}
+                        onClick={() => deletePayment.mutate(payment)}
                         className="h-8 w-8 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
