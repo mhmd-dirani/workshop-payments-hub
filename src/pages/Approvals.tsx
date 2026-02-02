@@ -17,17 +17,30 @@ export default function Approvals() {
   const { data: pendingPayments, isLoading } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch pending payments with workshops
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
           *,
-          workshops(name),
-          profiles:created_by(full_name)
+          workshops(name)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      if (paymentsError) throw paymentsError;
+      
+      // Fetch all profiles to join with payments
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      // Create a lookup map
+      const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
+      
+      // Join the data
+      return paymentsData.map(payment => ({
+        ...payment,
+        creator_name: profileMap.get(payment.created_by) || 'Unknown'
+      }));
     },
   });
 
@@ -116,7 +129,7 @@ export default function Approvals() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Submitted by:</span>{' '}
-                        <span>{(payment.profiles as any)?.full_name || 'Unknown'}</span>
+                        <span>{payment.creator_name}</span>
                       </div>
                     </div>
                     
