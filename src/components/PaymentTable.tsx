@@ -163,15 +163,13 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const canEdit = (payment: any) => {
     if (role === 'admin') return true;
-    // Co-admins cannot edit any payments
-    if (role === 'co_admin') return false;
+    // Co-admins and users can only edit their own pending payments
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
   const canDelete = (payment: any) => {
     if (role === 'admin') return true;
-    // Co-admins cannot delete any payments
-    if (role === 'co_admin') return false;
+    // Co-admins and users can only delete their own pending payments
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
