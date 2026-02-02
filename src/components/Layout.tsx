@@ -41,13 +41,13 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-primary-foreground" />
+        <div className="container flex h-14 md:h-16 items-center justify-between px-3 md:px-6">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl gradient-primary flex items-center justify-center">
+              <Wallet className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-semibold text-foreground">Workshop Payments</h1>
+              <h1 className="font-semibold text-foreground text-sm md:text-base">Workshop Payments</h1>
               <p className="text-xs text-muted-foreground capitalize">{role || 'Loading...'}</p>
             </div>
           </div>
@@ -60,7 +60,6 @@ export default function Layout({ children }: LayoutProps) {
                   key={item.name} 
                   to={item.href}
                   onClick={(e) => {
-                    // Force page reload for Dashboard to reset state
                     if (item.href === '/' && location.pathname === '/') {
                       e.preventDefault();
                       window.location.href = '/';
@@ -83,15 +82,12 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
           
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              {user?.email}
-            </span>
+          <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={handleSignOut}
-              className="gap-2"
+              className="gap-1 h-8 px-2 md:px-3"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
@@ -100,9 +96,9 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
       
-      {/* Mobile Navigation */}
-      <nav className="md:hidden border-b bg-card">
-        <div className="container flex gap-1 py-2 overflow-x-auto">
+      {/* Mobile Navigation - Icon only on mobile */}
+      <nav className="md:hidden border-b bg-card sticky top-14 z-40">
+        <div className="flex justify-around py-1.5">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -110,24 +106,29 @@ export default function Layout({ children }: LayoutProps) {
                 key={item.name} 
                 to={item.href}
                 onClick={(e) => {
-                  // Force page reload for Dashboard to reset state
                   if (item.href === '/' && location.pathname === '/') {
                     e.preventDefault();
                     window.location.href = '/';
                   }
                 }}
+                className="flex flex-col items-center"
               >
                 <Button
                   variant={isActive ? 'secondary' : 'ghost'}
                   size="sm"
                   className={cn(
-                    'gap-2 whitespace-nowrap',
+                    'h-8 w-8 p-0',
                     isActive && 'bg-secondary'
                   )}
                 >
                   <item.icon className="w-4 h-4" />
-                  {item.name}
                 </Button>
+                <span className={cn(
+                  "text-[10px] mt-0.5",
+                  isActive ? "text-primary font-medium" : "text-muted-foreground"
+                )}>
+                  {item.name.split(' ')[0]}
+                </span>
               </Link>
             );
           })}
@@ -135,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
       </nav>
       
       {/* Main Content */}
-      <main className="container py-6">
+      <main className="container py-3 md:py-6 px-3 md:px-6">
         {children}
       </main>
     </div>

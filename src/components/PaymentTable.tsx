@@ -202,31 +202,31 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name (paid to)..."
+          placeholder="Search by name..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
+          className="pl-10 h-9 md:h-10"
         />
       </div>
 
       {/* Search Total Card */}
       {searchTerm.trim() && searchTotal !== null && (
         <Card className="bg-destructive/5 border-destructive/20">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <DollarSign className="w-5 h-5 text-destructive" />
+          <CardContent className="py-3 px-3 md:px-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-destructive font-medium">
-                  Total paid to "{searchTerm}" (approved only)
+                <p className="text-xs md:text-sm text-destructive font-medium">
+                  Total paid to "{searchTerm}"
                 </p>
-                <p className="text-xl font-bold font-mono text-destructive">
+                <p className="text-base md:text-xl font-bold font-mono text-destructive">
                   -{searchTotal.toLocaleString('fr-FR')} CFA
                 </p>
               </div>
@@ -235,7 +235,50 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         </Card>
       )}
 
-      <div className="rounded-lg border bg-card shadow-card overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-2">
+        {filteredPayments.map((payment) => (
+          <Card key={payment.id} className="shadow-card">
+            <CardContent className="p-3">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{payment.paid_to}</p>
+                  <p className="text-xs text-muted-foreground truncate">{payment.reason}</p>
+                </div>
+                <div className="text-right ml-2">
+                  <p className="font-mono font-bold text-sm text-destructive">
+                    -{Number(payment.amount).toLocaleString('fr-FR')}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(payment.payment_date), 'MMM d')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(payment.status)}
+                  <span className="text-[10px] text-muted-foreground">{payment.creator_name}</span>
+                </div>
+                <div className="flex gap-1">
+                  {canEdit(payment) && onEdit && (
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(payment)} className="h-7 w-7">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {canDelete(payment) && (
+                    <Button variant="ghost" size="icon" onClick={() => deletePayment.mutate(payment)} className="h-7 w-7 text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block rounded-lg border bg-card shadow-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">

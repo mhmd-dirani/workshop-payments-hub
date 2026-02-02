@@ -69,12 +69,12 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-3">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Payment Dashboard</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Payment Dashboard</h2>
+            <p className="text-xs md:text-sm text-muted-foreground">
               {role === 'admin' 
                 ? 'Manage all workshop payments and income' 
                 : 'View and add your payment records'}
@@ -86,18 +86,20 @@ export default function Dashboard() {
               {role === 'admin' && (
                 <Button 
                   onClick={() => setIsIncomeFormOpen(true)} 
-                  className="gap-2 bg-success text-success-foreground hover:bg-success/90"
+                  size="sm"
+                  className="gap-1.5 bg-success text-success-foreground hover:bg-success/90 h-8 text-xs md:text-sm md:h-9"
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Income
+                  <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="hidden xs:inline">Add</span> Income
                 </Button>
               )}
               <Button 
                 onClick={() => setIsFormOpen(true)} 
-                className="gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                size="sm"
+                className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-8 text-xs md:text-sm md:h-9"
               >
-                <Plus className="w-4 h-4" />
-                Add Payment
+                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden xs:inline">Add</span> Payment
               </Button>
             </div>
           )}
@@ -105,11 +107,11 @@ export default function Dashboard() {
 
         {/* Workshop Selector */}
         <Card className="shadow-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Select Workshop</CardTitle>
-            <CardDescription>Choose a workshop to view its financial records</CardDescription>
+          <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Select Workshop</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Choose a workshop to view records</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
             <WorkshopSelector 
               selectedWorkshop={selectedWorkshop} 
               onSelect={setSelectedWorkshop} 
@@ -123,17 +125,20 @@ export default function Dashboard() {
 
         {/* Stats Cards - 3 totals (admin only) */}
         {selectedWorkshop && stats && role === 'admin' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 md:gap-4">
             <Card className="shadow-card border-success/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-success/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-success/10">
                     <ArrowDownCircle className="w-6 h-6 text-success" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-success">Total Income</p>
-                    <p className="text-2xl font-bold font-mono text-success">
-                      +{stats.totalIncome.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-success">
+                      <ArrowDownCircle className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Income</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-success">
+                      +{stats.totalIncome.toLocaleString('fr-FR')}
                     </p>
                   </div>
                 </div>
@@ -141,15 +146,18 @@ export default function Dashboard() {
             </Card>
             
             <Card className="shadow-card border-destructive/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-destructive/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-destructive/10">
                     <ArrowUpCircle className="w-6 h-6 text-destructive" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-destructive">Total Paid</p>
-                    <p className="text-2xl font-bold font-mono text-destructive">
-                      -{stats.totalPaid.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-destructive">
+                      <ArrowUpCircle className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Paid</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-destructive">
+                      -{stats.totalPaid.toLocaleString('fr-FR')}
                     </p>
                   </div>
                 </div>
@@ -157,15 +165,18 @@ export default function Dashboard() {
             </Card>
             
             <Card className="shadow-card border-primary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10">
+              <CardContent className="p-2 md:pt-6 md:px-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <div className="hidden md:flex p-3 rounded-xl bg-primary/10">
                     <Wallet className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Balance</p>
-                    <p className="text-2xl font-bold font-mono text-primary">
-                      {stats.balance >= 0 ? '+' : ''}{stats.balance.toLocaleString('fr-FR')} CFA
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
+                      <Wallet className="w-3 h-3 md:hidden" />
+                      <p className="text-[10px] md:text-sm font-medium">Balance</p>
+                    </div>
+                    <p className="text-sm md:text-2xl font-bold font-mono text-primary">
+                      {stats.balance >= 0 ? '+' : ''}{stats.balance.toLocaleString('fr-FR')}
                     </p>
                   </div>
                 </div>
@@ -192,7 +203,7 @@ export default function Dashboard() {
           </>
         ) : (
           <Card className="shadow-card">
-            <CardContent className="py-12 text-center text-muted-foreground">
+            <CardContent className="py-8 md:py-12 text-center text-muted-foreground text-sm">
               <p>Select a workshop above to view financial records</p>
             </CardContent>
           </Card>
