@@ -165,7 +165,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-8"></TableHead>
+                  <TableHead className="w-10"></TableHead>
                   <TableHead>Person</TableHead>
                   <TableHead>Original Amount</TableHead>
                   <TableHead>Paid</TableHead>
@@ -184,7 +184,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                   return (
                     <Collapsible key={debt.id} open={isExpanded} onOpenChange={() => setExpandedDebt(isExpanded ? null : debt.id)}>
                       <TableRow>
-                        <TableCell>
+                        <TableCell className="w-10 p-2">
                           {debtPayments.length > 0 && (
                             <CollapsibleTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-6 w-6">
