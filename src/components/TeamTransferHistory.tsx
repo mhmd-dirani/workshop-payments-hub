@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/lib/auth';
 import {
   Table,
   TableBody,
@@ -14,21 +13,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ArrowDownCircle } from 'lucide-react';
 
-export default function UserIncomeTable() {
-  const { user, role } = useAuth();
+interface TeamTransferHistoryProps {
+  userId: string;
+}
 
+export default function TeamTransferHistory({ userId }: TeamTransferHistoryProps) {
   const { data: transfers, isLoading } = useQuery({
-    queryKey: ['user-team-transfers', user?.id],
+    queryKey: ['team-transfers', userId],
     queryFn: async () => {
-      if (!user) return [];
-
-      // Get transfers from team_transfers (global, not per-workshop)
       const { data: transfersData, error } = await supabase
         .from('team_transfers')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('transfer_date', { ascending: false });
-      
+
       if (error) throw error;
 
       // Get admin names
@@ -39,32 +37,41 @@ export default function UserIncomeTable() {
         .from('profiles')
         .select('user_id, full_name')
         .in('user_id', adminIds);
-      
+
       const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 
       return transfersData?.map(t => ({
         ...t,
-        admin_name: profileMap.get(t.created_by) || 'Admin'
+        admin_name: profileMap.get(t.created_by) || 'Admin',
       })) || [];
     },
-    enabled: !!user && role !== 'admin',
   });
-
-  // Don't show for admins
-  if (role === 'admin') return null;
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[...Array(2)].map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!transfers || transfers.length === 0) {
-    return null;
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No transfers received yet
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -72,7 +79,7 @@ export default function UserIncomeTable() {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2 text-success">
           <ArrowDownCircle className="w-5 h-5" />
-          Received from Admin
+          Transfer History (Received)
         </CardTitle>
       </CardHeader>
       <CardContent>

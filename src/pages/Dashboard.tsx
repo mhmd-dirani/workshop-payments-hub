@@ -117,8 +117,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card (for non-admins only - replaces the stats cards) */}
-        {selectedWorkshop && role !== 'admin' && <UserBalanceCard workshopId={selectedWorkshop} />}
+        {/* User Balance Card (for non-admins only - global balance) */}
+        {selectedWorkshop && role !== 'admin' && <UserBalanceCard />}
 
         {/* Stats Cards - 3 totals (admin only) */}
         {selectedWorkshop && stats && role === 'admin' && (
@@ -178,9 +178,9 @@ export default function Dashboard() {
           <IncomeTable workshopId={selectedWorkshop} />
         )}
 
-        {/* User Income Table (transfers received - for non-admins) */}
+        {/* User Income Table (transfers received - for non-admins, global) */}
         {selectedWorkshop && role !== 'admin' && (
-          <UserIncomeTable workshopId={selectedWorkshop} />
+          <UserIncomeTable />
         )}
 
         {/* Payment Table */}

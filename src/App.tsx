@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Approvals from "./pages/Approvals";
 import Users from "./pages/Users";
 import Debts from "./pages/Debts";
+import Team from "./pages/Team";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/users" element={<Users />} />
             <Route path="/debts" element={<Debts />} />
+            <Route path="/team" element={<Team />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
