@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -30,12 +31,18 @@ interface WorkshopSelectorProps {
   onSelect: (workshopId: string) => void;
 }
 
+interface User {
+  user_id: string;
+  full_name: string | null;
+}
+
 export default function WorkshopSelector({ selectedWorkshop, onSelect }: WorkshopSelectorProps) {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newWorkshop, setNewWorkshop] = useState({ name: '', description: '' });
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   const { data: workshops, isLoading } = useQuery({
     queryKey: ['workshops', role],
@@ -53,24 +60,63 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
     },
   });
 
+  // Fetch non-admin users for assignment
+  const { data: availableUsers } = useQuery({
+    queryKey: ['users-for-workshop-assignment'],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      // Filter to only non-admin users
+      return profiles?.filter(p => roleMap.get(p.user_id) !== 'admin') || [];
+    },
+    enabled: role === 'admin' && isDialogOpen,
+  });
+
   const createWorkshop = useMutation({
     mutationFn: async (workshop: { name: string; description: string }) => {
+      // Create the workshop
       const { data, error } = await supabase
         .from('workshops')
-        .insert([{ name: workshop.name, description: workshop.description }])
+        .insert([{ name: workshop.name, description: workshop.description, created_by: user?.id }])
         .select()
         .single();
       if (error) throw error;
+
+      // Assign selected users to the workshop
+      if (selectedUsers.length > 0) {
+        const assignments = selectedUsers.map(userId => ({
+          workshop_id: data.id,
+          user_id: userId,
+          assigned_by: user?.id,
+        }));
+
+        const { error: assignError } = await supabase
+          .from('workshop_assignments')
+          .insert(assignments);
+        
+        if (assignError) throw assignError;
+      }
+
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['workshops'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-assignments'] });
       setIsDialogOpen(false);
       setNewWorkshop({ name: '', description: '' });
+      setSelectedUsers([]);
       onSelect(data.id);
       toast({
         title: 'Workshop created',
-        description: `"${data.name}" has been added successfully`,
+        description: `"${data.name}" has been added successfully${selectedUsers.length > 0 ? ` with ${selectedUsers.length} user(s) assigned` : ''}`,
       });
     },
     onError: (error: Error) => {
@@ -92,6 +138,22 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
       return;
     }
     createWorkshop.mutate(newWorkshop);
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setNewWorkshop({ name: '', description: '' });
+      setSelectedUsers([]);
+    }
   };
 
   if (isLoading) {
@@ -129,23 +191,23 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
       </div>
 
       {role === 'admin' && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
             <Button className="gap-2 gradient-primary text-primary-foreground">
               <Plus className="w-4 h-4" />
               New Workshop
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Workshop</DialogTitle>
               <DialogDescription>
-                Add a new workshop to track payments for
+                Add a new workshop and assign users to it
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Workshop Name</Label>
+                <Label htmlFor="name">Workshop Name *</Label>
                 <Input
                   id="name"
                   placeholder="e.g., Photography Workshop 2024"
@@ -162,9 +224,38 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
                   onChange={(e) => setNewWorkshop(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
+
+              {/* User Assignment Section */}
+              {availableUsers && availableUsers.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Assign Users (optional)</Label>
+                  <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+                    {availableUsers.map((u) => (
+                      <div key={u.user_id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={u.user_id}
+                          checked={selectedUsers.includes(u.user_id)}
+                          onCheckedChange={() => toggleUserSelection(u.user_id)}
+                        />
+                        <Label 
+                          htmlFor={u.user_id} 
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {u.full_name || 'Unnamed User'}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedUsers.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedUsers.length} user(s) selected
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
                 Cancel
               </Button>
               <Button 
