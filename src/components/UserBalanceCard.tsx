@@ -50,38 +50,38 @@ export default function UserBalanceCard() {
 
   return (
     <Card className="shadow-card">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Wallet className="w-5 h-5" />
+      <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+        <CardTitle className="text-base md:text-lg flex items-center gap-2">
+          <Wallet className="w-4 h-4 md:w-5 md:h-5" />
           Your Global Balance
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
+      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-destructive mb-1">
-              <ArrowUpCircle className="w-4 h-4" />
-              <span className="text-xs font-medium">Spent</span>
+              <ArrowUpCircle className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="text-[10px] md:text-xs font-medium">Spent</span>
             </div>
-            <p className="text-lg font-bold font-mono text-destructive">
+            <p className="text-sm md:text-lg font-bold font-mono text-destructive">
               -{balance.spent.toLocaleString('fr-FR')}
             </p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-success mb-1">
-              <ArrowDownCircle className="w-4 h-4" />
-              <span className="text-xs font-medium">Received</span>
+              <ArrowDownCircle className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="text-[10px] md:text-xs font-medium">Received</span>
             </div>
-            <p className="text-lg font-bold font-mono text-success">
+            <p className="text-sm md:text-lg font-bold font-mono text-success">
               +{balance.received.toLocaleString('fr-FR')}
             </p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-primary mb-1">
-              <Wallet className="w-4 h-4" />
-              <span className="text-xs font-medium">Balance</span>
+              <Wallet className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="text-[10px] md:text-xs font-medium">Balance</span>
             </div>
-            <p className="text-lg font-bold font-mono text-primary">
+            <p className="text-sm md:text-lg font-bold font-mono text-primary">
               {balance.balance >= 0 ? '+' : ''}{balance.balance.toLocaleString('fr-FR')}
             </p>
           </div>
