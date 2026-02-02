@@ -187,14 +187,44 @@ export default function TeamTransferHistory({ userId, onTransferChange }: TeamTr
   return (
     <>
       <Card className="shadow-card border-success/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2 text-success">
-            <ArrowDownCircle className="w-5 h-5" />
-            Transfer History (Received)
+        <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
+          <CardTitle className="text-base md:text-lg flex items-center gap-2 text-success">
+            <ArrowDownCircle className="w-4 h-4 md:w-5 md:h-5" />
+            Transfer History
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border overflow-hidden">
+        <CardContent className="space-y-3 px-3 md:px-6 pb-3 md:pb-6">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-2">
+            {transfers.map((transfer) => (
+              <div key={transfer.id} className="p-3 rounded-lg border bg-success/5 border-success/20">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono font-bold text-sm text-success">
+                      +{Number(transfer.amount).toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {transfer.description || 'No description'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(transfer.transfer_date), 'MMM d, yyyy')} • {transfer.admin_name}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(transfer)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingTransfer(transfer)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-lg border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-success/5">
@@ -249,8 +279,8 @@ export default function TeamTransferHistory({ userId, onTransferChange }: TeamTr
           {/* Total */}
           <div className="flex justify-end pt-2 border-t">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total Received</p>
-              <p className="text-xl font-bold font-mono text-success">
+              <p className="text-xs md:text-sm text-muted-foreground">Total Received</p>
+              <p className="text-base md:text-xl font-bold font-mono text-success">
                 +{totalReceived.toLocaleString('fr-FR')} CFA
               </p>
             </div>

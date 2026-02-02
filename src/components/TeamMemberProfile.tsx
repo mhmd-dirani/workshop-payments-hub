@@ -21,73 +21,75 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
   const isNegative = member.balance < 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       {/* Header with name and add money button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="w-7 h-7 text-primary" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <User className="w-5 h-5 md:w-7 md:h-7 text-primary" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{member.full_name || 'Unnamed User'}</h1>
-            <p className="text-muted-foreground">Team Member Profile</p>
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold truncate">{member.full_name || 'Unnamed User'}</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Team Member Profile</p>
           </div>
         </div>
-        <Button onClick={onAddMoney} className="gap-2 gradient-primary text-primary-foreground">
-          <Plus className="w-4 h-4" />
-          Add Money
+        <Button 
+          onClick={onAddMoney} 
+          size="sm"
+          className="gap-1.5 gradient-primary text-primary-foreground shrink-0 h-8 md:h-9 text-xs md:text-sm"
+        >
+          <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+          <span className="hidden sm:inline">Add Money</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
 
       {/* Balance Summary Card */}
       <Card className="shadow-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Wallet className="w-5 h-5" />
+        <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+          <CardTitle className="text-base md:text-lg flex items-center gap-2">
+            <Wallet className="w-4 h-4 md:w-5 md:h-5" />
             Financial Summary
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-6">
-            <div className="text-center p-4 rounded-lg bg-success/5 border border-success/20">
-              <div className="flex items-center justify-center gap-2 text-success mb-2">
-                <ArrowDownCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Total Received</span>
+        <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+          <div className="grid grid-cols-3 gap-2 md:gap-6">
+            <div className="text-center p-2 md:p-4 rounded-lg bg-success/5 border border-success/20">
+              <div className="flex items-center justify-center gap-1 text-success mb-1 md:mb-2">
+                <ArrowDownCircle className="w-3 h-3 md:w-5 md:h-5" />
+                <span className="text-[10px] md:text-sm font-medium">Received</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-success">
+              <p className="text-sm md:text-2xl font-bold font-mono text-success truncate">
                 +{member.totalReceived.toLocaleString('fr-FR')}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">CFA</p>
             </div>
             
-            <div className="text-center p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-              <div className="flex items-center justify-center gap-2 text-destructive mb-2">
-                <ArrowUpCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Total Spent</span>
+            <div className="text-center p-2 md:p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+              <div className="flex items-center justify-center gap-1 text-destructive mb-1 md:mb-2">
+                <ArrowUpCircle className="w-3 h-3 md:w-5 md:h-5" />
+                <span className="text-[10px] md:text-sm font-medium">Spent</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-destructive">
+              <p className="text-sm md:text-2xl font-bold font-mono text-destructive truncate">
                 -{member.totalSpent.toLocaleString('fr-FR')}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">CFA</p>
             </div>
             
-            <div className={`text-center p-4 rounded-lg border ${
+            <div className={`text-center p-2 md:p-4 rounded-lg border ${
               isNegative 
                 ? 'bg-destructive/5 border-destructive/20' 
                 : 'bg-primary/5 border-primary/20'
             }`}>
-              <div className={`flex items-center justify-center gap-2 mb-2 ${
+              <div className={`flex items-center justify-center gap-1 mb-1 md:mb-2 ${
                 isNegative ? 'text-destructive' : 'text-primary'
               }`}>
-                <Wallet className="w-5 h-5" />
-                <span className="text-sm font-medium">Current Balance</span>
+                <Wallet className="w-3 h-3 md:w-5 md:h-5" />
+                <span className="text-[10px] md:text-sm font-medium">Balance</span>
               </div>
-              <p className={`text-2xl font-bold font-mono ${
+              <p className={`text-sm md:text-2xl font-bold font-mono truncate ${
                 isNegative ? 'text-destructive' : 'text-primary'
               }`}>
                 {member.balance >= 0 ? '+' : ''}{member.balance.toLocaleString('fr-FR')}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">CFA</p>
             </div>
           </div>
         </CardContent>
