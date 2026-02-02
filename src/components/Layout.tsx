@@ -56,7 +56,17 @@ export default function Layout({ children }: LayoutProps) {
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
-                <Link key={item.name} to={item.href}>
+                <Link 
+                  key={item.name} 
+                  to={item.href}
+                  onClick={(e) => {
+                    // Force page reload for Dashboard to reset state
+                    if (item.href === '/' && location.pathname === '/') {
+                      e.preventDefault();
+                      window.location.href = '/';
+                    }
+                  }}
+                >
                   <Button
                     variant={isActive ? 'secondary' : 'ghost'}
                     size="sm"
@@ -96,7 +106,17 @@ export default function Layout({ children }: LayoutProps) {
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
-              <Link key={item.name} to={item.href}>
+              <Link 
+                key={item.name} 
+                to={item.href}
+                onClick={(e) => {
+                  // Force page reload for Dashboard to reset state
+                  if (item.href === '/' && location.pathname === '/') {
+                    e.preventDefault();
+                    window.location.href = '/';
+                  }
+                }}
+              >
                 <Button
                   variant={isActive ? 'secondary' : 'ghost'}
                   size="sm"

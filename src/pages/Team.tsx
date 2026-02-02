@@ -122,7 +122,10 @@ export default function Team() {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => setSelectedMember(null)}
+              onClick={() => {
+                setSelectedMember(null);
+                setTransferToMember(null);
+              }}
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -133,6 +136,12 @@ export default function Team() {
           <TeamMemberProfile 
             member={selectedMember} 
             onAddMoney={() => handleAddMoney(selectedMember)}
+          />
+
+          <TeamTransferForm
+            open={showTransferForm}
+            onOpenChange={setShowTransferForm}
+            member={transferToMember}
           />
         </div>
       </Layout>

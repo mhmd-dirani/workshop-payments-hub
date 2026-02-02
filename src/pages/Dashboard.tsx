@@ -117,8 +117,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card (for non-admins only - global balance) */}
-        {selectedWorkshop && role !== 'admin' && <UserBalanceCard />}
+        {/* User Balance Card (for non-admins - show global balance always) */}
+        {role !== 'admin' && <UserBalanceCard />}
+
 
         {/* Stats Cards - 3 totals (admin only) */}
         {selectedWorkshop && stats && role === 'admin' && (
