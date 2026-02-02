@@ -115,6 +115,38 @@ export type Database = {
         }
         Relationships: []
       }
+      workshop_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          user_id: string
+          workshop_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+          workshop_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_assignments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshops: {
         Row: {
           created_at: string
@@ -156,6 +188,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      user_has_workshop_access: {
+        Args: { _user_id: string; _workshop_id: string }
         Returns: boolean
       }
     }
