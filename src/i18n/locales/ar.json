@@ -314,7 +314,11 @@
     "savedAllDesc": "تم تسجيل حضور جميع العمال",
     "saveAll": "حفظ جميع الإدخالات",
     "attended": "حاضر",
-    "perDay": "يوم"
+    "perDay": "يوم",
+    "allTime": "كل الوقت",
+    "showingAllRecords": "عرض جميع سجلات الحضور",
+    "editAttendance": "تعديل الحضور",
+    "updateAttendance": "تحديث سجل الحضور"
   },
   "workers": {
     "title": "العمال",

@@ -203,7 +203,8 @@ export default function QuickAttendanceForm() {
             </label>
             <Select value={selectedWorkshop} onValueChange={setSelectedWorkshop}>
               <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder={t('workshops.selectWorkshop')} />
+                <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
+                
               </SelectTrigger>
               <SelectContent>
                 {workshops.map((w) => (

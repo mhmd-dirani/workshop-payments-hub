@@ -315,7 +315,11 @@
     "savedAllDesc": "Attendance for all workers has been recorded",
     "saveAll": "Save All Entries",
     "attended": "Attended",
-    "perDay": "day"
+    "perDay": "day",
+    "allTime": "All Time",
+    "showingAllRecords": "Showing all attendance records",
+    "editAttendance": "Edit Attendance",
+    "updateAttendance": "Update the attendance record"
   },
   "workers": {
     "title": "Workers",
