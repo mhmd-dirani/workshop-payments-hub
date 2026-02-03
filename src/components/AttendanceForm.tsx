@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -25,21 +25,19 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const attendanceSchema = z.object({
-  worker_name: z
-    .string()
-    .trim()
-    .min(1, 'Worker name is required')
-    .max(150, 'Worker name is too long'),
-  workshop_name: z
-    .string()
-    .trim()
-    .min(1, 'Workshop name is required')
-    .max(150, 'Workshop name is too long'),
+  user_id: z.string().min(1, 'Worker is required'),
   work_date: z.string().min(1, 'Date is required'),
   hours_worked: z.coerce.number().min(0.5, 'Minimum 0.5 hours').max(24, 'Maximum 24 hours'),
   hourly_rate: z.coerce.number().min(1, 'Hourly rate must be at least 1'),
@@ -50,12 +48,14 @@ type AttendanceFormData = z.infer<typeof attendanceSchema>;
 
 interface AttendanceFormProps {
   attendance?: any;
+  preselectedUserId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export default function AttendanceForm({ 
-  attendance,
+  attendance, 
+  preselectedUserId,
   open, 
   onOpenChange 
 }: AttendanceFormProps) {
@@ -65,11 +65,23 @@ export default function AttendanceForm({
   const queryClient = useQueryClient();
   const isEditing = !!attendance;
 
+  // Fetch workers (non-admin users)
+  const { data: workers = [] } = useQuery({
+    queryKey: ['workers-for-attendance'],
+    queryFn: async () => {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
+      const { data: roles } = await supabase.from('user_roles').select('user_id, role');
+      
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      return profiles?.filter(p => roleMap.get(p.user_id) !== 'admin') || [];
+    },
+    enabled: role === 'admin',
+  });
+
   const form = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
     defaultValues: {
-      worker_name: '',
-      workshop_name: '',
+      user_id: preselectedUserId || (role !== 'admin' ? user?.id : ''),
       work_date: format(new Date(), 'yyyy-MM-dd'),
       hours_worked: 8,
       hourly_rate: 1000,
@@ -81,8 +93,7 @@ export default function AttendanceForm({
     if (open) {
       if (attendance) {
         form.reset({
-          worker_name: attendance.worker_name,
-          workshop_name: attendance.workshop_name,
+          user_id: attendance.user_id,
           work_date: attendance.work_date,
           hours_worked: attendance.hours_worked,
           hourly_rate: attendance.hourly_rate,
@@ -90,8 +101,7 @@ export default function AttendanceForm({
         });
       } else {
         form.reset({
-          worker_name: '',
-          workshop_name: '',
+          user_id: preselectedUserId || (role !== 'admin' ? user?.id : ''),
           work_date: format(new Date(), 'yyyy-MM-dd'),
           hours_worked: 8,
           hourly_rate: 1000,
@@ -99,32 +109,32 @@ export default function AttendanceForm({
         });
       }
     }
-  }, [attendance, open, form]);
+  }, [attendance, open, form, preselectedUserId, role, user?.id]);
 
   const mutation = useMutation({
     mutationFn: async (data: AttendanceFormData) => {
-      const payload = {
-        worker_name: data.worker_name.trim(),
-        workshop_name: data.workshop_name.trim(),
-        work_date: data.work_date,
-        hours_worked: data.hours_worked,
-        hourly_rate: data.hourly_rate,
-        description: data.description?.trim() ? data.description.trim() : null,
-      };
-
       if (isEditing) {
         const { error } = await supabase
           .from('attendance')
-          .update(payload)
+          .update({
+            user_id: data.user_id,
+            work_date: data.work_date,
+            hours_worked: data.hours_worked,
+            hourly_rate: data.hourly_rate,
+            description: data.description || null,
+          })
           .eq('id', attendance.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('attendance')
-          .insert([{ 
-            ...payload,
+          .insert([{
+            user_id: data.user_id,
+            work_date: data.work_date,
+            hours_worked: data.hours_worked,
+            hourly_rate: data.hourly_rate,
+            description: data.description || null,
             created_by: user?.id,
-            status: role === 'admin' ? 'approved' : 'pending',
           }]);
         if (error) throw error;
       }
@@ -169,39 +179,32 @@ export default function AttendanceForm({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="worker_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('attendance.workerName')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t('attendance.workerNamePlaceholder')}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="workshop_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('attendance.workshopName')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t('attendance.workshopNamePlaceholder')}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {role === 'admin' && (
+              <FormField
+                control={form.control}
+                name="user_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('attendance.worker')}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('attendance.selectWorker')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {workers.map((worker) => (
+                          <SelectItem key={worker.user_id} value={worker.user_id}>
+                            {worker.full_name || t('team.unnamedUser')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -282,12 +285,6 @@ export default function AttendanceForm({
                 {isEditing ? t('common.save') : t('common.add')}
               </Button>
             </DialogFooter>
-
-            {role !== 'admin' && (
-              <p className="text-xs text-muted-foreground text-center">
-                {t('attendance.awaitingApproval')}
-              </p>
-            )}
           </form>
         </Form>
       </DialogContent>

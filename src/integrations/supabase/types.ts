@@ -23,10 +23,8 @@ export type Database = {
           hourly_rate: number
           hours_worked: number
           id: string
-          status: Database["public"]["Enums"]["attendance_status"]
           updated_at: string
-          worker_name: string
-          workshop_name: string
+          user_id: string
           work_date: string
         }
         Insert: {
@@ -37,10 +35,8 @@ export type Database = {
           hourly_rate: number
           hours_worked: number
           id?: string
-          status?: Database["public"]["Enums"]["attendance_status"]
           updated_at?: string
-          worker_name: string
-          workshop_name: string
+          user_id: string
           work_date: string
         }
         Update: {
@@ -51,10 +47,8 @@ export type Database = {
           hourly_rate?: number
           hours_worked?: number
           id?: string
-          status?: Database["public"]["Enums"]["attendance_status"]
           updated_at?: string
-          worker_name?: string
-          workshop_name?: string
+          user_id?: string
           work_date?: string
         }
         Relationships: []
@@ -527,7 +521,6 @@ export type Database = {
       }
     }
     Enums: {
-      attendance_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "user" | "co_admin"
       payment_status: "pending" | "approved" | "rejected"
     }
@@ -657,7 +650,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      attendance_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "user", "co_admin"],
       payment_status: ["pending", "approved", "rejected"],
     },

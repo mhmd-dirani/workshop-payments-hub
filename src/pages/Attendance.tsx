@@ -65,7 +65,7 @@ export default function Attendance() {
 
         {/* Attendance Table */}
         <AttendanceTable 
-          createdBy={role !== 'admin' ? user.id : undefined}
+          userId={role !== 'admin' ? user.id : undefined}
           onEdit={handleEdit} 
         />
 

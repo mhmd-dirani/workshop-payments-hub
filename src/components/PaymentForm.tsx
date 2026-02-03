@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -215,42 +214,40 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" sideOffset={4}>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command>
                   <CommandInput 
                     placeholder={t('common.search')}
                     value={formData.paid_to}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
                   />
-                  <ScrollArea className="h-60">
-                    <CommandList className="max-h-none">
-                      <CommandEmpty>
-                        <div className="py-2 px-2 text-sm">
-                          {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"
-                        </div>
-                      </CommandEmpty>
-                      <CommandGroup heading={t('payments.previousRecipients')}>
-                        {previousPayees.map((payee) => (
-                          <CommandItem
-                            key={payee}
-                            value={payee}
-                            onSelect={(value) => {
-                              setFormData(prev => ({ ...prev, paid_to: value }));
-                              setPaidToOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.paid_to === payee ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {payee}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </ScrollArea>
+                  <CommandList className="max-h-[200px] overflow-y-auto">
+                    <CommandEmpty>
+                      <div className="py-2 px-2 text-sm">
+                        {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"
+                      </div>
+                    </CommandEmpty>
+                    <CommandGroup heading={t('payments.previousRecipients')}>
+                      {previousPayees.map((payee) => (
+                        <CommandItem
+                          key={payee}
+                          value={payee}
+                          onSelect={(value) => {
+                            setFormData(prev => ({ ...prev, paid_to: value }));
+                            setPaidToOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.paid_to === payee ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {payee}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
                 </Command>
               </PopoverContent>
             </Popover>
