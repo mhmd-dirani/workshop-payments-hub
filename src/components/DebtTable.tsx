@@ -1,5 +1,6 @@
 import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ interface DebtTableProps {
 }
 
 export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedDebt, setExpandedDebt] = useState<string | null>(null);
@@ -66,13 +68,13 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       toast({
-        title: 'Debt deleted',
-        description: 'The debt record has been removed',
+        title: t('debts.debtDeleted'),
+        description: t('debts.debtDeletedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -91,8 +93,8 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       toast({
-        title: 'Debt settled',
-        description: 'The debt has been marked as fully paid',
+        title: t('debts.debtSettled'),
+        description: t('debts.debtSettledDesc'),
       });
     },
   });
@@ -109,8 +111,8 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
       queryClient.invalidateQueries({ queryKey: ['debt-payments'] });
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       toast({
-        title: 'Payment deleted',
-        description: 'The repayment record has been removed',
+        title: t('debts.paymentDeleted'),
+        description: t('debts.paymentDeletedDesc'),
       });
     },
   });
@@ -163,27 +165,27 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-sm md:text-lg">
-                  {debtType === 'they_owe' ? 'People Who Owe Me' : 'People I Owe'}
+                  {debtType === 'they_owe' ? t('debts.peopleWhoOweMe') : t('debts.peopleIOwe')}
                 </CardTitle>
                 <CardDescription className="text-xs md:text-sm">
-                  {activeDebts.length} active{searchTerm && ` matching "${searchTerm}"`}
+                  {activeDebts.length} {t('debts.active')}{searchTerm && ` ${t('debts.matching')} "${searchTerm}"`}
                 </CardDescription>
               </div>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name..."
+                placeholder={t('debts.searchByName')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-8 md:h-10 text-sm"
+                className="ltr:pl-9 rtl:pr-9 h-8 md:h-10 text-sm"
               />
             </div>
           </div>
           {searchTerm && activeDebts.length > 0 && (
             <div className="mt-2 p-2 md:p-3 rounded-lg bg-muted/50">
               <p className="text-xs md:text-sm">
-                <span className="text-muted-foreground">Filtered total: </span>
+                <span className="text-muted-foreground">{t('debts.filteredTotal')}: </span>
                 <span className={`font-mono font-bold ${debtType === 'they_owe' ? 'text-success' : 'text-destructive'}`}>
                   {debtType === 'they_owe' ? '+' : '-'}{filteredTotal.toLocaleString('fr-FR')}
                 </span>
@@ -194,7 +196,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
         <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
           {activeDebts.length === 0 ? (
             <p className="text-center text-muted-foreground py-6 text-sm">
-              No active debts
+              {t('debts.noActiveDebts')}
             </p>
           ) : (
             <>
@@ -277,7 +279,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                       </div>
                       {isExpanded && debtPayments.length > 0 && (
                         <div className="bg-muted/30 p-2 border-t space-y-1.5">
-                          <p className="text-xs font-medium px-1">Repayment History</p>
+                          <p className="text-xs font-medium px-1">{t('debts.repaymentHistory')}</p>
                           {debtPayments.map((payment) => (
                             <div key={payment.id} className="flex items-center justify-between p-2 rounded bg-background text-xs">
                               <div className="flex-1 min-w-0">
@@ -312,12 +314,12 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10"></TableHead>
-                      <TableHead>Person</TableHead>
-                      <TableHead>Original Amount</TableHead>
-                      <TableHead>Paid</TableHead>
-                      <TableHead>Remaining</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('debts.person')}</TableHead>
+                      <TableHead>{t('debts.original')}</TableHead>
+                      <TableHead>{t('debts.paidAmount')}</TableHead>
+                      <TableHead>{t('debts.remaining')}</TableHead>
+                      <TableHead>{t('common.date')}</TableHead>
+                      <TableHead className="text-end">{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -360,7 +362,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                             <TableCell>
                               {format(new Date(debt.debt_date), 'dd/MM/yyyy')}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-end">
                               <div className="flex justify-end gap-1">
                                 <Button
                                   variant="ghost"
@@ -405,13 +407,13 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                             <TableRow className="bg-muted/30">
                               <TableCell colSpan={7} className="p-0">
                                 <div className="p-4">
-                                  <p className="text-sm font-medium mb-2">Repayment History</p>
+                                  <p className="text-sm font-medium mb-2">{t('debts.repaymentHistory')}</p>
                                   <Table>
                                     <TableHeader>
                                       <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Note</TableHead>
+                                        <TableHead>{t('common.date')}</TableHead>
+                                        <TableHead>{t('common.amount')}</TableHead>
+                                        <TableHead>{t('common.description')}</TableHead>
                                         <TableHead className="w-10"></TableHead>
                                       </TableRow>
                                     </TableHeader>
@@ -458,9 +460,9 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
       {settledDebts.length > 0 && (
         <Card className="shadow-card opacity-75">
           <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-            <CardTitle className="text-sm md:text-lg">Settled Debts</CardTitle>
+            <CardTitle className="text-sm md:text-lg">{t('debts.settledDebts')}</CardTitle>
             <CardDescription className="text-xs md:text-sm">
-              {settledDebts.length} debt{settledDebts.length !== 1 ? 's' : ''} fully paid
+              {settledDebts.length} {t('debts.settled')}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -475,10 +477,10 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="font-mono text-sm">{Number(debt.amount).toLocaleString('fr-FR')}</p>
                       <Badge variant="secondary" className="bg-success/10 text-success text-[10px] px-1.5 py-0">
-                        Settled
+                        {t('debts.settled')}
                       </Badge>
                     </div>
                     <Button
@@ -499,10 +501,10 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('debts.person')}</TableHead>
+                    <TableHead>{t('common.amount')}</TableHead>
+                    <TableHead>{t('common.date')}</TableHead>
+                    <TableHead>{t('common.status')}</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -516,7 +518,7 @@ export default function DebtTable({ debtType, onAddPayment, onEdit }: DebtTableP
                       <TableCell>{format(new Date(debt.debt_date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-success/10 text-success">
-                          Settled
+                          {t('debts.settled')}
                         </Badge>
                       </TableCell>
                       <TableCell>
