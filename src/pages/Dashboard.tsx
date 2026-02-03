@@ -13,6 +13,7 @@ import UserIncomeTable from '@/components/UserIncomeTable';
 import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
 import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
+import WorkshopFilesManager from '@/components/WorkshopFilesManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
@@ -342,6 +343,11 @@ export default function Dashboard() {
         {/* Income Table (admin only) */}
         {selectedWorkshop && role === 'admin' && (
           <IncomeTable workshopId={selectedWorkshop} />
+        )}
+
+        {/* Workshop Files Manager (admin only) */}
+        {selectedWorkshop && role === 'admin' && (
+          <WorkshopFilesManager workshopId={selectedWorkshop} workshopName="" />
         )}
 
         {/* User Income Table (transfers received - for non-admins, global) */}
