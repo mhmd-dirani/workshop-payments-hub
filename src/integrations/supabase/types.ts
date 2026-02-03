@@ -23,6 +23,8 @@ export type Database = {
           hourly_rate: number
           hours_worked: number
           id: string
+          is_paid: boolean
+          payment_id: string | null
           updated_at: string
           work_date: string
           worker_id: string
@@ -36,6 +38,8 @@ export type Database = {
           hourly_rate: number
           hours_worked: number
           id?: string
+          is_paid?: boolean
+          payment_id?: string | null
           updated_at?: string
           work_date: string
           worker_id: string
@@ -49,12 +53,21 @@ export type Database = {
           hourly_rate?: number
           hours_worked?: number
           id?: string
+          is_paid?: boolean
+          payment_id?: string | null
           updated_at?: string
           work_date?: string
           worker_id?: string
           workshop_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_worker_id_fkey"
             columns: ["worker_id"]
@@ -408,6 +421,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          hourly_rate: number
           id: string
           is_active: boolean
           name: string
@@ -416,6 +430,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          hourly_rate?: number
           id?: string
           is_active?: boolean
           name: string
@@ -424,6 +439,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          hourly_rate?: number
           id?: string
           is_active?: boolean
           name?: string

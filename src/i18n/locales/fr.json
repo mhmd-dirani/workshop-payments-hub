@@ -28,7 +28,9 @@
     "of": "de",
     "noData": "Aucune donnée",
     "loadingWorkshops": "Chargement des ateliers...",
-    "workshop": "Atelier"
+    "workshop": "Atelier",
+    "days": "jours",
+    "saved": "Enregistré"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -63,7 +65,8 @@
     "team": "Équipe",
     "debts": "Dettes",
     "manageUsers": "Gérer",
-    "attendance": "Présence"
+    "attendance": "Présence",
+    "workers": "Travailleurs"
   },
   "dashboard": {
     "title": "Tableau de bord des paiements",
@@ -301,11 +304,21 @@
     "duplicateError": "Une entrée existe déjà pour cette date",
     "allWorkers": "Tous les travailleurs",
     "allWorkshops": "Tous les ateliers",
-    "attendance": "Présence"
+    "attendance": "Présence",
+    "entry": "Saisie",
+    "history": "Historique",
+    "quickEntry": "Saisie rapide de présence",
+    "quickEntryDesc": "Sélectionnez date et atelier, puis entrez les heures de chaque travailleur",
+    "selectWorkshopFirst": "Sélectionnez un atelier pour voir les travailleurs",
+    "recorded": "Enregistré",
+    "savedAll": "Toutes les entrées sauvegardées",
+    "savedAllDesc": "La présence de tous les travailleurs a été enregistrée",
+    "saveAll": "Enregistrer tout"
   },
   "workers": {
     "title": "Travailleurs",
     "description": "Gérer les travailleurs externes qui travaillent dans vos ateliers",
+    "manageDescription": "Voir les détails, suivre les heures et gérer les paiements de salaire",
     "addWorker": "Ajouter travailleur",
     "editWorker": "Modifier travailleur",
     "workerName": "Nom du travailleur",
@@ -316,7 +329,7 @@
     "added": "Travailleur ajouté",
     "addedDesc": "Le travailleur a été ajouté à votre liste",
     "updated": "Travailleur mis à jour",
-    "updatedDesc": "Le nom du travailleur a été mis à jour",
+    "updatedDesc": "Le travailleur a été mis à jour",
     "activated": "Travailleur activé",
     "activatedDesc": "Le travailleur est maintenant actif",
     "deactivated": "Travailleur désactivé",
@@ -324,7 +337,27 @@
     "deleted": "Travailleur supprimé",
     "deletedDesc": "Le travailleur a été supprimé",
     "deleteConfirm": "Supprimer le travailleur ?",
-    "deleteWarning": "Êtes-vous sûr de vouloir supprimer {{name}} ? Cela supprimera également tous ses enregistrements de présence."
+    "deleteWarning": "Êtes-vous sûr de vouloir supprimer {{name}} ? Cela supprimera également tous ses enregistrements de présence.",
+    "deactivateConfirm": "Désactiver le travailleur ?",
+    "deactivateWarning": "Êtes-vous sûr de vouloir désactiver {{name}} ? Il n'apparaîtra plus dans la saisie de présence.",
+    "activateConfirm": "Activer le travailleur ?",
+    "activateWarning": "Êtes-vous sûr de vouloir réactiver {{name}} ? Il apparaîtra à nouveau dans la saisie de présence.",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "totalOwed": "Total dû",
+    "workDays": "Jours travaillés",
+    "payWorker": "Payer le travailleur",
+    "pay": "Payer",
+    "unpaid": "Travail non payé",
+    "paymentHistory": "Historique des paiements",
+    "noPendingPayments": "Aucun paiement en attente - le travailleur est à jour !",
+    "noPaymentHistory": "Pas d'historique de paiements",
+    "payDescription": "Créer une demande de paiement pour le salaire de {{name}}",
+    "paymentCreated": "Demande de paiement créée",
+    "paymentCreatedDesc": "Le paiement est en attente d'approbation admin",
+    "createPayment": "Créer paiement",
+    "maxAmount": "Max",
+    "salary": "Salaire"
   },
   "personalPayments": {
     "title": "Paiements personnels",

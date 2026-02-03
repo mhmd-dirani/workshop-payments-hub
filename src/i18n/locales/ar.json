@@ -28,7 +28,9 @@
     "of": "من",
     "noData": "لا توجد بيانات",
     "loadingWorkshops": "جاري تحميل الورش...",
-    "workshop": "الورشة"
+    "workshop": "الورشة",
+    "days": "أيام",
+    "saved": "تم الحفظ"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -63,7 +65,8 @@
     "team": "الفريق",
     "debts": "الديون",
     "manageUsers": "إدارة",
-    "attendance": "الحضور"
+    "attendance": "الحضور",
+    "workers": "العمال"
   },
   "dashboard": {
     "title": "لوحة المدفوعات",
@@ -301,11 +304,21 @@
     "duplicateError": "يوجد سجل لهذا التاريخ بالفعل",
     "allWorkers": "جميع العمال",
     "allWorkshops": "جميع الورش",
-    "attendance": "الحضور"
+    "attendance": "الحضور",
+    "entry": "إدخال",
+    "history": "السجل",
+    "quickEntry": "إدخال سريع للحضور",
+    "quickEntryDesc": "اختر التاريخ والورشة، ثم أدخل ساعات كل عامل",
+    "selectWorkshopFirst": "اختر ورشة لرؤية العمال",
+    "recorded": "مسجل",
+    "savedAll": "تم حفظ جميع الإدخالات",
+    "savedAllDesc": "تم تسجيل حضور جميع العمال",
+    "saveAll": "حفظ جميع الإدخالات"
   },
   "workers": {
     "title": "العمال",
     "description": "إدارة العمال الخارجيين الذين يعملون في ورشك",
+    "manageDescription": "عرض تفاصيل العمال وتتبع الساعات وإدارة دفع الرواتب",
     "addWorker": "إضافة عامل",
     "editWorker": "تعديل العامل",
     "workerName": "اسم العامل",
@@ -316,7 +329,7 @@
     "added": "تمت إضافة العامل",
     "addedDesc": "تمت إضافة العامل إلى قائمتك",
     "updated": "تم تحديث العامل",
-    "updatedDesc": "تم تحديث اسم العامل",
+    "updatedDesc": "تم تحديث العامل",
     "activated": "تم تفعيل العامل",
     "activatedDesc": "العامل نشط الآن",
     "deactivated": "تم إلغاء تفعيل العامل",
@@ -324,7 +337,27 @@
     "deleted": "تم حذف العامل",
     "deletedDesc": "تم إزالة العامل",
     "deleteConfirm": "حذف العامل؟",
-    "deleteWarning": "هل أنت متأكد من حذف {{name}}؟ سيتم أيضاً حذف جميع سجلات حضوره."
+    "deleteWarning": "هل أنت متأكد من حذف {{name}}؟ سيتم أيضاً حذف جميع سجلات حضوره.",
+    "deactivateConfirm": "إلغاء تفعيل العامل؟",
+    "deactivateWarning": "هل أنت متأكد من إلغاء تفعيل {{name}}؟ لن يظهر في إدخال الحضور.",
+    "activateConfirm": "تفعيل العامل؟",
+    "activateWarning": "هل أنت متأكد من إعادة تفعيل {{name}}؟ سيظهر في إدخال الحضور مرة أخرى.",
+    "activate": "تفعيل",
+    "deactivate": "إلغاء التفعيل",
+    "totalOwed": "إجمالي المستحق",
+    "workDays": "أيام العمل",
+    "payWorker": "دفع للعامل",
+    "pay": "دفع",
+    "unpaid": "عمل غير مدفوع",
+    "paymentHistory": "سجل الدفعات",
+    "noPendingPayments": "لا توجد دفعات معلقة - تم دفع جميع مستحقات العامل!",
+    "noPaymentHistory": "لا يوجد سجل دفعات بعد",
+    "payDescription": "إنشاء طلب دفع لراتب {{name}}",
+    "paymentCreated": "تم إنشاء طلب الدفع",
+    "paymentCreatedDesc": "الدفعة الآن في انتظار موافقة المدير",
+    "createPayment": "إنشاء دفعة",
+    "maxAmount": "الحد الأقصى",
+    "salary": "راتب"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",
