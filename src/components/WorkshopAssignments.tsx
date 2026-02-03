@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,6 +30,7 @@ export default function WorkshopAssignments({
   open, 
   onOpenChange 
 }: WorkshopAssignmentsProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedWorkshops, setSelectedWorkshops] = useState<Set<string>>(new Set());
@@ -100,14 +102,14 @@ export default function WorkshopAssignments({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workshop-assignments'] });
       toast({
-        title: 'Assignments Updated',
-        description: `Workshop access for ${userName} has been updated`,
+        title: t('users.assignmentsUpdated'),
+        description: t('users.workshopAccessUpdated'),
       });
       handleOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -146,11 +148,12 @@ export default function WorkshopAssignments({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5" />
-            Workshop Access
+            {t('users.workshopAccess')}
           </DialogTitle>
           <DialogDescription>
-            Select which workshops <span className="font-medium">{userName}</span> can access.
-            Users will only see workshops they're assigned to.
+            {t('users.selectWorkshops')} <span className="font-medium">{userName}</span>
+            <br />
+            {t('users.usersOnlySeeAssigned')}
           </DialogDescription>
         </DialogHeader>
 
@@ -162,17 +165,17 @@ export default function WorkshopAssignments({
           <>
             <div className="flex gap-2 mb-2">
               <Button variant="outline" size="sm" onClick={selectAll}>
-                Select All
+                {t('users.selectAll')}
               </Button>
               <Button variant="outline" size="sm" onClick={selectNone}>
-                Select None
+                {t('users.selectNone')}
               </Button>
             </div>
             
             <ScrollArea className="h-[300px] rounded-md border p-4">
               <div className="space-y-3">
                 {workshops?.map((workshop) => (
-                  <div key={workshop.id} className="flex items-center space-x-3">
+                  <div key={workshop.id} className="flex items-center space-x-3 rtl:space-x-reverse">
                     <Checkbox
                       id={`workshop-${workshop.id}`}
                       checked={selectedWorkshops.has(workshop.id)}
@@ -188,29 +191,29 @@ export default function WorkshopAssignments({
                 ))}
                 {(!workshops || workshops.length === 0) && (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No workshops available
+                    {t('users.noWorkshopsAvailable')}
                   </p>
                 )}
               </div>
             </ScrollArea>
 
             <p className="text-xs text-muted-foreground">
-              {selectedWorkshops.size} workshop{selectedWorkshops.size !== 1 ? 's' : ''} selected
+              {t('users.workshopsSelected', { count: selectedWorkshops.size })}
             </p>
           </>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleSave} 
             disabled={saveAssignments.isPending}
             className="gradient-primary text-primary-foreground"
           >
-            {saveAssignments.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save Access
+            {saveAssignments.isPending && <Loader2 className="w-4 h-4 ltr:mr-2 rtl:ml-2 animate-spin" />}
+            {t('users.saveAccess')}
           </Button>
         </DialogFooter>
       </DialogContent>

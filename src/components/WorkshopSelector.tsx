@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface User {
 }
 
 export default function WorkshopSelector({ selectedWorkshop, onSelect }: WorkshopSelectorProps) {
+  const { t } = useTranslation();
   const { role, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -115,13 +117,13 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
       setSelectedUsers([]);
       onSelect(data.id);
       toast({
-        title: 'Workshop created',
-        description: `"${data.name}" has been added successfully${selectedUsers.length > 0 ? ` with ${selectedUsers.length} user(s) assigned` : ''}`,
+        title: t('workshopSelector.workshopCreated'),
+        description: `"${data.name}" ${t('workshopSelector.workshopCreatedDesc')}${selectedUsers.length > 0 ? ` ${t('workshopSelector.withUsersAssigned', { count: selectedUsers.length })}` : ''}`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -131,8 +133,8 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
   const handleCreate = () => {
     if (!newWorkshop.name.trim()) {
       toast({
-        title: 'Error',
-        description: 'Please enter a workshop name',
+        title: t('errors.error'),
+        description: t('validation.enterWorkshopName'),
         variant: 'destructive',
       });
       return;
@@ -160,7 +162,7 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="w-4 h-4 animate-spin" />
-        Loading workshops...
+        {t('common.loadingWorkshops')}
       </div>
     );
   }
@@ -172,7 +174,7 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
           <SelectTrigger className="h-11">
             <div className="flex items-center gap-2">
               <FolderOpen className="w-4 h-4 text-muted-foreground" />
-              <SelectValue placeholder="Select a workshop" />
+              <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
             </div>
           </SelectTrigger>
           <SelectContent>
@@ -183,7 +185,7 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
             ))}
             {(!workshops || workshops.length === 0) && (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                No workshops yet
+                {t('workshopSelector.noWorkshopsYet')}
               </div>
             )}
           </SelectContent>
@@ -195,31 +197,31 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
           <DialogTrigger asChild>
             <Button className="gap-2 gradient-primary text-primary-foreground">
               <Plus className="w-4 h-4" />
-              New Workshop
+              {t('workshopSelector.newWorkshop')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New Workshop</DialogTitle>
+              <DialogTitle>{t('workshopSelector.createNewWorkshop')}</DialogTitle>
               <DialogDescription>
-                Add a new workshop and assign users to it
+                {t('workshopSelector.addWorkshopAndAssign')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Workshop Name *</Label>
+                <Label htmlFor="name">{t('workshopSelector.workshopName')} *</Label>
                 <Input
                   id="name"
-                  placeholder="e.g., Photography Workshop 2024"
+                  placeholder={t('workshopSelector.workshopNamePlaceholder')}
                   value={newWorkshop.name}
                   onChange={(e) => setNewWorkshop(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
+                <Label htmlFor="description">{t('workshopSelector.workshopDescription')}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Brief description of the workshop"
+                  placeholder={t('workshopSelector.workshopDescPlaceholder')}
                   value={newWorkshop.description}
                   onChange={(e) => setNewWorkshop(prev => ({ ...prev, description: e.target.value }))}
                 />
@@ -228,10 +230,10 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
               {/* User Assignment Section */}
               {availableUsers && availableUsers.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Assign Users (optional)</Label>
+                  <Label>{t('workshopSelector.assignUsers')}</Label>
                   <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
                     {availableUsers.map((u) => (
-                      <div key={u.user_id} className="flex items-center space-x-2">
+                      <div key={u.user_id} className="flex items-center space-x-2 rtl:space-x-reverse">
                         <Checkbox
                           id={u.user_id}
                           checked={selectedUsers.includes(u.user_id)}
@@ -241,14 +243,14 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
                           htmlFor={u.user_id} 
                           className="text-sm font-normal cursor-pointer"
                         >
-                          {u.full_name || 'Unnamed User'}
+                          {u.full_name || t('team.unnamedUser')}
                         </Label>
                       </div>
                     ))}
                   </div>
                   {selectedUsers.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {selectedUsers.length} user(s) selected
+                      {selectedUsers.length} {t('workshopSelector.usersSelected')}
                     </p>
                   )}
                 </div>
@@ -256,15 +258,15 @@ export default function WorkshopSelector({ selectedWorkshop, onSelect }: Worksho
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button 
                 onClick={handleCreate} 
                 disabled={createWorkshop.isPending}
                 className="gradient-primary text-primary-foreground"
               >
-                {createWorkshop.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Workshop
+                {createWorkshop.isPending && <Loader2 className="w-4 h-4 ltr:mr-2 rtl:ml-2 animate-spin" />}
+                {t('workshopSelector.createWorkshop')}
               </Button>
             </DialogFooter>
           </DialogContent>

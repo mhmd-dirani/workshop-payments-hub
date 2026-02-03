@@ -224,7 +224,7 @@ export default function Users() {
     const count = assignmentCounts?.[userId] || 0;
     return count === 0 
       ? <span className="text-destructive">{t('common.none')}</span>
-      : <span>{count} {t('users.workshopsSelected')}</span>;
+      : <span>{t('users.workshopsSelected', { count })}</span>;
   };
 
   return (
