@@ -10,7 +10,8 @@ import {
   ClipboardCheck,
   Settings,
   HandCoins,
-  Users2
+  Users2,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -32,6 +33,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
+    { name: t('nav.attendance'), href: '/attendance', icon: Calendar },
     ...(role === 'admin' ? [
       { name: t('nav.pendingApprovals'), href: '/approvals', icon: ClipboardCheck },
       { name: t('nav.team'), href: '/team', icon: Users2 },

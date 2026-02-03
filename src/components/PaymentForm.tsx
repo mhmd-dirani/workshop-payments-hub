@@ -221,7 +221,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                     value={formData.paid_to}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
                   />
-                  <CommandList>
+                  <CommandList className="max-h-[200px] overflow-y-auto">
                     <CommandEmpty>
                       <div className="py-2 px-2 text-sm">
                         {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"

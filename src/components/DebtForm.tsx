@@ -49,9 +49,17 @@ interface DebtFormProps {
   debt?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  prefilledPersonName?: string;
+  prefilledDebtType?: 'i_owe' | 'they_owe';
 }
 
-export default function DebtForm({ debt, open, onOpenChange }: DebtFormProps) {
+export default function DebtForm({ 
+  debt, 
+  open, 
+  onOpenChange, 
+  prefilledPersonName = '', 
+  prefilledDebtType = 'they_owe' 
+}: DebtFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,14 +87,14 @@ export default function DebtForm({ debt, open, onOpenChange }: DebtFormProps) {
       });
     } else {
       form.reset({
-        person_name: '',
+        person_name: prefilledPersonName,
         amount: 0,
         debt_date: format(new Date(), 'yyyy-MM-dd'),
-        debt_type: 'they_owe',
+        debt_type: prefilledDebtType,
         description: '',
       });
     }
-  }, [debt, form, open]);
+  }, [debt, form, open, prefilledPersonName, prefilledDebtType]);
 
   const mutation = useMutation({
     mutationFn: async (data: DebtFormData) => {
