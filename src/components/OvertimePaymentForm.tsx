@@ -131,6 +131,9 @@ export default function OvertimePaymentForm() {
 
         // Create ONE attendance record PER WORKER so each can see it in their filtered history
         // All records share the same payment_id (so deleting payment removes all)
+        // IMPORTANT: Divide amount among workers so totals sum correctly
+        const amountPerWorker = amount / selectedWorkersList.length;
+        
         const attendanceRecords = selectedWorkersList.map(worker => {
           const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
           const othersText = otherWorkers.length > 0 
@@ -142,10 +145,10 @@ export default function OvertimePaymentForm() {
             workshop_id: selectedWorkshop,
             work_date: selectedDate,
             hours_worked: 1, // Minimum to satisfy constraint
-            hourly_rate: 1, // Minimum positive value to satisfy check constraint
+            hourly_rate: 1, // Minimum to satisfy check constraint
             has_extra: true,
-            extra_amount: amount, // Total shared amount shown for reference
-            description: `${othersText} - ${reason}`,
+            extra_amount: amountPerWorker, // Each worker's share (total / count)
+            description: `${othersText} - ${reason} (${t('common.total')}: ${amount.toLocaleString('fr-FR')} CFA)`,
             is_paid: true,
             payment_id: payment.id,
             created_by: user?.id,
