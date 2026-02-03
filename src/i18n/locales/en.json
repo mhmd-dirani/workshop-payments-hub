@@ -32,7 +32,9 @@
     "workshop": "Workshop",
     "days": "days",
     "saved": "Saved",
-    "success": "Success"
+    "success": "Success",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All"
   },
   "auth": {
     "signIn": "Sign In",
@@ -338,7 +340,25 @@
     "extraAmount": "Extra Amount",
     "baseSalary": "Base Salary",
     "totalSalary": "Total",
-    "hours": "Hours"
+    "hours": "Hours",
+    "overtime": "Overtime",
+    "overtimeShort": "OT",
+    "entryShort": "Entry",
+    "historyShort": "History",
+    "overtimePayment": "Overtime Payment",
+    "overtimePaymentDesc": "Pay multiple workers for overtime work at once",
+    "overtimeDate": "Overtime Date",
+    "overtimeReason": "Reason for Overtime",
+    "overtimeReasonPlaceholder": "Why did they work overtime?",
+    "totalOvertimeAmount": "Total Amount (shared)",
+    "perWorker": "per worker",
+    "workersSelected": "workers",
+    "selectWorkers": "Select Workers",
+    "overtimeSummary": "Payment Summary",
+    "createOvertimePayment": "Create Overtime Payment",
+    "overtimePaymentCreated": "Overtime payment created successfully",
+    "overtimeWith": "Overtime with",
+    "extra": "extra"
   },
   "workers": {
     "title": "Workers",
