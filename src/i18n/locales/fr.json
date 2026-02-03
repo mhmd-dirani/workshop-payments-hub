@@ -27,7 +27,8 @@
     "total": "Total",
     "of": "de",
     "noData": "Aucune donnée",
-    "loadingWorkshops": "Chargement des ateliers..."
+    "loadingWorkshops": "Chargement des ateliers...",
+    "workshop": "Atelier"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -297,7 +298,33 @@
     "updatedDesc": "Les heures ont été mises à jour",
     "deleted": "Entrée supprimée",
     "deletedDesc": "L'enregistrement a été supprimé",
-    "duplicateError": "Une entrée existe déjà pour cette date"
+    "duplicateError": "Une entrée existe déjà pour cette date",
+    "allWorkers": "Tous les travailleurs",
+    "allWorkshops": "Tous les ateliers",
+    "attendance": "Présence"
+  },
+  "workers": {
+    "title": "Travailleurs",
+    "description": "Gérer les travailleurs externes qui travaillent dans vos ateliers",
+    "addWorker": "Ajouter travailleur",
+    "editWorker": "Modifier travailleur",
+    "workerName": "Nom du travailleur",
+    "noWorkers": "Aucun travailleur ajouté",
+    "showInactive": "Afficher inactifs",
+    "hideInactive": "Masquer inactifs",
+    "inactive": "Inactif",
+    "added": "Travailleur ajouté",
+    "addedDesc": "Le travailleur a été ajouté à votre liste",
+    "updated": "Travailleur mis à jour",
+    "updatedDesc": "Le nom du travailleur a été mis à jour",
+    "activated": "Travailleur activé",
+    "activatedDesc": "Le travailleur est maintenant actif",
+    "deactivated": "Travailleur désactivé",
+    "deactivatedDesc": "Le travailleur a été marqué comme inactif",
+    "deleted": "Travailleur supprimé",
+    "deletedDesc": "Le travailleur a été supprimé",
+    "deleteConfirm": "Supprimer le travailleur ?",
+    "deleteWarning": "Êtes-vous sûr de vouloir supprimer {{name}} ? Cela supprimera également tous ses enregistrements de présence."
   },
   "personalPayments": {
     "title": "Paiements personnels",

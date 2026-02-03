@@ -214,14 +214,18 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+              <PopoverContent 
+                className="w-[--radix-popover-trigger-width] p-0" 
+                align="start"
+                style={{ maxHeight: '300px' }}
+              >
+                <Command shouldFilter={true}>
                   <CommandInput 
                     placeholder={t('common.search')}
                     value={formData.paid_to}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
                   />
-                  <CommandList className="max-h-[200px] overflow-y-auto">
+                  <CommandList>
                     <CommandEmpty>
                       <div className="py-2 px-2 text-sm">
                         {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"

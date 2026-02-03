@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,39 +22,73 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Loader2, Trash2, Edit, Calendar, Clock, DollarSign } from 'lucide-react';
+import { Loader2, Trash2, Edit, Calendar, Clock, DollarSign, Building2 } from 'lucide-react';
 
 interface AttendanceTableProps {
-  userId?: string;
+  workerId?: string;
+  workshopId?: string;
   onEdit?: (attendance: any) => void;
 }
 
-export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps) {
+export default function AttendanceTable({ workerId, workshopId, onEdit }: AttendanceTableProps) {
   const { t } = useTranslation();
-  const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
-
-  const targetUserId = userId || user?.id;
+  const [filterWorkshopId, setFilterWorkshopId] = useState(workshopId || 'all');
+  const [filterWorkerId, setFilterWorkerId] = useState(workerId || 'all');
 
   // Calculate week range
   const currentDate = subWeeks(new Date(), weekOffset);
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 6 }); // Saturday
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 6 });
 
+  // Fetch workers for filter
+  const { data: workers = [] } = useQuery({
+    queryKey: ['workers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch workshops for filter
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workshops')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', targetUserId, weekOffset],
+    queryKey: ['attendance', weekOffset, filterWorkerId, filterWorkshopId],
     queryFn: async () => {
       let query = supabase
         .from('attendance')
-        .select('*')
+        .select(`
+          *,
+          workers:worker_id(id, name),
+          workshops:workshop_id(id, name)
+        `)
         .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('work_date', format(weekEnd, 'yyyy-MM-dd'))
         .order('work_date', { ascending: false });
 
-      if (targetUserId) {
-        query = query.eq('user_id', targetUserId);
+      if (filterWorkerId && filterWorkerId !== 'all') {
+        query = query.eq('worker_id', filterWorkerId);
+      }
+      if (filterWorkshopId && filterWorkshopId !== 'all') {
+        query = query.eq('workshop_id', filterWorkshopId);
       }
 
       const { data, error } = await query;
@@ -92,7 +125,7 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
     <Card className="shadow-card">
       <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="text-base md:text-lg flex items-center gap-2">
                 <Calendar className="w-4 h-4 md:w-5 md:h-5" />
@@ -106,7 +139,7 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
               value={weekOffset.toString()}
               onValueChange={(v) => setWeekOffset(parseInt(v))}
             >
-              <SelectTrigger className="w-[140px] h-8 text-xs md:text-sm">
+              <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -115,6 +148,33 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
                 <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
                 <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
                 <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <Select value={filterWorkerId} onValueChange={setFilterWorkerId}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder={t('attendance.allWorkers')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('attendance.allWorkers')}</SelectItem>
+                {workers.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterWorkshopId} onValueChange={setFilterWorkshopId}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder={t('attendance.allWorkshops')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('attendance.allWorkshops')}</SelectItem>
+                {workshops.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -154,16 +214,25 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
             <div className="md:hidden space-y-2">
               {data.map((entry) => (
                 <div key={entry.id} className="border rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Badge variant="outline" className="text-[10px] font-mono">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">
+                          {(entry.workers as any)?.name}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          <Building2 className="w-2.5 h-2.5 mr-1" />
+                          {(entry.workshops as any)?.name}
+                        </Badge>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] font-mono">
                         {format(new Date(entry.work_date), 'EEE, dd/MM')}
                       </Badge>
-                      <p className="text-sm mt-1">
+                      <p className="text-sm">
                         {entry.hours_worked}h × {Number(entry.hourly_rate).toLocaleString('fr-FR')}
                       </p>
                       {entry.description && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate">
                           {entry.description}
                         </p>
                       )}
@@ -203,6 +272,8 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>{t('attendance.worker')}</TableHead>
+                    <TableHead>{t('common.workshop')}</TableHead>
                     <TableHead>{t('common.date')}</TableHead>
                     <TableHead>{t('attendance.hours')}</TableHead>
                     <TableHead>{t('attendance.rate')}</TableHead>
@@ -214,6 +285,14 @@ export default function AttendanceTable({ userId, onEdit }: AttendanceTableProps
                 <TableBody>
                   {data.map((entry) => (
                     <TableRow key={entry.id}>
+                      <TableCell className="font-medium">
+                        {(entry.workers as any)?.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {(entry.workshops as any)?.name}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="font-mono">
                         {format(new Date(entry.work_date), 'EEE, MMM d')}
                       </TableCell>

@@ -28,7 +28,8 @@
     "of": "of",
     "noData": "No data",
     "clickToReveal": "Click to reveal",
-    "loadingWorkshops": "Loading workshops..."
+    "loadingWorkshops": "Loading workshops...",
+    "workshop": "Workshop"
   },
   "auth": {
     "signIn": "Sign In",
@@ -298,7 +299,33 @@
     "updatedDesc": "Work hours have been updated",
     "deleted": "Entry deleted",
     "deletedDesc": "Attendance record has been removed",
-    "duplicateError": "Entry for this date already exists"
+    "duplicateError": "Entry for this date already exists",
+    "allWorkers": "All Workers",
+    "allWorkshops": "All Workshops",
+    "attendance": "Attendance"
+  },
+  "workers": {
+    "title": "Workers",
+    "description": "Manage external workers who work at your workshops",
+    "addWorker": "Add Worker",
+    "editWorker": "Edit Worker",
+    "workerName": "Worker Name",
+    "noWorkers": "No workers added yet",
+    "showInactive": "Show Inactive",
+    "hideInactive": "Hide Inactive",
+    "inactive": "Inactive",
+    "added": "Worker added",
+    "addedDesc": "The worker has been added to your list",
+    "updated": "Worker updated",
+    "updatedDesc": "The worker name has been updated",
+    "activated": "Worker activated",
+    "activatedDesc": "The worker is now active",
+    "deactivated": "Worker deactivated", 
+    "deactivatedDesc": "The worker has been marked as inactive",
+    "deleted": "Worker deleted",
+    "deletedDesc": "The worker has been removed",
+    "deleteConfirm": "Delete Worker?",
+    "deleteWarning": "Are you sure you want to delete {{name}}? This will also delete all their attendance records."
   },
   "personalPayments": {
     "title": "Personal Payments",
