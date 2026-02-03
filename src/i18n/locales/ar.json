@@ -30,7 +30,8 @@
     "loadingWorkshops": "جاري تحميل الورش...",
     "workshop": "الورشة",
     "days": "أيام",
-    "saved": "تم الحفظ"
+    "saved": "تم الحفظ",
+    "success": "نجاح"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -116,7 +117,16 @@
     "whatWasPaymentFor": "ما سبب هذه الدفعة؟",
     "addPaymentRecord": "إضافة سجل دفعة لهذه الورشة",
     "submitForApproval": "سيتم إرسال دفعتك لموافقة المدير",
-    "saveChanges": "حفظ التغييرات"
+    "saveChanges": "حفظ التغييرات",
+    "invoiceReceipt": "الفاتورة / الإيصال",
+    "attachedFiles": "الملفات المرفقة",
+    "capturePhoto": "التقاط",
+    "uploadFile": "رفع",
+    "fileHint": "أرفق صورة للفاتورة أو الإيصال (اختياري)",
+    "invalidFileType": "مسموح فقط بالصور وملفات PDF",
+    "fileTooLarge": "يجب أن يكون حجم الملف أقل من 10 ميجابايت",
+    "fileRemoved": "تم حذف الملف",
+    "fileRemoveFailed": "فشل في حذف الملف"
   },
   "income": {
     "title": "سجلات الإيرادات",

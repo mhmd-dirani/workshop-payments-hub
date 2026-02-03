@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,30 +29,20 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 
-// Validation schema for payment form
 const paymentSchema = z.object({
-  paid_to: z.string()
-    .trim()
-    .min(1, 'Paid to is required')
-    .max(200, 'Paid to must be less than 200 characters'),
-  reason: z.string()
-    .trim()
-    .min(1, 'Reason is required')
-    .max(1000, 'Reason must be less than 1000 characters'),
-  amount: z.number()
-    .min(0.01, 'Amount must be greater than 0'),
-  payment_date: z.string()
-    .min(1, 'Date is required')
-    .refine((date) => {
-      const d = new Date(date);
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
-      return d <= today;
-    }, 'Date cannot be in the future'),
+  paid_to: z.string().trim().min(1, 'Paid to is required').max(200, 'Paid to must be less than 200 characters'),
+  reason: z.string().trim().min(1, 'Reason is required').max(1000, 'Reason must be less than 1000 characters'),
+  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  payment_date: z.string().min(1, 'Date is required').refine((date) => {
+    const d = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return d <= today;
+  }, 'Date cannot be in the future'),
 });
 
 interface Payment {
@@ -62,6 +52,13 @@ interface Payment {
   amount: number;
   payment_date: string;
   status?: string;
+}
+
+interface ExistingFile {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
 }
 
 interface PaymentFormProps {
@@ -77,6 +74,12 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [paidToOpen, setPaidToOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState<Payment>({
     paid_to: '',
@@ -85,17 +88,35 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     payment_date: new Date().toISOString().split('T')[0],
   });
 
-  // Fetch all payees for autocomplete (uses security definer function to bypass RLS)
   const { data: previousPayees = [] } = useQuery({
     queryKey: ['previous-payees'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_all_payees');
-      
       if (error) throw error;
-      
       return data?.map((p: { paid_to: string }) => p.paid_to) || [];
     },
   });
+
+  useEffect(() => {
+    const fetchExistingFiles = async () => {
+      if (payment?.id) {
+        const { data, error } = await supabase
+          .from('workshop_files')
+          .select('id, file_name, file_path, file_type')
+          .eq('payment_id', payment.id);
+        
+        if (!error && data) {
+          setExistingFiles(data);
+        }
+      } else {
+        setExistingFiles([]);
+      }
+    };
+    
+    if (open) {
+      fetchExistingFiles();
+    }
+  }, [payment?.id, open]);
 
   useEffect(() => {
     if (payment) {
@@ -113,12 +134,101 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         payment_date: new Date().toISOString().split('T')[0],
       });
     }
+    setSelectedFile(null);
+    setPreviewUrl(null);
   }, [payment, open]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        toast({
+          title: t('errors.error'),
+          description: t('payments.invalidFileType'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: t('errors.error'),
+          description: t('payments.fileTooLarge'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+      
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+      } else {
+        setPreviewUrl(null);
+      }
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const removeExistingFile = async (fileId: string, filePath: string) => {
+    try {
+      await supabase.storage.from('workshop-files').remove([filePath]);
+      await supabase.from('workshop_files').delete().eq('id', fileId);
+      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
+      toast({
+        title: t('common.success'),
+        description: t('payments.fileRemoved'),
+      });
+    } catch {
+      toast({
+        title: t('errors.error'),
+        description: t('payments.fileRemoveFailed'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const uploadFile = async (paymentId: string): Promise<void> => {
+    if (!selectedFile || !user?.id) return;
+    
+    const fileExt = selectedFile.name.split('.').pop();
+    const fileName = `${paymentId}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('workshop-files')
+      .upload(fileName, selectedFile);
+    
+    if (uploadError) throw uploadError;
+    
+    const { error: dbError } = await supabase
+      .from('workshop_files')
+      .insert({
+        workshop_id: workshopId,
+        payment_id: paymentId,
+        file_name: selectedFile.name,
+        file_path: fileName,
+        file_type: selectedFile.type,
+        uploaded_by: user.id,
+      });
+    
+    if (dbError) throw dbError;
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (data: Payment) => {
+      setIsUploading(true);
+      
       if (payment?.id) {
-        // Update existing
         const { error } = await supabase
           .from('payments')
           .update({
@@ -126,14 +236,16 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
-            // Reset to pending if user edits (unless admin)
             ...(role !== 'admin' && { status: 'pending' }),
           })
           .eq('id', payment.id);
         if (error) throw error;
+        
+        if (selectedFile) {
+          await uploadFile(payment.id);
+        }
       } else {
-        // Create new payment
-        const { error: paymentError } = await supabase
+        const { data: newPayment, error: paymentError } = await supabase
           .from('payments')
           .insert([{
             workshop_id: workshopId,
@@ -142,26 +254,33 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             amount: data.amount,
             payment_date: data.payment_date,
             created_by: user?.id,
-            // Admin payments are auto-approved
             status: role === 'admin' ? 'approved' : 'pending',
-          }]);
+          }])
+          .select('id')
+          .single();
+          
         if (paymentError) throw paymentError;
+        
+        if (selectedFile && newPayment?.id) {
+          await uploadFile(newPayment.id);
+        }
       }
     },
     onSuccess: () => {
+      setIsUploading(false);
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-files', workshopId] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
-        description: role === 'admin' 
-          ? t('payments.paymentSaved')
-          : t('payments.pendingApproval'),
+        description: role === 'admin' ? t('payments.paymentSaved') : t('payments.pendingApproval'),
       });
     },
     onError: (error: Error) => {
+      setIsUploading(false);
       toast({
         title: t('errors.error'),
         description: error.message,
@@ -189,13 +308,11 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{payment?.id ? t('payments.editPayment') : t('payments.addNewPayment')}</DialogTitle>
           <DialogDescription>
-            {role === 'admin' 
-              ? t('payments.addPaymentRecord')
-              : t('payments.submitForApproval')}
+            {role === 'admin' ? t('payments.addPaymentRecord') : t('payments.submitForApproval')}
           </DialogDescription>
         </DialogHeader>
         
@@ -214,10 +331,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-[--radix-popover-trigger-width] p-0" 
-                align="start"
-              >
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter={true}>
                   <CommandInput 
                     placeholder={t('common.search')}
@@ -297,6 +411,104 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
               />
             </div>
           </div>
+
+          {/* Invoice/Receipt Upload Section */}
+          <div className="space-y-3">
+            <Label>{t('payments.invoiceReceipt')}</Label>
+            
+            {existingFiles.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{t('payments.attachedFiles')}</p>
+                {existingFiles.map((file) => (
+                  <div key={file.id} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <Image className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm flex-1 truncate">{file.file_name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => removeExistingFile(file.id, file.file_path)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedFile && (
+              <div className="relative">
+                {previewUrl ? (
+                  <div className="relative rounded-md overflow-hidden border">
+                    <img src={previewUrl} alt="Preview" className="w-full h-32 object-cover" />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6"
+                      onClick={removeSelectedFile}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <Image className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={removeSelectedFile}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!selectedFile && (
+              <div className="flex gap-2">
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {t('payments.capturePhoto')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('payments.uploadFile')}
+                </Button>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">{t('payments.fileHint')}</p>
+          </div>
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -304,10 +516,10 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             </Button>
             <Button 
               type="submit" 
-              disabled={saveMutation.isPending}
+              disabled={saveMutation.isPending || isUploading}
               className="gradient-primary text-primary-foreground"
             >
-              {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {(saveMutation.isPending || isUploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {payment?.id ? t('payments.saveChanges') : t('payments.addPayment')}
             </Button>
           </DialogFooter>
