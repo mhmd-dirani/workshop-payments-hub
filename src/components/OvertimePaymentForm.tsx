@@ -122,20 +122,27 @@ export default function OvertimePaymentForm() {
       if (paymentError) throw paymentError;
 
       // Create attendance records for each worker
-      const attendanceRecords = selectedWorkersList.map(worker => ({
-        worker_id: worker.id,
-        workshop_id: selectedWorkshop,
-        work_date: selectedDate,
-        hours_worked: 0, // No regular hours
-        hourly_rate: 0, // No regular rate
-        has_extra: true,
-        extra_amount: amountPerWorker,
-        daily_salary: amountPerWorker,
-        description: `${t('attendance.overtimeWith')} ${selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name).join(', ')}: ${reason}`,
-        is_paid: true,
-        payment_id: payment.id,
-        created_by: user?.id,
-      }));
+      // Each worker gets the TOTAL amount recorded (shared payment, not split)
+      const attendanceRecords = selectedWorkersList.map(worker => {
+        const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
+        const othersText = otherWorkers.length > 0 
+          ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}: ` 
+          : '';
+        
+        return {
+          worker_id: worker.id,
+          workshop_id: selectedWorkshop,
+          work_date: selectedDate,
+          hours_worked: 0, // No regular hours
+          hourly_rate: 0, // No regular rate
+          has_extra: true,
+          extra_amount: amount, // Total shared amount (not split)
+          description: `${othersText}${reason} (${t('common.total')}: ${amount.toLocaleString('fr-FR')} CFA - ${selectedWorkersList.length} ${t('attendance.workersSelected')})`,
+          is_paid: true,
+          payment_id: payment.id,
+          created_by: user?.id,
+        };
+      });
 
       const { error: attendanceError } = await supabase
         .from('attendance')
@@ -171,7 +178,6 @@ export default function OvertimePaymentForm() {
 
   const isLoading = loadingWorkers || loadingWorkshops;
   const amountNum = Number(totalAmount) || 0;
-  const amountPerWorker = selectedWorkers.size > 0 ? amountNum / selectedWorkers.size : 0;
 
   if (isLoading) {
     return (
@@ -255,7 +261,7 @@ export default function OvertimePaymentForm() {
           />
           {selectedWorkers.size > 0 && amountNum > 0 && (
             <p className="text-xs text-muted-foreground">
-              {amountPerWorker.toLocaleString('fr-FR')} CFA {t('attendance.perWorker')} ({selectedWorkers.size} {t('attendance.workersSelected')})
+              {t('attendance.sharedAmongWorkers', { count: selectedWorkers.size })}
             </p>
           )}
         </div>
@@ -314,7 +320,7 @@ export default function OvertimePaymentForm() {
               {t('attendance.overtimeSummary')}
             </p>
             <p className="text-xs text-muted-foreground">
-              {selectedWorkers.size} {t('attendance.workersSelected')} × {amountPerWorker.toLocaleString('fr-FR')} CFA = {amountNum.toLocaleString('fr-FR')} CFA
+              {amountNum.toLocaleString('fr-FR')} CFA {t('attendance.sharedPayment')} ({selectedWorkers.size} {t('attendance.workersSelected')})
             </p>
           </div>
         )}

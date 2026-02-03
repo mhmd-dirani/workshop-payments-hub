@@ -357,7 +357,9 @@
     "createOvertimePayment": "إنشاء دفعة العمل الإضافي",
     "overtimePaymentCreated": "تم إنشاء دفعة العمل الإضافي بنجاح",
     "overtimeWith": "عمل إضافي مع",
-    "extra": "إضافي"
+    "extra": "إضافي",
+    "sharedPayment": "دفعة مشتركة",
+    "sharedAmongWorkers": "مشترك بين {{count}} عمال"
   },
   "workers": {
     "title": "العمال",
