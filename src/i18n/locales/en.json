@@ -31,7 +31,8 @@
     "loadingWorkshops": "Loading workshops...",
     "workshop": "Workshop",
     "days": "days",
-    "saved": "Saved"
+    "saved": "Saved",
+    "success": "Success"
   },
   "auth": {
     "signIn": "Sign In",
@@ -117,7 +118,16 @@
     "whatWasPaymentFor": "What was this payment for?",
     "addPaymentRecord": "Add a payment record to this workshop",
     "submitForApproval": "Your payment will be submitted for admin approval",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "invoiceReceipt": "Invoice / Receipt",
+    "attachedFiles": "Attached files",
+    "capturePhoto": "Capture",
+    "uploadFile": "Upload",
+    "fileHint": "Attach a photo of the invoice or receipt (optional)",
+    "invalidFileType": "Only images and PDFs are allowed",
+    "fileTooLarge": "File must be less than 10MB",
+    "fileRemoved": "File removed",
+    "fileRemoveFailed": "Failed to remove file"
   },
   "income": {
     "title": "Income Records",
