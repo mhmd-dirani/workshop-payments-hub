@@ -110,7 +110,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  const uploadFile = async (): Promise<void> => {
+  const uploadFile = async (incomeId: string): Promise<void> => {
     if (!selectedFile || !user?.id) return;
     
     const fileExt = selectedFile.name.split('.').pop();
@@ -130,6 +130,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
         file_path: fileName,
         file_type: selectedFile.type,
         uploaded_by: user.id,
+        income_id: incomeId,
       });
     
     if (dbError) throw dbError;
@@ -139,7 +140,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
     mutationFn: async (data: typeof formData) => {
       setIsUploading(true);
       
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('income')
         .insert([{
           workshop_id: workshopId,
@@ -147,17 +148,20 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
           income_date: data.income_date,
           description: data.description || null,
           created_by: user?.id,
-        }]);
+        }])
+        .select()
+        .single();
       if (error) throw error;
       
-      // Upload file if selected
-      if (selectedFile) {
-        await uploadFile();
+      // Upload file if selected and link to income
+      if (selectedFile && insertedData) {
+        await uploadFile(insertedData.id);
       }
     },
     onSuccess: () => {
       setIsUploading(false);
       queryClient.invalidateQueries({ queryKey: ['income', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['income-files', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-files-all', workshopId] });
       onOpenChange(false);

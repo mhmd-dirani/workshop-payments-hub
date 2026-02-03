@@ -486,6 +486,7 @@ export type Database = {
           file_path: string
           file_type: string
           id: string
+          income_id: string | null
           payment_id: string | null
           uploaded_by: string
           workshop_id: string
@@ -496,6 +497,7 @@ export type Database = {
           file_path: string
           file_type: string
           id?: string
+          income_id?: string | null
           payment_id?: string | null
           uploaded_by: string
           workshop_id: string
@@ -506,11 +508,19 @@ export type Database = {
           file_path?: string
           file_type?: string
           id?: string
+          income_id?: string | null
           payment_id?: string | null
           uploaded_by?: string
           workshop_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "workshop_files_income_id_fkey"
+            columns: ["income_id"]
+            isOneToOne: false
+            referencedRelation: "income"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "workshop_files_payment_id_fkey"
             columns: ["payment_id"]
