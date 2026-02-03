@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +32,7 @@ export default function OvertimePaymentForm() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const actionInProgressRef = useRef(false);
   
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
@@ -88,70 +89,72 @@ export default function OvertimePaymentForm() {
 
   const createOvertimePayment = useMutation({
     mutationFn: async () => {
-      if (!selectedWorkshop || selectedWorkers.size === 0 || !reason || !totalAmount) {
-        throw new Error(t('errors.fillAllFields'));
+      // Prevent double-clicks
+      if (actionInProgressRef.current) {
+        throw new Error('Action already in progress');
       }
+      actionInProgressRef.current = true;
 
-      const amount = Number(totalAmount);
-      if (isNaN(amount) || amount <= 0) {
-        throw new Error(t('errors.invalidAmount'));
-      }
+      try {
+        if (!selectedWorkshop || selectedWorkers.size === 0 || !reason || !totalAmount) {
+          throw new Error(t('errors.fillAllFields'));
+        }
 
-      const selectedWorkersList = workers.filter(w => selectedWorkers.has(w.id));
-      const workerNames = selectedWorkersList.map(w => w.name).join(', ');
-      const amountPerWorker = amount / selectedWorkersList.length;
-      const paymentDate = format(new Date(), 'yyyy-MM-dd'); // Payment is made today
+        const amount = Number(totalAmount);
+        if (isNaN(amount) || amount <= 0) {
+          throw new Error(t('errors.invalidAmount'));
+        }
 
-      // Create the payment record (approved immediately since it's paid instantly)
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          workshop_id: selectedWorkshop,
-          paid_to: 'Travailleur Overtime',
-          reason: `${workerNames} - ${reason}`,
-          amount: amount,
-          payment_date: paymentDate,
-          status: 'approved',
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-          created_by: user?.id,
-        }])
-        .select('id')
-        .single();
+        const selectedWorkersList = workers.filter(w => selectedWorkers.has(w.id));
+        const workerNames = selectedWorkersList.map(w => w.name).join(', ');
+        const workerIds = selectedWorkersList.map(w => w.id);
+        const paymentDate = format(new Date(), 'yyyy-MM-dd');
 
-      if (paymentError) throw paymentError;
+        // Create ONE payment record with all worker names in reason
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: selectedWorkshop,
+            paid_to: 'Travailleur Overtime',
+            reason: `${workerNames} - ${reason}`,
+            amount: amount,
+            payment_date: paymentDate,
+            status: 'approved',
+            approved_by: user?.id,
+            approved_at: new Date().toISOString(),
+            created_by: user?.id,
+          }])
+          .select('id')
+          .single();
 
-      // Create attendance records for each worker
-      // Each worker gets the TOTAL amount recorded (shared payment, not split)
-      // Use hourly_rate=0, hours_worked=0, and put actual amount in extra_amount
-      const attendanceRecords = selectedWorkersList.map(worker => {
-        const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
-        const othersText = otherWorkers.length > 0 
-          ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}` 
-          : t('attendance.overtime');
+        if (paymentError) throw paymentError;
+
+        // Create ONE shared attendance record (use first worker as reference)
+        // Store all worker IDs in description for filtering
+        const overtimeDescription = `${t('attendance.overtime')}: ${workerNames} - ${reason}`;
         
-        return {
-          worker_id: worker.id,
-          workshop_id: selectedWorkshop,
-          work_date: selectedDate,
-          hours_worked: 1, // Required for constraint
-          hourly_rate: 0, // Set to 0 so daily_salary = extra_amount only
-          has_extra: true,
-          extra_amount: amount, // Total shared amount
-          description: othersText, // Simplified: "Overtime with Name1, Name2"
-          is_paid: true,
-          payment_id: payment.id,
-          created_by: user?.id,
-        };
-      });
+        const { error: attendanceError } = await supabase
+          .from('attendance')
+          .insert({
+            worker_id: workerIds[0], // Primary worker reference
+            workshop_id: selectedWorkshop,
+            work_date: selectedDate,
+            hours_worked: 1, // Minimum to satisfy constraint
+            hourly_rate: 1, // Minimum positive value to satisfy check constraint
+            has_extra: true,
+            extra_amount: amount,
+            description: overtimeDescription,
+            is_paid: true,
+            payment_id: payment.id,
+            created_by: user?.id,
+          });
 
-      const { error: attendanceError } = await supabase
-        .from('attendance')
-        .insert(attendanceRecords);
+        if (attendanceError) throw attendanceError;
 
-      if (attendanceError) throw attendanceError;
-
-      return { payment, workers: selectedWorkersList };
+        return { payment, workers: selectedWorkersList };
+      } finally {
+        actionInProgressRef.current = false;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
@@ -169,11 +172,13 @@ export default function OvertimePaymentForm() {
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: t('errors.error'),
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error.message !== 'Action already in progress') {
+        toast({
+          title: t('errors.error'),
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     },
   });
 
