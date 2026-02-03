@@ -16,9 +16,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Pencil, Trash2, Clock, CheckCircle, XCircle, Search, DollarSign } from 'lucide-react';
+import { Pencil, Trash2, Clock, CheckCircle, XCircle, Search, DollarSign, Paperclip, Eye, Download } from 'lucide-react';
 
 interface PaymentTableProps {
   workshopId: string;
@@ -32,11 +38,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', workshopId],
     queryFn: async () => {
-      // Fetch payments - for users, only show approved OR their own payments
       let query = supabase
         .from('payments')
         .select('*')
@@ -46,36 +52,44 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       const { data: paymentsData, error: paymentsError } = await query;
       if (paymentsError) throw paymentsError;
       
-      // Fetch all profiles to join with payments
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, full_name');
       
-      // Create a lookup map
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
       
-      // Join the data
+      // Fetch files for all payments
+      const paymentIds = paymentsData.map(p => p.id);
+      const { data: filesData } = await supabase
+        .from('workshop_files')
+        .select('*')
+        .in('payment_id', paymentIds);
+      
+      const filesMap = new Map<string, any[]>();
+      filesData?.forEach(file => {
+        const existing = filesMap.get(file.payment_id) || [];
+        existing.push(file);
+        filesMap.set(file.payment_id, existing);
+      });
+      
       return paymentsData.map(payment => ({
         ...payment,
-        creator_name: profileMap.get(payment.created_by) || 'Unknown'
+        creator_name: profileMap.get(payment.created_by) || 'Unknown',
+        files: filesMap.get(payment.id) || []
       }));
     },
     enabled: !!workshopId,
   });
 
-  // Filter payments based on role and search term
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
     
-    // Hide rejected payments from dashboard for everyone
     let filtered = payments.filter(p => p.status !== 'rejected');
     
-    // Admins and co_admins can see all payments, regular users only see their own
     if (role !== 'admin' && role !== 'co_admin' && user) {
       filtered = filtered.filter(p => p.created_by === user.id);
     }
     
-    // Apply search filter
     if (searchTerm.trim()) {
       filtered = filtered.filter(p => 
         p.paid_to.toLowerCase().includes(searchTerm.toLowerCase())
@@ -85,7 +99,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     return filtered;
   }, [payments, role, user, searchTerm]);
 
-  // Calculate total for search results
   const searchTotal = useMemo(() => {
     if (!searchTerm.trim()) return null;
     return filteredPayments
@@ -95,8 +108,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
-      // First, delete any transfers linked to this payment (for legacy data without payment_id)
-      // Try to match by workshop_id, amount, and date
       await supabase
         .from('user_transfers')
         .delete()
@@ -104,13 +115,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         .eq('amount', payment.amount)
         .eq('transfer_date', payment.payment_date);
 
-      // Also delete by payment_id if it exists (cascade should handle this, but be explicit)
       await supabase
         .from('user_transfers')
         .delete()
         .eq('payment_id', payment.id);
 
-      // Now delete the payment
       const { error } = await supabase
         .from('payments')
         .delete()
@@ -119,7 +128,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
-      queryClient.invalidateQueries({ queryKey: ['pending-payments'] }); // Sync with admin approvals page
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
@@ -136,6 +145,38 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       });
     },
   });
+
+  const previewFileHandler = async (file: any) => {
+    const { data, error } = await supabase.storage
+      .from('workshop-files')
+      .download(file.file_path);
+
+    if (error) {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    setPreviewFile({ url, name: file.file_name, type: file.file_type });
+  };
+
+  const downloadFile = async (file: any) => {
+    const { data, error } = await supabase.storage
+      .from('workshop-files')
+      .download(file.file_path);
+
+    if (error) {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.file_name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -165,13 +206,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const canEdit = (payment: any) => {
     if (role === 'admin') return true;
-    // Co-admins and users can only edit their own pending payments
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
   const canDelete = (payment: any) => {
     if (role === 'admin') return true;
-    // Co-admins and users can only delete their own pending payments
     return payment.created_by === user?.id && payment.status === 'pending';
   };
 
@@ -188,7 +227,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   if (!filteredPayments || filteredPayments.length === 0) {
     return (
       <div className="space-y-4">
-        {/* Search Bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -207,139 +245,209 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   }
 
   return (
-    <div className="space-y-3 md:space-y-4">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder={t('payments.searchByName')}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 h-9 md:h-10"
-        />
-      </div>
+    <>
+      <div className="space-y-3 md:space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={t('payments.searchByName')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-9 md:h-10"
+          />
+        </div>
 
-      {/* Search Total Card */}
-      {searchTerm.trim() && searchTotal !== null && (
-        <Card className="bg-destructive/5 border-destructive/20">
-          <CardContent className="py-3 px-3 md:px-6">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
-                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-xs md:text-sm text-destructive font-medium">
-                  {t('payments.totalPaidTo')} "{searchTerm}"
-                </p>
-                <p className="text-base md:text-xl font-bold font-mono text-destructive">
-                  -{searchTotal.toLocaleString('fr-FR')} CFA
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-2">
-        {filteredPayments.map((payment) => (
-          <Card key={payment.id} className="shadow-card">
-            <CardContent className="p-3">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{payment.paid_to}</p>
-                  <p className="text-xs text-muted-foreground truncate">{payment.reason}</p>
+        {searchTerm.trim() && searchTotal !== null && (
+          <Card className="bg-destructive/5 border-destructive/20">
+            <CardContent className="py-3 px-3 md:px-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
+                  <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
                 </div>
-                <div className="text-right ml-2">
-                  <p className="font-mono font-bold text-sm text-destructive">
-                    -{Number(payment.amount).toLocaleString('fr-FR')}
+                <div>
+                  <p className="text-xs md:text-sm text-destructive font-medium">
+                    {t('payments.totalPaidTo')} "{searchTerm}"
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(payment.payment_date), 'MMM d')}
+                  <p className="text-base md:text-xl font-bold font-mono text-destructive">
+                    -{searchTotal.toLocaleString('fr-FR')} CFA
                   </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(payment.status)}
-                  <span className="text-[10px] text-muted-foreground">{payment.creator_name}</span>
-                </div>
-                <div className="flex gap-1">
-                  {canEdit(payment) && onEdit && (
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(payment)} className="h-7 w-7">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                  {canDelete(payment) && (
-                    <Button variant="ghost" size="icon" onClick={() => deletePayment.mutate(payment)} className="h-7 w-7 text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        )}
 
-      {/* Desktop Table View */}
-      <div className="hidden md:block rounded-lg border bg-card shadow-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>{t('common.date')}</TableHead>
-              <TableHead>{t('payments.paidTo')}</TableHead>
-              <TableHead>{t('common.reason')}</TableHead>
-              <TableHead className="text-right">{t('common.amount')}</TableHead>
-              <TableHead>{t('common.status')}</TableHead>
-              <TableHead>{t('payments.addedBy')}</TableHead>
-              <TableHead className="text-right">{t('common.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPayments.map((payment) => (
-              <TableRow key={payment.id} className="animate-fade-in">
-                <TableCell className="font-mono text-sm">
-                  {format(new Date(payment.payment_date), 'MMM d, yyyy')}
-                </TableCell>
-                <TableCell className="font-medium">{payment.paid_to}</TableCell>
-                <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
-                <TableCell className="text-right font-mono font-medium text-destructive">
-                  -{Number(payment.amount).toLocaleString('fr-FR')} CFA
-                </TableCell>
-                <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {payment.creator_name}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-2">
+          {filteredPayments.map((payment) => (
+            <Card key={payment.id} className="shadow-card">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="font-medium text-sm truncate">{payment.paid_to}</p>
+                      {payment.files?.length > 0 && (
+                        <Paperclip className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{payment.reason}</p>
+                  </div>
+                  <div className="text-right ml-2">
+                    <p className="font-mono font-bold text-sm text-destructive">
+                      -{Number(payment.amount).toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(payment.payment_date), 'MMM d')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(payment.status)}
+                    <span className="text-[10px] text-muted-foreground">{payment.creator_name}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {payment.files?.length > 0 && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => previewFileHandler(payment.files[0])} className="h-7 w-7">
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => downloadFile(payment.files[0])} className="h-7 w-7">
+                          <Download className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
                     {canEdit(payment) && onEdit && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(payment)}
-                        className="h-8 w-8"
-                      >
-                        <Pencil className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(payment)} className="h-7 w-7">
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
                     )}
                     {canDelete(payment) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deletePayment.mutate(payment)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" onClick={() => deletePayment.mutate(payment)} className="h-7 w-7 text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
-                </TableCell>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-lg border bg-card shadow-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>{t('common.date')}</TableHead>
+                <TableHead>{t('payments.paidTo')}</TableHead>
+                <TableHead>{t('common.reason')}</TableHead>
+                <TableHead className="text-right">{t('common.amount')}</TableHead>
+                <TableHead>{t('common.status')}</TableHead>
+                <TableHead>{t('payments.addedBy')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredPayments.map((payment) => (
+                <TableRow key={payment.id} className="animate-fade-in">
+                  <TableCell className="font-mono text-sm">
+                    {format(new Date(payment.payment_date), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1">
+                      {payment.paid_to}
+                      {payment.files?.length > 0 && (
+                        <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
+                  <TableCell className="text-right font-mono font-medium text-destructive">
+                    -{Number(payment.amount).toLocaleString('fr-FR')} CFA
+                  </TableCell>
+                  <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {payment.creator_name}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      {payment.files?.length > 0 && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => previewFileHandler(payment.files[0])}
+                            className="h-8 w-8"
+                            title={t('common.view')}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => downloadFile(payment.files[0])}
+                            className="h-8 w-8"
+                            title={t('common.download')}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                      {canEdit(payment) && onEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEdit(payment)}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDelete(payment) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deletePayment.mutate(payment)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
+
+      {/* File Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          {previewFile && (
+            <div className="flex items-center justify-center">
+              {previewFile.type.startsWith('image/') ? (
+                <img 
+                  src={previewFile.url} 
+                  alt={previewFile.name}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                />
+              ) : (
+                <iframe 
+                  src={previewFile.url}
+                  className="w-full h-[70vh] rounded-lg"
+                  title={previewFile.name}
+                />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
