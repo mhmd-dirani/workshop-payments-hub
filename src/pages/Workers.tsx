@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -26,17 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Users, Edit, UserX, UserCheck, ChevronRight, Wallet, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Users } from 'lucide-react';
 import WorkerDetails from '@/components/WorkerDetails';
+import WorkerCard from '@/components/WorkerCard';
+import { format, startOfWeek } from 'date-fns';
 
 interface Worker {
   id: string;
@@ -44,6 +40,28 @@ interface Worker {
   hourly_rate: number;
   is_active: boolean;
   created_at: string;
+}
+
+// Helper function to get week range (Monday to Saturday) for a given date
+function getWeekRange(date: Date): { weekLabel: string; monday: Date } {
+  const monday = startOfWeek(date, { weekStartsOn: 1 });
+  const saturday = new Date(monday);
+  saturday.setDate(monday.getDate() + 5);
+  const weekLabel = `${format(monday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
+  return { weekLabel, monday };
+}
+
+// Group attendance entries by the week they were worked
+function groupByWorkWeek(entries: any[]): Record<string, any[]> {
+  return entries.reduce((acc, entry) => {
+    const workDate = new Date(entry.work_date);
+    const { weekLabel } = getWeekRange(workDate);
+    if (!acc[weekLabel]) {
+      acc[weekLabel] = [];
+    }
+    acc[weekLabel].push(entry);
+    return acc;
+  }, {} as Record<string, any[]>);
 }
 
 export default function Workers() {
@@ -59,6 +77,8 @@ export default function Workers() {
   const [workerName, setWorkerName] = useState('');
   const [workerRate, setWorkerRate] = useState('1000');
   const [showInactive, setShowInactive] = useState(false);
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
+  const [isPaySelectedOpen, setIsPaySelectedOpen] = useState(false);
 
   const { data: workers = [], isLoading } = useQuery({
     queryKey: ['workers', showInactive],
@@ -77,6 +97,61 @@ export default function Workers() {
       return data as Worker[];
     },
   });
+
+  // Fetch all unpaid attendance for all workers
+  const { data: allUnpaidAttendance = [] } = useQuery({
+    queryKey: ['all-unpaid-attendance'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          workshops:workshop_id(id, name)
+        `)
+        .eq('is_paid', false);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Calculate owed amounts per worker
+  const owedByWorker = useMemo(() => {
+    const result: Record<string, number> = {};
+    allUnpaidAttendance.forEach((entry) => {
+      const workerId = entry.worker_id;
+      if (!result[workerId]) result[workerId] = 0;
+      result[workerId] += Number(entry.daily_salary);
+    });
+    return result;
+  }, [allUnpaidAttendance]);
+
+  // Get total owed for selected workers
+  const selectedTotalOwed = useMemo(() => {
+    let total = 0;
+    selectedWorkerIds.forEach((id) => {
+      total += owedByWorker[id] || 0;
+    });
+    return total;
+  }, [selectedWorkerIds, owedByWorker]);
+
+  // Get attendance for selected workers
+  const selectedWorkersAttendance = useMemo(() => {
+    return allUnpaidAttendance.filter((entry) => selectedWorkerIds.has(entry.worker_id));
+  }, [allUnpaidAttendance, selectedWorkerIds]);
+
+  // Group selected workers' attendance by workshop for summary display
+  const selectedByWorkshop = useMemo(() => {
+    const result: Record<string, { name: string; total: number }> = {};
+    selectedWorkersAttendance.forEach((entry) => {
+      const workshopId = entry.workshop_id;
+      const workshopName = (entry.workshops as any)?.name || 'Unknown';
+      if (!result[workshopId]) {
+        result[workshopId] = { name: workshopName, total: 0 };
+      }
+      result[workshopId].total += Number(entry.daily_salary);
+    });
+    return result;
+  }, [selectedWorkersAttendance]);
 
   const addWorker = useMutation({
     mutationFn: async ({ name, hourly_rate }: { name: string; hourly_rate: number }) => {
@@ -136,14 +211,12 @@ export default function Workers() {
 
   const deleteWorker = useMutation({
     mutationFn: async (id: string) => {
-      // First delete all attendance records for this worker
       const { error: attendanceError } = await supabase
         .from('attendance')
         .delete()
         .eq('worker_id', id);
       if (attendanceError) throw attendanceError;
       
-      // Then delete the worker
       const { error } = await supabase
         .from('workers')
         .delete()
@@ -153,10 +226,106 @@ export default function Workers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workers'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
       setWorkerToDelete(null);
       toast({
         title: t('workers.deleted'),
         description: t('workers.deletedDesc'),
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Pay selected workers mutation
+  const paySelectedWorkers = useMutation({
+    mutationFn: async () => {
+      const results: any[] = [];
+      
+      // Group selected workers' attendance by work week
+      const byWeek = groupByWorkWeek(selectedWorkersAttendance);
+      
+      for (const [weekLabel, weekEntries] of Object.entries(byWeek)) {
+        // Group this week's entries by workshop
+        const byWorkshop = (weekEntries as any[]).reduce((acc, entry) => {
+          const workshopId = entry.workshop_id;
+          if (!acc[workshopId]) {
+            acc[workshopId] = { entries: [], total: 0 };
+          }
+          acc[workshopId].entries.push(entry);
+          acc[workshopId].total += Number(entry.daily_salary);
+          return acc;
+        }, {} as Record<string, { entries: any[]; total: number }>);
+        
+        for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
+          const { entries, total } = workshopData;
+          
+          const { data: existingPayment } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('workshop_id', workshopId)
+            .eq('paid_to', 'Travailleur')
+            .eq('reason', weekLabel)
+            .single();
+          
+          let paymentId: string;
+          
+          if (existingPayment) {
+            const newAmount = Number(existingPayment.amount) + total;
+            const { error: updateError } = await supabase
+              .from('payments')
+              .update({ amount: newAmount })
+              .eq('id', existingPayment.id);
+            
+            if (updateError) throw updateError;
+            paymentId = existingPayment.id;
+          } else {
+            const { data: payment, error: paymentError } = await supabase
+              .from('payments')
+              .insert([{
+                workshop_id: workshopId,
+                paid_to: 'Travailleur',
+                reason: weekLabel,
+                amount: total,
+                payment_date: format(new Date(), 'yyyy-MM-dd'),
+                created_by: user?.id,
+                status: 'pending',
+              }])
+              .select()
+              .single();
+            
+            if (paymentError) throw paymentError;
+            paymentId = payment.id;
+          }
+          
+          const entryIds = entries.map((a: any) => a.id);
+          
+          if (entryIds.length > 0) {
+            const { error: updateError } = await supabase
+              .from('attendance')
+              .update({ is_paid: true, payment_id: paymentId })
+              .in('id', entryIds);
+            
+            if (updateError) throw updateError;
+          }
+          
+          results.push({ workshopId, weekLabel, paymentId, amount: total });
+        }
+      }
+      
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      setSelectedWorkerIds(new Set());
+      setIsPaySelectedOpen(false);
+      toast({ 
+        title: t('workers.paymentCreated'), 
+        description: t('workers.paymentCreatedDesc') 
       });
     },
     onError: (error: Error) => {
@@ -185,6 +354,30 @@ export default function Workers() {
     setWorkerRate(worker.hourly_rate.toString());
   };
 
+  const toggleWorkerSelection = (workerId: string, isSelected: boolean) => {
+    setSelectedWorkerIds(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(workerId);
+      } else {
+        newSet.delete(workerId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllWithOwed = () => {
+    const workersWithOwed = workers.filter(w => w.is_active && (owedByWorker[w.id] || 0) > 0);
+    setSelectedWorkerIds(new Set(workersWithOwed.map(w => w.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedWorkerIds(new Set());
+  };
+
+  // Count workers with owed amounts
+  const workersWithOwedCount = workers.filter(w => w.is_active && (owedByWorker[w.id] || 0) > 0).length;
+
   if (loading) {
     return (
       <Layout>
@@ -199,7 +392,6 @@ export default function Workers() {
     return <Navigate to="/auth" replace />;
   }
 
-  // If a worker is selected, show their details
   if (selectedWorker) {
     return (
       <Layout>
@@ -236,8 +428,8 @@ export default function Workers() {
           </Button>
         </div>
 
-        {/* Filter toggle */}
-        <div className="flex gap-2">
+        {/* Filters and Multi-Select Actions */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant={showInactive ? "secondary" : "outline"}
             size="sm"
@@ -246,7 +438,57 @@ export default function Workers() {
           >
             {showInactive ? t('workers.hideInactive') : t('workers.showInactive')}
           </Button>
+          
+          {workersWithOwedCount > 0 && (
+            <>
+              <div className="h-4 w-px bg-border" />
+              {selectedWorkerIds.size === 0 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllWithOwed}
+                  className="text-xs h-8 gap-1"
+                >
+                  {t('workers.selectAll')} ({workersWithOwedCount})
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="text-xs h-8"
+                  >
+                    {t('workers.clearSelection')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsPaySelectedOpen(true)}
+                    className="text-xs h-8 gap-1 bg-success text-success-foreground hover:bg-success/90"
+                  >
+                    {t('workers.paySelected')} ({selectedWorkerIds.size})
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </div>
+
+        {/* Selected summary */}
+        {selectedWorkerIds.size > 0 && (
+          <Card className="border-primary bg-primary/5">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {selectedWorkerIds.size} {t('workers.selected')}
+                </span>
+                <Badge variant="outline" className="font-mono text-warning border-warning">
+                  {selectedTotalOwed.toLocaleString('fr-FR')} CFA
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Workers Grid */}
         <Card className="shadow-card">
@@ -262,74 +504,23 @@ export default function Workers() {
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {workers.map((worker) => (
-                  <div
+                  <WorkerCard
                     key={worker.id}
-                    onClick={() => worker.is_active && setSelectedWorker(worker)}
-                    className={`border rounded-lg p-3 transition-colors ${
-                      worker.is_active 
-                        ? 'cursor-pointer hover:bg-muted/50' 
-                        : 'opacity-60 bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${worker.is_active ? 'bg-success' : 'bg-muted-foreground'}`} />
-                        <div className="min-w-0">
-                          <span className="font-medium text-sm block truncate">{worker.name}</span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {worker.hourly_rate.toLocaleString('fr-FR')} CFA
-                          </span>
-                        </div>
-                        {!worker.is_active && (
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {t('workers.inactive')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => openEdit(worker, e)}
-                          className="h-7 w-7"
-                          title={t('common.edit')}
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWorkerToToggle(worker);
-                          }}
-                          className="h-7 w-7"
-                          title={worker.is_active ? t('workers.deactivate') : t('workers.activate')}
-                        >
-                          {worker.is_active ? (
-                            <UserX className="w-3.5 h-3.5 text-warning" />
-                          ) : (
-                            <UserCheck className="w-3.5 h-3.5 text-success" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWorkerToDelete(worker);
-                          }}
-                          className="h-7 w-7"
-                          title={t('common.delete')}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                        {worker.is_active && (
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    worker={worker}
+                    owedAmount={owedByWorker[worker.id] || 0}
+                    isSelected={selectedWorkerIds.has(worker.id)}
+                    onSelect={(checked) => toggleWorkerSelection(worker.id, checked)}
+                    onClick={() => setSelectedWorker(worker)}
+                    onEdit={(e) => openEdit(worker, e)}
+                    onToggleStatus={(e) => {
+                      e.stopPropagation();
+                      setWorkerToToggle(worker);
+                    }}
+                    onDelete={(e) => {
+                      e.stopPropagation();
+                      setWorkerToDelete(worker);
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -473,6 +664,68 @@ export default function Workers() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Pay Selected Workers Dialog */}
+        <Dialog open={isPaySelectedOpen} onOpenChange={setIsPaySelectedOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('workers.paySelectedWorkers')}</DialogTitle>
+              <DialogDescription>
+                {t('workers.paySelectedDescription', { count: selectedWorkerIds.size })}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              {/* Selected workers list */}
+              <div className="text-sm">
+                <p className="text-muted-foreground mb-2">{t('workers.workersIncluded')}:</p>
+                <div className="flex flex-wrap gap-1">
+                  {workers
+                    .filter(w => selectedWorkerIds.has(w.id))
+                    .map(w => (
+                      <Badge key={w.id} variant="secondary" className="text-xs">
+                        {w.name}
+                      </Badge>
+                    ))
+                  }
+                </div>
+              </div>
+
+              {/* Breakdown by workshop */}
+              <div className="border rounded-lg p-3 space-y-2">
+                <p className="text-sm font-medium">{t('workers.paymentSummary')}:</p>
+                {Object.entries(selectedByWorkshop).map(([workshopId, { name, total }]) => (
+                  <div key={workshopId} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{name}</span>
+                    <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                ))}
+                <div className="border-t pt-2 flex justify-between font-medium">
+                  <span>{t('common.total')}</span>
+                  <span className="font-mono text-warning">{selectedTotalOwed.toLocaleString('fr-FR')} CFA</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {t('workers.weeklyPaymentNote')}
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPaySelectedOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => paySelectedWorkers.mutate()}
+                disabled={paySelectedWorkers.isPending || selectedTotalOwed === 0}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
+                {paySelectedWorkers.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t('workers.confirmPayment')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
