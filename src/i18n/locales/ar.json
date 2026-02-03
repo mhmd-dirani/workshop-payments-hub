@@ -31,7 +31,9 @@
     "workshop": "الورشة",
     "days": "أيام",
     "saved": "تم الحفظ",
-    "success": "نجاح"
+    "success": "نجاح",
+    "selectAll": "تحديد الكل",
+    "deselectAll": "إلغاء التحديد"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -337,7 +339,25 @@
     "extraAmount": "المبلغ الإضافي",
     "baseSalary": "الراتب الأساسي",
     "totalSalary": "الإجمالي",
-    "hours": "الساعات"
+    "hours": "الساعات",
+    "overtime": "العمل الإضافي",
+    "overtimeShort": "إضافي",
+    "entryShort": "إدخال",
+    "historyShort": "السجل",
+    "overtimePayment": "دفع العمل الإضافي",
+    "overtimePaymentDesc": "دفع لعدة عمال مقابل العمل الإضافي مرة واحدة",
+    "overtimeDate": "تاريخ العمل الإضافي",
+    "overtimeReason": "سبب العمل الإضافي",
+    "overtimeReasonPlaceholder": "لماذا عملوا وقت إضافي؟",
+    "totalOvertimeAmount": "المبلغ الإجمالي (مشترك)",
+    "perWorker": "لكل عامل",
+    "workersSelected": "عمال",
+    "selectWorkers": "اختر العمال",
+    "overtimeSummary": "ملخص الدفع",
+    "createOvertimePayment": "إنشاء دفعة العمل الإضافي",
+    "overtimePaymentCreated": "تم إنشاء دفعة العمل الإضافي بنجاح",
+    "overtimeWith": "عمل إضافي مع",
+    "extra": "إضافي"
   },
   "workers": {
     "title": "العمال",

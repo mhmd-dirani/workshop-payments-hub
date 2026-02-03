@@ -31,7 +31,9 @@
     "workshop": "Atelier",
     "days": "jours",
     "saved": "Enregistré",
-    "success": "Succès"
+    "success": "Succès",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -337,7 +339,25 @@
     "extraAmount": "Montant extra",
     "baseSalary": "Salaire de base",
     "totalSalary": "Total",
-    "hours": "Heures"
+    "hours": "Heures",
+    "overtime": "Heures Supp.",
+    "overtimeShort": "H.S.",
+    "entryShort": "Saisie",
+    "historyShort": "Hist.",
+    "overtimePayment": "Paiement Heures Supp.",
+    "overtimePaymentDesc": "Payer plusieurs travailleurs pour des heures supplémentaires",
+    "overtimeDate": "Date des heures supp.",
+    "overtimeReason": "Raison des heures supp.",
+    "overtimeReasonPlaceholder": "Pourquoi ont-ils travaillé en heures supp. ?",
+    "totalOvertimeAmount": "Montant total (partagé)",
+    "perWorker": "par travailleur",
+    "workersSelected": "travailleurs",
+    "selectWorkers": "Sélectionner travailleurs",
+    "overtimeSummary": "Résumé du paiement",
+    "createOvertimePayment": "Créer paiement heures supp.",
+    "overtimePaymentCreated": "Paiement des heures supp. créé avec succès",
+    "overtimeWith": "Heures supp. avec",
+    "extra": "extra"
   },
   "workers": {
     "title": "Travailleurs",
