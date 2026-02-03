@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek } from 'date-fns';
@@ -44,7 +45,8 @@ import {
   History,
   CheckCircle2,
   Edit,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 
 interface Worker {
@@ -64,6 +66,8 @@ interface EditingAttendance {
   work_date: string;
   hourly_rate: number;
   workshop_id: string;
+  has_extra: boolean;
+  extra_amount: number;
 }
 
 // Helper function to get week range (Monday to Saturday) for a given date
@@ -168,14 +172,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
   // Update attendance mutation
   const updateAttendance = useMutation({
-    mutationFn: async ({ id, work_date, hourly_rate, workshop_id }: EditingAttendance) => {
+    mutationFn: async ({ id, work_date, hourly_rate, workshop_id, has_extra, extra_amount }: EditingAttendance) => {
+      const dailySalary = hourly_rate + (has_extra ? extra_amount : 0);
       const { error } = await supabase
         .from('attendance')
         .update({ 
           work_date, 
           hourly_rate, 
-          daily_salary: hourly_rate, // daily_salary = rate for 1 day
-          workshop_id 
+          daily_salary: dailySalary,
+          workshop_id,
+          has_extra,
+          extra_amount: has_extra ? extra_amount : 0,
         })
         .eq('id', id);
       if (error) throw error;
@@ -322,6 +329,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       work_date: entry.work_date,
       hourly_rate: Number(entry.hourly_rate),
       workshop_id: entry.workshop_id,
+      has_extra: entry.has_extra || false,
+      extra_amount: Number(entry.extra_amount) || 0,
     });
   };
 
@@ -430,14 +439,31 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   <CardContent className="px-3 pb-3">
                     <div className="space-y-1">
                       {entries.map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                          <span className="font-mono text-xs">
-                            {format(new Date(entry.work_date), 'EEE, dd/MM')}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-medium">
-                              {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                        <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs">
+                              {format(new Date(entry.work_date), 'EEE, dd/MM')}
                             </span>
+                            {entry.has_extra && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Sparkles className="w-3 h-3 text-warning" />
+                                <span className="text-[10px] text-warning">
+                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <span className="font-mono font-medium">
+                                {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                              </span>
+                              {entry.has_extra && (
+                                <p className="text-[10px] text-muted-foreground font-mono">
+                                  ({Number(entry.hourly_rate).toLocaleString('fr-FR')} + {Number(entry.extra_amount).toLocaleString('fr-FR')})
+                                </p>
+                              )}
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -490,6 +516,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           <Badge variant="outline" className="text-[10px] mt-1">
                             {(entry.workshops as any)?.name}
                           </Badge>
+                          {entry.has_extra && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Sparkles className="w-3 h-3 text-warning" />
+                              <span className="text-[10px] text-warning">
+                                +{Number(entry.extra_amount).toLocaleString('fr-FR')}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="font-mono font-medium text-muted-foreground">
@@ -513,6 +547,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         <TableHead>{t('common.date')}</TableHead>
                         <TableHead>{t('common.workshop')}</TableHead>
                         <TableHead>{t('attendance.dailySalary')}</TableHead>
+                        <TableHead>{t('attendance.extra')}</TableHead>
                         <TableHead>{t('common.status')}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -527,6 +562,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           </TableCell>
                           <TableCell className="font-mono">
                             {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                          </TableCell>
+                          <TableCell>
+                            {entry.has_extra ? (
+                              <Badge variant="secondary" className="gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                +{Number(entry.extra_amount).toLocaleString('fr-FR')}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge 
@@ -638,6 +683,33 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            {/* Extra Work Section */}
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-has-extra" className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-warning" />
+                  {t('attendance.workedExtra')}
+                </Label>
+                <Switch
+                  id="edit-has-extra"
+                  checked={editingAttendance?.has_extra || false}
+                  onCheckedChange={(checked) => setEditingAttendance(prev => prev ? { ...prev, has_extra: checked } : null)}
+                />
+              </div>
+              {editingAttendance?.has_extra && (
+                <div className="space-y-2">
+                  <Label>{t('attendance.extraAmount')} (CFA)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editingAttendance?.extra_amount || ''}
+                    onChange={(e) => setEditingAttendance(prev => prev ? { ...prev, extra_amount: Number(e.target.value) } : null)}
+                    placeholder="0"
+                  />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingAttendance(null)}>
