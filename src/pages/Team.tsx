@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ interface TeamMember {
 }
 
 export default function Team() {
+  const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [showTransferForm, setShowTransferForm] = useState(false);
@@ -143,7 +145,7 @@ export default function Team() {
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Team
+              {t('team.backToTeam')}
             </Button>
           </div>
           
@@ -168,10 +170,10 @@ export default function Team() {
         <div className="flex flex-col gap-2">
           <h1 className="text-lg md:text-2xl font-bold flex items-center gap-2">
             <Users2 className="w-5 h-5 md:w-6 md:h-6" />
-            Team Finances
+            {t('team.title')}
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Manage team member balances across all workshops
+            {t('team.description')}
           </p>
         </div>
 
@@ -183,7 +185,7 @@ export default function Team() {
                 <Wallet className="w-5 h-5 md:w-6 md:h-6 text-success" />
               </div>
               <div>
-                <p className="text-xs md:text-sm font-medium text-success">Total Given to Team</p>
+                <p className="text-xs md:text-sm font-medium text-success">{t('team.totalGivenToTeam')}</p>
                 <p className="text-lg md:text-2xl font-bold font-mono text-success">
                   {totalGiven !== undefined ? `+${totalGiven.toLocaleString('fr-FR')} CFA` : '...'}
                 </p>
@@ -194,16 +196,16 @@ export default function Team() {
 
         <Card>
           <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
-            <CardTitle className="text-base md:text-lg">Team Members</CardTitle>
+            <CardTitle className="text-base md:text-lg">{t('team.teamMembers')}</CardTitle>
             <CardDescription className="text-xs md:text-sm">
-              Click on a member to view their profile
+              {t('team.clickToViewProfile')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 px-3 md:px-6 pb-3 md:pb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Search team members..."
+                placeholder={t('team.searchTeamMembers')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 h-9 md:h-10"
@@ -218,7 +220,7 @@ export default function Team() {
               </div>
             ) : filteredMembers.length === 0 ? (
               <div className="text-center py-6 md:py-8 text-muted-foreground text-sm">
-                {searchTerm ? 'No members match your search' : 'No team members found'}
+                {searchTerm ? t('team.noMembersMatchSearch') : t('team.noMembersFound')}
               </div>
             ) : (
               <div className="grid gap-2 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">

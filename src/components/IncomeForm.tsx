@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ interface IncomeFormProps {
 }
 
 export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFormProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,13 +79,13 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       onOpenChange(false);
       toast({
-        title: 'Income recorded',
-        description: 'The income has been added successfully',
+        title: t('income.incomeAdded'),
+        description: t('income.incomeAddedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -97,7 +99,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
     if (!result.success) {
       const firstError = result.error.errors[0];
       toast({
-        title: 'Validation Error',
+        title: t('validation.validationError'),
         description: firstError.message,
         variant: 'destructive',
       });
@@ -111,16 +113,16 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Income</DialogTitle>
+          <DialogTitle>{t('income.addIncome')}</DialogTitle>
           <DialogDescription>
-            Record money received for this workshop (e.g., from owner)
+            {t('income.recordIncome')}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="income_amount">Amount *</Label>
+              <Label htmlFor="income_amount">{t('common.amount')} *</Label>
               <Input
                 id="income_amount"
                 type="number"
@@ -133,7 +135,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="income_date">Date *</Label>
+              <Label htmlFor="income_date">{t('common.date')} *</Label>
               <Input
                 id="income_date"
                 type="date"
@@ -144,10 +146,10 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="income_description">Description (optional)</Label>
+            <Label htmlFor="income_description">{t('common.description')} ({t('common.optional')})</Label>
             <Textarea
               id="income_description"
-              placeholder="What was this income for?"
+              placeholder={t('payments.whatWasPaymentFor')}
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             />
@@ -155,7 +157,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               type="submit" 
@@ -163,7 +165,7 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
               className="bg-success text-success-foreground hover:bg-success/90"
             >
               {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Add Income
+              {t('income.addIncome')}
             </Button>
           </DialogFooter>
         </form>

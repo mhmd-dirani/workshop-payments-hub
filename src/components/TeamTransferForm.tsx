@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ interface TeamTransferFormProps {
 }
 
 export default function TeamTransferForm({ open, onOpenChange, member }: TeamTransferFormProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -51,7 +53,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
 
       const numAmount = parseFloat(amount);
       if (isNaN(numAmount) || numAmount <= 0) {
-        throw new Error('Amount must be greater than 0');
+        throw new Error(t('validation.amountPositive'));
       }
 
       const { error } = await supabase
@@ -72,13 +74,13 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       onOpenChange(false);
       toast({
-        title: 'Transfer added',
-        description: `Successfully added funds to ${member?.full_name || 'team member'}`,
+        title: t('team.transferAdded'),
+        description: `${t('team.fundsAddedTo')} ${member?.full_name || t('team.teamMember')}`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -94,21 +96,21 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Money to Team Member</DialogTitle>
+          <DialogTitle>{t('team.addMoneyToMember')}</DialogTitle>
           <DialogDescription>
-            Transfer funds to {member?.full_name || 'team member'}. This balance can be used across all workshops.
+            {t('team.transferFunds')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
+            <Label htmlFor="amount">{t('common.amount')} *</Label>
             <Input
               id="amount"
               type="number"
               step="1"
               min="1"
-              placeholder="Enter amount"
+              placeholder={t('common.amount')}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
@@ -116,7 +118,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="transfer_date">Date *</Label>
+            <Label htmlFor="transfer_date">{t('common.date')} *</Label>
             <Input
               id="transfer_date"
               type="date"
@@ -128,10 +130,10 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description">{t('common.description')} ({t('common.optional')})</Label>
             <Textarea
               id="description"
-              placeholder="Add a note about this transfer..."
+              placeholder={t('common.description')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -139,7 +141,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
 
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -147,7 +149,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
               className="gradient-primary text-primary-foreground"
             >
               {transferMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Add Funds
+              {t('team.addFunds')}
             </Button>
           </DialogFooter>
         </form>

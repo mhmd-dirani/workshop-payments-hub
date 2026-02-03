@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import {
@@ -44,6 +45,7 @@ interface Income {
 }
 
 export default function IncomeTable({ workshopId }: IncomeTableProps) {
+  const { t } = useTranslation();
   const { role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,7 +76,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
       
       const numAmount = parseFloat(editAmount);
       if (isNaN(numAmount) || numAmount <= 0) {
-        throw new Error('Amount must be greater than 0');
+        throw new Error(t('validation.amountPositive'));
       }
 
       const { error } = await supabase
@@ -92,10 +94,10 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
       queryClient.invalidateQueries({ queryKey: ['income', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       setEditingIncome(null);
-      toast({ title: 'Income updated successfully' });
+      toast({ title: t('income.incomeUpdated') });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
@@ -111,13 +113,13 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
       queryClient.invalidateQueries({ queryKey: ['income', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       toast({
-        title: 'Income deleted',
-        description: 'The income record has been removed',
+        title: t('income.incomeDeleted'),
+        description: t('income.incomeDeletedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -151,7 +153,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
         <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
           <CardTitle className="text-base md:text-lg flex items-center gap-2 text-success">
             <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
-            Income Records
+            {t('income.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -161,7 +163,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
               <div key={income.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5 border-success/20">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground truncate">
-                    {income.description || 'No description'}
+                    {income.description || t('income.noDescription')}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {format(new Date(income.income_date), 'MMM d, yyyy')}
@@ -201,10 +203,10 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-success/5">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  {role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t('common.date')}</TableHead>
+                  <TableHead>{t('common.description')}</TableHead>
+                  <TableHead className="text-right">{t('common.amount')}</TableHead>
+                  {role === 'admin' && <TableHead className="text-right">{t('common.actions')}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -253,14 +255,14 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
       <Dialog open={!!editingIncome} onOpenChange={(open) => !open && setEditingIncome(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Income</DialogTitle>
+            <DialogTitle>{t('income.editIncome')}</DialogTitle>
             <DialogDescription>
-              Update the income record details
+              {t('income.updateDetails')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit_income_amount">Amount *</Label>
+              <Label htmlFor="edit_income_amount">{t('common.amount')} *</Label>
               <Input
                 id="edit_income_amount"
                 type="number"
@@ -271,7 +273,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit_income_date">Date *</Label>
+              <Label htmlFor="edit_income_date">{t('common.date')} *</Label>
               <Input
                 id="edit_income_date"
                 type="date"
@@ -281,7 +283,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit_income_description">Description</Label>
+              <Label htmlFor="edit_income_description">{t('common.description')}</Label>
               <Textarea
                 id="edit_income_description"
                 value={editDescription}
@@ -291,7 +293,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingIncome(null)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => updateIncome.mutate()}
@@ -299,7 +301,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
               className="gradient-primary text-primary-foreground"
             >
               {updateIncome.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import Layout from '@/components/Layout';
@@ -16,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { role } = useAuth();
   const [selectedWorkshop, setSelectedWorkshop] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -151,13 +153,13 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex flex-col gap-3">
           <div>
-            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Payment Dashboard</h2>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">{t('dashboard.title')}</h2>
             <p className="text-xs md:text-sm text-muted-foreground">
               {role === 'admin' 
-                ? 'Manage all workshop payments and income' 
+                ? t('dashboard.adminDescription')
                 : role === 'co_admin'
-                ? 'View all workshop payments and add records'
-                : 'View and add your payment records'}
+                ? t('dashboard.coAdminDescription')
+                : t('dashboard.userDescription')}
             </p>
           </div>
         </div>
@@ -177,7 +179,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
                       <TrendingUp className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Projects</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.projects')}</p>
                     </div>
                     <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.totalBalance >= 0 ? 'text-primary' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.totalBalance >= 0 ? '+' : ''}{globalStats.totalBalance.toLocaleString('fr-FR')}
@@ -196,7 +198,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-warning">
                       <HandCoins className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Net Debts</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.netDebts')}</p>
                     </div>
                     <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.netDebts >= 0 ? 'text-success' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.netDebts >= 0 ? '+' : ''}{globalStats.netDebts.toLocaleString('fr-FR')}
@@ -215,7 +217,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-accent">
                       <Crown className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Overall</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.overall')}</p>
                     </div>
                     <p className={`text-sm md:text-2xl font-bold font-mono transition-all duration-300 ${globalStats.overallWealth >= 0 ? 'text-accent' : 'text-destructive'} ${!wealthRevealed ? 'blur-md' : 'blur-none'}`}>
                       {globalStats.overallWealth >= 0 ? '+' : ''}{globalStats.overallWealth.toLocaleString('fr-FR')}
@@ -237,7 +239,7 @@ export default function Dashboard() {
                 className="gap-1.5 bg-success text-success-foreground hover:bg-success/90 h-8 text-xs md:text-sm md:h-9"
               >
                 <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="hidden xs:inline">Add</span> Income
+                <span className="hidden xs:inline">{t('common.add')}</span> {t('dashboard.income')}
               </Button>
             )}
             <Button 
@@ -246,7 +248,7 @@ export default function Dashboard() {
               className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-8 text-xs md:text-sm md:h-9"
             >
               <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="hidden xs:inline">Add</span> Payment
+              <span className="hidden xs:inline">{t('common.add')}</span> {t('payments.title')}
             </Button>
           </div>
         )}
@@ -254,8 +256,8 @@ export default function Dashboard() {
         {/* Workshop Selector */}
         <Card className="shadow-card">
           <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-            <CardTitle className="text-base md:text-lg">Select Workshop</CardTitle>
-            <CardDescription className="text-xs md:text-sm">Choose a workshop to view records</CardDescription>
+            <CardTitle className="text-base md:text-lg">{t('dashboard.selectWorkshop')}</CardTitle>
+            <CardDescription className="text-xs md:text-sm">{t('dashboard.chooseWorkshop')}</CardDescription>
           </CardHeader>
           <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
             <WorkshopSelector 
@@ -281,7 +283,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-success">
                       <ArrowDownCircle className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Income</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.income')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-success">
                       +{stats.totalIncome.toLocaleString('fr-FR')}
@@ -300,7 +302,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-destructive">
                       <ArrowUpCircle className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Paid</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.paid')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-destructive">
                       -{stats.totalPaid.toLocaleString('fr-FR')}
@@ -319,7 +321,7 @@ export default function Dashboard() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
                       <Wallet className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Balance</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('dashboard.balance')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-primary">
                       {stats.balance >= 0 ? '+' : ''}{stats.balance.toLocaleString('fr-FR')}
@@ -350,7 +352,7 @@ export default function Dashboard() {
         ) : (
           <Card className="shadow-card">
             <CardContent className="py-8 md:py-12 text-center text-muted-foreground text-sm">
-              <p>Select a workshop above to view financial records</p>
+              <p>{t('dashboard.selectWorkshopToView')}</p>
             </CardContent>
           </Card>
         )}
