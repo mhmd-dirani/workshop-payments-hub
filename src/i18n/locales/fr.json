@@ -329,12 +329,17 @@
   "personalPayments": {
     "title": "Paiements personnels",
     "description": "Paiements hors ateliers déduits de votre solde",
+    "tableDescription": "Vos dépenses personnelles déduites de votre solde",
     "add": "Ajouter paiement personnel",
     "edit": "Modifier paiement personnel",
     "paidToPlaceholder": "Nom du magasin, personne, etc.",
     "reasonPlaceholder": "Qu'avez-vous acheté ?",
     "added": "Paiement personnel ajouté",
     "updated": "Paiement personnel mis à jour",
+    "deleted": "Paiement personnel supprimé",
+    "deletedDesc": "Le montant a été restauré à votre solde",
+    "deleteConfirm": "Supprimer le paiement personnel ?",
+    "deleteWarning": "Êtes-vous sûr de vouloir supprimer ce paiement de {{amount}} CFA ? Le montant sera restauré à votre solde.",
     "balanceDeducted": "Le montant a été déduit de votre solde",
     "noPayments": "Aucun paiement personnel"
   },

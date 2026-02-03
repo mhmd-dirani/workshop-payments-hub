@@ -214,17 +214,22 @@ export default function WorkerManager() {
                       size="icon"
                       onClick={() => openEdit(worker)}
                       className="h-7 w-7"
+                      title={t('common.edit')}
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => toggleWorkerStatus.mutate({ id: worker.id, is_active: !worker.is_active })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleWorkerStatus.mutate({ id: worker.id, is_active: !worker.is_active });
+                      }}
                       className="h-7 w-7"
+                      title={worker.is_active ? t('workers.deactivate') : t('workers.activate')}
                     >
                       {worker.is_active ? (
-                        <UserX className="w-3.5 h-3.5 text-destructive" />
+                        <UserX className="w-3.5 h-3.5 text-warning" />
                       ) : (
                         <UserCheck className="w-3.5 h-3.5 text-success" />
                       )}
@@ -232,8 +237,12 @@ export default function WorkerManager() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setWorkerToDelete(worker)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setWorkerToDelete(worker);
+                      }}
                       className="h-7 w-7 text-destructive hover:text-destructive"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>

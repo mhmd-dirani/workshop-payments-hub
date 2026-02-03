@@ -12,6 +12,7 @@ import IncomeTable from '@/components/IncomeTable';
 import UserIncomeTable from '@/components/UserIncomeTable';
 import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
+import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
@@ -267,8 +268,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card (for non-admins - show global balance always) */}
-        {role !== 'admin' && role !== 'co_admin' && <UserBalanceCard />}
+        {/* User Balance Card and Personal Payments (for non-admins - show global balance always) */}
+        {role !== 'admin' && role !== 'co_admin' && (
+          <>
+            <UserBalanceCard />
+            <PersonalPaymentsTable />
+          </>
+        )}
 
 
         {/* Stats Cards - 3 totals (admin only) */}

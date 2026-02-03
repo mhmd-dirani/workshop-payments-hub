@@ -148,8 +148,6 @@ export default function AttendanceForm({
 
   const mutation = useMutation({
     mutationFn: async (data: AttendanceFormData) => {
-      const dailySalary = data.hours_worked * data.hourly_rate;
-      
       if (isEditing) {
         const { error } = await supabase
           .from('attendance')
@@ -159,7 +157,6 @@ export default function AttendanceForm({
             work_date: data.work_date,
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
-            daily_salary: dailySalary,
             description: data.description || null,
           })
           .eq('id', attendance.id);
@@ -173,7 +170,6 @@ export default function AttendanceForm({
             work_date: data.work_date,
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
-            daily_salary: dailySalary,
             description: data.description || null,
             created_by: user?.id,
           }]);
@@ -209,122 +205,124 @@ export default function AttendanceForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-base">
             {isEditing ? t('attendance.editEntry') : t('attendance.addEntry')}
           </DialogTitle>
-          <DialogDescription>
-            {t('attendance.recordDailyWork')}
-          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Worker Selection with Combobox */}
-            <FormField
-              control={form.control}
-              name="worker_id"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>{t('attendance.worker')} *</FormLabel>
-                  <Popover open={workerOpen} onOpenChange={setWorkerOpen}>
-                    <PopoverTrigger asChild>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+            {/* Worker & Workshop in 2 columns on desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Worker Selection with Combobox */}
+              <FormField
+                control={form.control}
+                name="worker_id"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="text-xs">{t('attendance.worker')} *</FormLabel>
+                    <Popover open={workerOpen} onOpenChange={setWorkerOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={workerOpen}
+                            className="w-full justify-between font-normal h-9 text-sm"
+                          >
+                            <span className="truncate">{selectedWorker?.name || t('attendance.selectWorker')}</span>
+                            <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder={t('common.search')} className="h-8 text-sm" />
+                          <CommandList className="max-h-[150px]">
+                            <CommandEmpty>{t('workers.noWorkers')}</CommandEmpty>
+                            <CommandGroup>
+                              {workers.map((worker) => (
+                                <CommandItem
+                                  key={worker.id}
+                                  value={worker.name}
+                                  onSelect={() => {
+                                    form.setValue('worker_id', worker.id);
+                                    setWorkerOpen(false);
+                                  }}
+                                  className="text-sm"
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-3.5 w-3.5",
+                                      field.value === worker.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {worker.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Workshop Selection */}
+              <FormField
+                control={form.control}
+                name="workshop_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">{t('common.workshop')} *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={workerOpen}
-                          className="w-full justify-between font-normal"
-                        >
-                          {selectedWorker?.name || t('attendance.selectWorker')}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder={t('workshops.selectWorkshop')} />
+                        </SelectTrigger>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder={t('common.search')} />
-                        <CommandList className="max-h-[200px]">
-                          <CommandEmpty>{t('workers.noWorkers')}</CommandEmpty>
-                          <CommandGroup>
-                            {workers.map((worker) => (
-                              <CommandItem
-                                key={worker.id}
-                                value={worker.name}
-                                onSelect={() => {
-                                  form.setValue('worker_id', worker.id);
-                                  setWorkerOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    field.value === worker.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {worker.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      <SelectContent>
+                        {workshops.map((workshop) => (
+                          <SelectItem key={workshop.id} value={workshop.id} className="text-sm">
+                            {workshop.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            {/* Workshop Selection */}
-            <FormField
-              control={form.control}
-              name="workshop_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('common.workshop')} *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+            {/* Date, Hours, Rate in a row */}
+            <div className="grid grid-cols-3 gap-2">
+              <FormField
+                control={form.control}
+                name="work_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">{t('common.date')} *</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('workshops.selectWorkshop')} />
-                      </SelectTrigger>
+                      <Input type="date" {...field} className="h-9 text-sm" />
                     </FormControl>
-                    <SelectContent>
-                      {workshops.map((workshop) => (
-                        <SelectItem key={workshop.id} value={workshop.id}>
-                          {workshop.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="work_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('common.date')} *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="hours_worked"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('attendance.hours')}</FormLabel>
+                    <FormLabel className="text-xs">{t('attendance.hours')}</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.5" min="0.5" max="24" {...field} />
+                      <Input type="number" step="0.5" min="0.5" max="24" {...field} className="h-9 text-sm" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -336,9 +334,9 @@ export default function AttendanceForm({
                 name="hourly_rate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('attendance.hourlyRate')}</FormLabel>
+                    <FormLabel className="text-xs">{t('attendance.hourlyRate')}</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" {...field} />
+                      <Input type="number" min="1" {...field} className="h-9 text-sm" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -346,10 +344,10 @@ export default function AttendanceForm({
               />
             </div>
 
-            {/* Daily salary preview */}
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-              <p className="text-sm text-muted-foreground">{t('attendance.dailySalary')}</p>
-              <p className="text-xl font-bold font-mono text-success">
+            {/* Daily salary preview - compact */}
+            <div className="p-2 rounded-lg bg-success/10 border border-success/20 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{t('attendance.dailySalary')}</p>
+              <p className="text-base font-bold font-mono text-success">
                 {dailySalary.toLocaleString('fr-FR')} CFA
               </p>
             </div>
@@ -359,25 +357,26 @@ export default function AttendanceForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('common.description')} ({t('common.optional')})</FormLabel>
+                  <FormLabel className="text-xs">{t('common.description')} ({t('common.optional')})</FormLabel>
                   <FormControl>
-                    <Textarea placeholder={t('attendance.workNotes')} {...field} />
+                    <Textarea placeholder={t('attendance.workNotes')} {...field} className="min-h-[60px] text-sm" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} size="sm">
                 {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={mutation.isPending}
+                size="sm"
                 className="bg-success text-success-foreground hover:bg-success/90"
               >
-                {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {mutation.isPending && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
                 {isEditing ? t('common.save') : t('common.add')}
               </Button>
             </DialogFooter>

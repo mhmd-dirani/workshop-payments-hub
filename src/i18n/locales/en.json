@@ -330,12 +330,17 @@
   "personalPayments": {
     "title": "Personal Payments",
     "description": "Payments outside of workshops that deduct from your balance",
+    "tableDescription": "Your personal expenditures that are deducted from your balance",
     "add": "Add Personal Payment",
     "edit": "Edit Personal Payment",
     "paidToPlaceholder": "Store name, person, etc.",
     "reasonPlaceholder": "What did you buy?",
     "added": "Personal payment added",
     "updated": "Personal payment updated",
+    "deleted": "Personal payment deleted",
+    "deletedDesc": "The amount has been restored to your balance",
+    "deleteConfirm": "Delete Personal Payment?",
+    "deleteWarning": "Are you sure you want to delete this payment of {{amount}} CFA? The amount will be restored to your balance.",
     "balanceDeducted": "The amount has been deducted from your balance",
     "noPayments": "No personal payments yet"
   },
