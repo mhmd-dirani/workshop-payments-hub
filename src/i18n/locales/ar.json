@@ -331,7 +331,13 @@
     "allTime": "كل الوقت",
     "showingAllRecords": "عرض جميع سجلات الحضور",
     "editAttendance": "تعديل الحضور",
-    "updateAttendance": "تحديث سجل الحضور"
+    "updateAttendance": "تحديث سجل الحضور",
+    "workedExtra": "عمل إضافي",
+    "workedExtraDesc": "إضافة مبلغ إضافي للعمل الإضافي",
+    "extraAmount": "المبلغ الإضافي",
+    "baseSalary": "الراتب الأساسي",
+    "totalSalary": "الإجمالي",
+    "hours": "الساعات"
   },
   "workers": {
     "title": "العمال",

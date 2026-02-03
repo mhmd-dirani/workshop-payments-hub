@@ -46,7 +46,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Plus } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +58,8 @@ const attendanceSchema = z.object({
   hours_worked: z.coerce.number().min(0.5, 'Minimum 0.5 hours').max(24, 'Maximum 24 hours'),
   hourly_rate: z.coerce.number().min(1, 'Hourly rate must be at least 1'),
   description: z.string().max(500).optional(),
+  has_extra: z.boolean().default(false),
+  extra_amount: z.coerce.number().min(0).default(0),
 });
 
 type AttendanceFormData = z.infer<typeof attendanceSchema>;
@@ -119,6 +122,8 @@ export default function AttendanceForm({
       hours_worked: 8,
       hourly_rate: 1000,
       description: '',
+      has_extra: false,
+      extra_amount: 0,
     },
   });
 
@@ -132,6 +137,8 @@ export default function AttendanceForm({
           hours_worked: attendance.hours_worked,
           hourly_rate: attendance.hourly_rate,
           description: attendance.description || '',
+          has_extra: attendance.has_extra || false,
+          extra_amount: attendance.extra_amount || 0,
         });
       } else {
         form.reset({
@@ -141,6 +148,8 @@ export default function AttendanceForm({
           hours_worked: 8,
           hourly_rate: 1000,
           description: '',
+          has_extra: false,
+          extra_amount: 0,
         });
       }
     }
@@ -148,6 +157,7 @@ export default function AttendanceForm({
 
   const mutation = useMutation({
     mutationFn: async (data: AttendanceFormData) => {
+      const extraAmount = data.has_extra ? data.extra_amount : 0;
       if (isEditing) {
         const { error } = await supabase
           .from('attendance')
@@ -158,10 +168,13 @@ export default function AttendanceForm({
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
             description: data.description || null,
+            has_extra: data.has_extra,
+            extra_amount: extraAmount,
           })
           .eq('id', attendance.id);
         if (error) throw error;
       } else {
+        const extraAmount = data.has_extra ? data.extra_amount : 0;
         const { error } = await supabase
           .from('attendance')
           .insert([{
@@ -171,6 +184,8 @@ export default function AttendanceForm({
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
             description: data.description || null,
+            has_extra: data.has_extra,
+            extra_amount: extraAmount,
             created_by: user?.id,
           }]);
         if (error) throw error;
@@ -200,7 +215,10 @@ export default function AttendanceForm({
     mutation.mutate(data);
   };
 
-  const dailySalary = form.watch('hours_worked') * form.watch('hourly_rate');
+  const hasExtra = form.watch('has_extra');
+  const extraAmount = form.watch('extra_amount');
+  const baseSalary = form.watch('hours_worked') * form.watch('hourly_rate');
+  const dailySalary = baseSalary + (hasExtra ? Number(extraAmount) : 0);
   const selectedWorker = workers.find(w => w.id === form.watch('worker_id'));
 
   return (
@@ -344,12 +362,71 @@ export default function AttendanceForm({
               />
             </div>
 
+            {/* Extra work toggle and amount */}
+            <div className="space-y-2">
+              <FormField
+                control={form.control}
+                name="has_extra"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-2">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-xs font-medium">{t('attendance.workedExtra')}</FormLabel>
+                      <p className="text-[10px] text-muted-foreground">{t('attendance.workedExtraDesc')}</p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {hasExtra && (
+                <FormField
+                  control={form.control}
+                  name="extra_amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">{t('attendance.extraAmount')}</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Plus className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            {...field} 
+                            className="h-9 text-sm pl-8" 
+                            placeholder="0"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
             {/* Daily salary preview - compact */}
-            <div className="p-2 rounded-lg bg-success/10 border border-success/20 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{t('attendance.dailySalary')}</p>
-              <p className="text-base font-bold font-mono text-success">
-                {dailySalary.toLocaleString('fr-FR')} CFA
-              </p>
+            <div className="p-2 rounded-lg bg-success/10 border border-success/20 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">{t('attendance.baseSalary')}</p>
+                <p className="text-sm font-mono">{baseSalary.toLocaleString('fr-FR')} CFA</p>
+              </div>
+              {hasExtra && extraAmount > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{t('attendance.extraAmount')}</p>
+                  <p className="text-sm font-mono text-primary">+{Number(extraAmount).toLocaleString('fr-FR')} CFA</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-success/20">
+                <p className="text-xs font-medium">{t('attendance.totalSalary')}</p>
+                <p className="text-base font-bold font-mono text-success">
+                  {dailySalary.toLocaleString('fr-FR')} CFA
+                </p>
+              </div>
             </div>
 
             <FormField
