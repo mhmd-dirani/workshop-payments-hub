@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -27,6 +28,7 @@ interface TeamSpendingHistoryProps {
 }
 
 export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps) {
+  const { t } = useTranslation();
   const [workshopFilter, setWorkshopFilter] = useState<string>('all');
 
   const { data: payments, isLoading } = useQuery({
@@ -84,7 +86,7 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
     return (
       <Card className="border-dashed">
         <CardContent className="py-8 text-center text-muted-foreground">
-          No spending recorded yet
+          {t('team.noSpendingYet')}
         </CardContent>
       </Card>
     );
@@ -102,15 +104,15 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-lg flex items-center gap-2 text-destructive">
             <ArrowUpCircle className="w-5 h-5" />
-            Spending History
+            {t('team.spendingHistory')}
           </CardTitle>
           {payments.workshops.length > 1 && (
             <Select value={workshopFilter} onValueChange={setWorkshopFilter}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by workshop" />
+                <SelectValue placeholder={t('dashboard.selectWorkshop')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Workshops</SelectItem>
+                <SelectItem value="all">{t('common.all')} {t('users.workshops')}</SelectItem>
                 {payments.workshops.map(w => (
                   <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                 ))}
@@ -124,11 +126,11 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
           <Table>
             <TableHeader>
               <TableRow className="bg-destructive/5">
-                <TableHead>Date</TableHead>
-                <TableHead>Workshop</TableHead>
-                <TableHead>Paid To</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>{t('common.date')}</TableHead>
+                <TableHead>{t('approvals.workshop')}</TableHead>
+                <TableHead>{t('payments.paidTo')}</TableHead>
+                <TableHead>{t('common.reason')}</TableHead>
+                <TableHead className="text-end">{t('common.amount')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -159,9 +161,9 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
         
         {/* Filtered Total */}
         <div className="flex justify-end pt-2 border-t">
-          <div className="text-right">
+          <div className="text-end">
             <p className="text-sm text-muted-foreground">
-              {workshopFilter === 'all' ? 'Total Spent' : 'Filtered Total'}
+              {workshopFilter === 'all' ? t('userBalance.totalSpent') : t('debts.filteredTotal')}
             </p>
             <p className="text-xl font-bold font-mono text-destructive">
               -{filteredTotal.toLocaleString('fr-FR')} CFA

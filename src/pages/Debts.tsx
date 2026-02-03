@@ -8,7 +8,7 @@ import DebtForm from '@/components/DebtForm';
 import DebtTable from '@/components/DebtTable';
 import DebtPaymentForm from '@/components/DebtPaymentForm';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
@@ -20,6 +20,8 @@ export default function Debts() {
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<any>(null);
   const [editingDebt, setEditingDebt] = useState<any>(null);
+  const [prefilledPersonName, setPrefilledPersonName] = useState<string>('');
+  const [prefilledDebtType, setPrefilledDebtType] = useState<'i_owe' | 'they_owe'>('they_owe');
 
   // Only admins can access this page
   if (role !== 'admin') {
@@ -85,12 +87,23 @@ export default function Debts() {
 
   const handleEditDebt = (debt: any) => {
     setEditingDebt(debt);
+    setPrefilledPersonName('');
+    setIsDebtFormOpen(true);
+  };
+
+  const handleAddDebtForPerson = (personName: string, debtType: 'i_owe' | 'they_owe') => {
+    setEditingDebt(null);
+    setPrefilledPersonName(personName);
+    setPrefilledDebtType(debtType);
     setIsDebtFormOpen(true);
   };
 
   const handleFormClose = (open: boolean) => {
     setIsDebtFormOpen(open);
-    if (!open) setEditingDebt(null);
+    if (!open) {
+      setEditingDebt(null);
+      setPrefilledPersonName('');
+    }
   };
 
   return (
@@ -197,6 +210,7 @@ export default function Debts() {
               debtType="they_owe" 
               onAddPayment={handleAddPayment}
               onEdit={handleEditDebt}
+              onAddDebtForPerson={(name) => handleAddDebtForPerson(name, 'they_owe')}
             />
           </TabsContent>
           
@@ -205,6 +219,7 @@ export default function Debts() {
               debtType="i_owe" 
               onAddPayment={handleAddPayment}
               onEdit={handleEditDebt}
+              onAddDebtForPerson={(name) => handleAddDebtForPerson(name, 'i_owe')}
             />
           </TabsContent>
         </Tabs>
@@ -214,6 +229,8 @@ export default function Debts() {
           debt={editingDebt}
           open={isDebtFormOpen}
           onOpenChange={handleFormClose}
+          prefilledPersonName={prefilledPersonName}
+          prefilledDebtType={prefilledDebtType}
         />
         
         {selectedDebt && (

@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          created_at: string
+          created_by: string
+          daily_salary: number | null
+          description: string | null
+          hourly_rate: number
+          hours_worked: number
+          id: string
+          updated_at: string
+          user_id: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          daily_salary?: number | null
+          description?: string | null
+          hourly_rate: number
+          hours_worked: number
+          id?: string
+          updated_at?: string
+          user_id: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          daily_salary?: number | null
+          description?: string | null
+          hourly_rate?: number
+          hours_worked?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+          work_date?: string
+        }
+        Relationships: []
+      }
       debt_payments: {
         Row: {
           amount: number
@@ -188,6 +227,39 @@ export type Database = {
           },
         ]
       }
+      personal_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          paid_to: string
+          payment_date: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          paid_to: string
+          payment_date: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          paid_to?: string
+          payment_date?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -339,6 +411,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "workshop_assignments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          payment_id: string | null
+          uploaded_by: string
+          workshop_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          payment_id?: string | null
+          uploaded_by: string
+          workshop_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          payment_id?: string | null
+          uploaded_by?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_files_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_files_workshop_id_fkey"
             columns: ["workshop_id"]
             isOneToOne: false
             referencedRelation: "workshops"
