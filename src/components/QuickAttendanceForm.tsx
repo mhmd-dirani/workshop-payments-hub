@@ -16,13 +16,13 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Check, Calendar, Building2, Users, Clock } from 'lucide-react';
+import { Loader2, Check, Calendar, Building2, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Worker {
   id: string;
   name: string;
-  hourly_rate: number;
+  hourly_rate: number; // This is now daily_rate in concept
 }
 
 export default function QuickAttendanceForm() {
@@ -32,7 +32,6 @@ export default function QuickAttendanceForm() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
-  const [workerHours, setWorkerHours] = useState<Record<string, string>>({});
   const [savedWorkers, setSavedWorkers] = useState<Set<string>>(new Set());
 
   // Fetch active workers with their rates
@@ -78,19 +77,11 @@ export default function QuickAttendanceForm() {
     enabled: !!selectedWorkshop,
   });
 
-  // Set initial hours from existing attendance
-  useState(() => {
-    const initialHours: Record<string, string> = {};
-    existingAttendance.forEach((a) => {
-      initialHours[a.worker_id] = a.hours_worked.toString();
-    });
-    if (Object.keys(initialHours).length > 0) {
-      setWorkerHours(initialHours);
-    }
-  });
+  // Get set of workers who already have attendance for this date/workshop
+  const attendedWorkerIds = new Set(existingAttendance.map(a => a.worker_id));
 
   const saveAttendance = useMutation({
-    mutationFn: async ({ workerId, hours }: { workerId: string; hours: number }) => {
+    mutationFn: async ({ workerId }: { workerId: string }) => {
       const worker = workers.find(w => w.id === workerId);
       if (!worker) throw new Error('Worker not found');
 
@@ -104,29 +95,22 @@ export default function QuickAttendanceForm() {
         .single();
 
       if (existing) {
-        // Update existing
-        const { error } = await supabase
-          .from('attendance')
-          .update({
-            hours_worked: hours,
-            hourly_rate: worker.hourly_rate,
-          })
-          .eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        // Insert new
-        const { error } = await supabase
-          .from('attendance')
-          .insert([{
-            worker_id: workerId,
-            workshop_id: selectedWorkshop,
-            work_date: selectedDate,
-            hours_worked: hours,
-            hourly_rate: worker.hourly_rate,
-            created_by: user?.id,
-          }]);
-        if (error) throw error;
+        // Already exists, just mark as saved
+        return;
       }
+
+      // Insert new with hours_worked = 1 (1 day)
+      const { error } = await supabase
+        .from('attendance')
+        .insert([{
+          worker_id: workerId,
+          workshop_id: selectedWorkshop,
+          work_date: selectedDate,
+          hours_worked: 1, // 1 day attendance
+          hourly_rate: worker.hourly_rate, // This is daily rate
+          created_by: user?.id,
+        }]);
+      if (error) throw error;
     },
     onSuccess: (_, { workerId }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
@@ -146,25 +130,31 @@ export default function QuickAttendanceForm() {
     },
   });
 
-  const handleHoursChange = (workerId: string, value: string) => {
-    setWorkerHours(prev => ({ ...prev, [workerId]: value }));
-  };
+  const removeAttendance = useMutation({
+    mutationFn: async (workerId: string) => {
+      const { error } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('worker_id', workerId)
+        .eq('workshop_id', selectedWorkshop)
+        .eq('work_date', selectedDate);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
 
-  const handleSave = (workerId: string) => {
-    const hours = parseFloat(workerHours[workerId] || '0');
-    if (hours > 0 && selectedWorkshop) {
-      saveAttendance.mutate({ workerId, hours });
+  const handleToggleAttendance = (workerId: string) => {
+    if (attendedWorkerIds.has(workerId)) {
+      removeAttendance.mutate(workerId);
+    } else {
+      saveAttendance.mutate({ workerId });
     }
-  };
-
-  const handleSaveAll = () => {
-    Object.entries(workerHours).forEach(([workerId, hours]) => {
-      const numHours = parseFloat(hours);
-      if (numHours > 0) {
-        saveAttendance.mutate({ workerId, hours: numHours });
-      }
-    });
-    toast({ title: t('attendance.savedAll'), description: t('attendance.savedAllDesc') });
   };
 
   const isLoading = loadingWorkers || loadingWorkshops;
@@ -233,100 +223,74 @@ export default function QuickAttendanceForm() {
             {t('workers.noWorkers')}
           </p>
         ) : (
-          <>
-            {/* Workers List */}
-            <div className="space-y-2">
-              {workers.map((worker) => {
-                const hours = parseFloat(workerHours[worker.id] || '0');
-                const dailySalary = hours * worker.hourly_rate;
-                const isSaved = savedWorkers.has(worker.id);
-                const existingEntry = existingAttendance.find(a => a.worker_id === worker.id);
+          /* Workers List */
+          <div className="space-y-2">
+            {workers.map((worker) => {
+              const isAttended = attendedWorkerIds.has(worker.id);
+              const isSaved = savedWorkers.has(worker.id);
+              const isPending = saveAttendance.isPending || removeAttendance.isPending;
 
-                return (
-                  <div
-                    key={worker.id}
-                    className={cn(
-                      "border rounded-lg p-3 transition-colors",
-                      isSaved && "border-success bg-success/5"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm truncate">{worker.name}</span>
-                          {existingEntry && !isSaved && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              {t('attendance.recorded')}
-                            </Badge>
-                          )}
-                          {isSaved && (
-                            <Badge className="text-[10px] bg-success text-success-foreground">
-                              <Check className="w-2.5 h-2.5 mr-1" />
-                              {t('common.saved')}
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {worker.hourly_rate.toLocaleString('fr-FR')} CFA/h
-                        </span>
-                      </div>
+              return (
+                <div
+                  key={worker.id}
+                  className={cn(
+                    "border rounded-lg p-3 transition-colors",
+                    isAttended && "border-success bg-success/5",
+                    isSaved && "border-success bg-success/10"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            max="24"
-                            placeholder="0"
-                            value={workerHours[worker.id] || existingEntry?.hours_worked || ''}
-                            onChange={(e) => handleHoursChange(worker.id, e.target.value)}
-                            className="w-16 h-8 text-sm text-center"
-                          />
-                          <span className="text-xs text-muted-foreground">h</span>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSave(worker.id)}
-                          disabled={!workerHours[worker.id] || saveAttendance.isPending}
-                          className="h-8 w-8 p-0"
-                        >
-                          {saveAttendance.isPending ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Check className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
+                        <span className="font-medium text-sm truncate">{worker.name}</span>
+                        {isAttended && !isSaved && (
+                          <Badge variant="secondary" className="text-[10px] bg-success/20 text-success">
+                            <Check className="w-2.5 h-2.5 mr-1" />
+                            {t('attendance.attended')}
+                          </Badge>
+                        )}
+                        {isSaved && (
+                          <Badge className="text-[10px] bg-success text-success-foreground">
+                            <Check className="w-2.5 h-2.5 mr-1" />
+                            {t('common.saved')}
+                          </Badge>
+                        )}
                       </div>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.perDay')}
+                      </span>
                     </div>
-                    {hours > 0 && (
-                      <div className="mt-2 pt-2 border-t flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {hours}h × {worker.hourly_rate.toLocaleString('fr-FR')}
-                        </span>
-                        <span className="font-mono font-bold text-success">
-                          = {dailySalary.toLocaleString('fr-FR')} CFA
-                        </span>
-                      </div>
-                    )}
+                    <Button
+                      size="sm"
+                      variant={isAttended ? "outline" : "default"}
+                      onClick={() => handleToggleAttendance(worker.id)}
+                      disabled={isPending}
+                      className={cn(
+                        "h-8 gap-1.5",
+                        isAttended 
+                          ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" 
+                          : "bg-success text-success-foreground hover:bg-success/90"
+                      )}
+                    >
+                      {isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : isAttended ? (
+                        <>
+                          <X className="w-3.5 h-3.5" />
+                          {t('common.cancel')}
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          {t('attendance.attended')}
+                        </>
+                      )}
+                    </Button>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Save All Button */}
-            {Object.values(workerHours).some(h => parseFloat(h) > 0) && (
-              <Button
-                onClick={handleSaveAll}
-                className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
-                disabled={saveAttendance.isPending}
-              >
-                {saveAttendance.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                <Clock className="w-4 h-4" />
-                {t('attendance.saveAll')}
-              </Button>
-            )}
-          </>
+                </div>
+              );
+            })}
+          </div>
         )}
       </CardContent>
     </Card>

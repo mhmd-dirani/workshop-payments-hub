@@ -277,7 +277,7 @@ export default function Workers() {
                         <div className="min-w-0">
                           <span className="font-medium text-sm block truncate">{worker.name}</span>
                           <span className="text-xs text-muted-foreground font-mono">
-                            {worker.hourly_rate.toLocaleString('fr-FR')} CFA/h
+                            {worker.hourly_rate.toLocaleString('fr-FR')} CFA
                           </span>
                         </div>
                         {!worker.is_active && (
@@ -354,7 +354,7 @@ export default function Workers() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rate">{t('attendance.hourlyRate')} (CFA)</Label>
+                <Label htmlFor="rate">{t('attendance.dailyRate')} (CFA)</Label>
                 <Input
                   id="rate"
                   type="number"
@@ -399,7 +399,7 @@ export default function Workers() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-rate">{t('attendance.hourlyRate')} (CFA)</Label>
+                <Label htmlFor="edit-rate">{t('attendance.dailyRate')} (CFA)</Label>
                 <Input
                   id="edit-rate"
                   type="number"
