@@ -327,6 +327,7 @@
     "saveAll": "حفظ جميع الإدخالات",
     "attended": "حاضر",
     "perDay": "يوم",
+    "day": "يوم",
     "allTime": "كل الوقت",
     "showingAllRecords": "عرض جميع سجلات الحضور",
     "editAttendance": "تعديل الحضور",
@@ -378,7 +379,14 @@
     "paymentCreatedDesc": "الدفعة الآن في انتظار موافقة المدير",
     "createPayment": "إنشاء دفعة",
     "maxAmount": "الحد الأقصى",
-    "salary": "راتب"
+    "salary": "راتب",
+    "selectAll": "تحديد الكل",
+    "clearSelection": "مسح",
+    "paySelected": "دفع المحددين",
+    "selected": "محدد",
+    "paySelectedWorkers": "دفع للعمال المحددين",
+    "paySelectedDescription": "إنشاء طلبات دفع لـ {{count}} عمال محددين",
+    "workersIncluded": "العمال المشمولين"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

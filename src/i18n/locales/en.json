@@ -328,6 +328,7 @@
     "saveAll": "Save All Entries",
     "attended": "Attended",
     "perDay": "day",
+    "day": "day",
     "allTime": "All Time",
     "showingAllRecords": "Showing all attendance records",
     "editAttendance": "Edit Attendance",
@@ -379,7 +380,14 @@
     "paymentCreatedDesc": "The payment is now pending admin approval",
     "createPayment": "Create Payment",
     "maxAmount": "Max",
-    "salary": "Salary"
+    "salary": "Salary",
+    "selectAll": "Select All",
+    "clearSelection": "Clear",
+    "paySelected": "Pay Selected",
+    "selected": "selected",
+    "paySelectedWorkers": "Pay Selected Workers",
+    "paySelectedDescription": "Create payment requests for {{count}} selected workers",
+    "workersIncluded": "Workers included"
   },
   "personalPayments": {
     "title": "Personal Payments",

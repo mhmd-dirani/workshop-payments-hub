@@ -327,6 +327,7 @@
     "saveAll": "Enregistrer tout",
     "attended": "Présent",
     "perDay": "jour",
+    "day": "jour",
     "allTime": "Tout",
     "showingAllRecords": "Affichage de tous les enregistrements",
     "editAttendance": "Modifier présence",
@@ -378,7 +379,14 @@
     "paymentCreatedDesc": "Le paiement est en attente d'approbation admin",
     "createPayment": "Créer paiement",
     "maxAmount": "Max",
-    "salary": "Salaire"
+    "salary": "Salaire",
+    "selectAll": "Tout sélectionner",
+    "clearSelection": "Effacer",
+    "paySelected": "Payer sélection",
+    "selected": "sélectionné(s)",
+    "paySelectedWorkers": "Payer les travailleurs sélectionnés",
+    "paySelectedDescription": "Créer des demandes de paiement pour {{count}} travailleurs sélectionnés",
+    "workersIncluded": "Travailleurs inclus"
   },
   "personalPayments": {
     "title": "Paiements personnels",
