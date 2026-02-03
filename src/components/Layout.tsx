@@ -34,6 +34,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
     { name: t('nav.attendance'), href: '/attendance', icon: Calendar },
+    { name: t('nav.workers'), href: '/workers', icon: Users2 },
     ...(role === 'admin' ? [
       { name: t('nav.pendingApprovals'), href: '/approvals', icon: ClipboardCheck },
       { name: t('nav.team'), href: '/team', icon: Users2 },

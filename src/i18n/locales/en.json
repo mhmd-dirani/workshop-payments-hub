@@ -29,7 +29,9 @@
     "noData": "No data",
     "clickToReveal": "Click to reveal",
     "loadingWorkshops": "Loading workshops...",
-    "workshop": "Workshop"
+    "workshop": "Workshop",
+    "days": "days",
+    "saved": "Saved"
   },
   "auth": {
     "signIn": "Sign In",
@@ -64,7 +66,8 @@
     "team": "Team",
     "debts": "Debts",
     "manageUsers": "Manage Users",
-    "attendance": "Attendance"
+    "attendance": "Attendance",
+    "workers": "Workers"
   },
   "dashboard": {
     "title": "Payment Dashboard",
@@ -302,11 +305,21 @@
     "duplicateError": "Entry for this date already exists",
     "allWorkers": "All Workers",
     "allWorkshops": "All Workshops",
-    "attendance": "Attendance"
+    "attendance": "Attendance",
+    "entry": "Entry",
+    "history": "History",
+    "quickEntry": "Quick Attendance Entry",
+    "quickEntryDesc": "Select date and workshop, then enter hours for each worker",
+    "selectWorkshopFirst": "Select a workshop to see workers",
+    "recorded": "Recorded",
+    "savedAll": "All entries saved",
+    "savedAllDesc": "Attendance for all workers has been recorded",
+    "saveAll": "Save All Entries"
   },
   "workers": {
     "title": "Workers",
     "description": "Manage external workers who work at your workshops",
+    "manageDescription": "View worker details, track hours, and manage salary payments",
     "addWorker": "Add Worker",
     "editWorker": "Edit Worker",
     "workerName": "Worker Name",
@@ -317,7 +330,7 @@
     "added": "Worker added",
     "addedDesc": "The worker has been added to your list",
     "updated": "Worker updated",
-    "updatedDesc": "The worker name has been updated",
+    "updatedDesc": "The worker has been updated",
     "activated": "Worker activated",
     "activatedDesc": "The worker is now active",
     "deactivated": "Worker deactivated", 
@@ -325,7 +338,27 @@
     "deleted": "Worker deleted",
     "deletedDesc": "The worker has been removed",
     "deleteConfirm": "Delete Worker?",
-    "deleteWarning": "Are you sure you want to delete {{name}}? This will also delete all their attendance records."
+    "deleteWarning": "Are you sure you want to delete {{name}}? This will also delete all their attendance records.",
+    "deactivateConfirm": "Deactivate Worker?",
+    "deactivateWarning": "Are you sure you want to deactivate {{name}}? They won't appear in attendance entry.",
+    "activateConfirm": "Activate Worker?",
+    "activateWarning": "Are you sure you want to reactivate {{name}}? They will appear in attendance entry again.",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "totalOwed": "Total Owed",
+    "workDays": "Work Days",
+    "payWorker": "Pay Worker",
+    "pay": "Pay",
+    "unpaid": "Unpaid Work",
+    "paymentHistory": "Payment History",
+    "noPendingPayments": "No pending payments - worker is all paid up!",
+    "noPaymentHistory": "No payment history yet",
+    "payDescription": "Create a payment request for {{name}}'s salary",
+    "paymentCreated": "Payment request created",
+    "paymentCreatedDesc": "The payment is now pending admin approval",
+    "createPayment": "Create Payment",
+    "maxAmount": "Max",
+    "salary": "Salary"
   },
   "personalPayments": {
     "title": "Personal Payments",
