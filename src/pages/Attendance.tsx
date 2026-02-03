@@ -5,12 +5,14 @@ import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import AttendanceForm from '@/components/AttendanceForm';
 import AttendanceTable from '@/components/AttendanceTable';
+import WorkerManager from '@/components/WorkerManager';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Calendar, Users } from 'lucide-react';
 
 export default function Attendance() {
   const { t } = useTranslation();
-  const { user, role, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState<any>(null);
 
@@ -63,11 +65,27 @@ export default function Attendance() {
           </Button>
         </div>
 
-        {/* Attendance Table */}
-        <AttendanceTable 
-          userId={role !== 'admin' ? user.id : undefined}
-          onEdit={handleEdit} 
-        />
+        {/* Tabs for Workers and Attendance */}
+        <Tabs defaultValue="attendance" className="space-y-4">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="attendance" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              {t('attendance.attendance')}
+            </TabsTrigger>
+            <TabsTrigger value="workers" className="gap-2">
+              <Users className="w-4 h-4" />
+              {t('workers.title')}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="attendance">
+            <AttendanceTable onEdit={handleEdit} />
+          </TabsContent>
+
+          <TabsContent value="workers">
+            <WorkerManager />
+          </TabsContent>
+        </Tabs>
 
         {/* Form */}
         <AttendanceForm

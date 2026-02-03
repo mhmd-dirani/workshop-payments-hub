@@ -24,8 +24,9 @@ export type Database = {
           hours_worked: number
           id: string
           updated_at: string
-          user_id: string
           work_date: string
+          worker_id: string
+          workshop_id: string
         }
         Insert: {
           created_at?: string
@@ -36,8 +37,9 @@ export type Database = {
           hours_worked: number
           id?: string
           updated_at?: string
-          user_id: string
           work_date: string
+          worker_id: string
+          workshop_id: string
         }
         Update: {
           created_at?: string
@@ -48,10 +50,26 @@ export type Database = {
           hours_worked?: number
           id?: string
           updated_at?: string
-          user_id?: string
           work_date?: string
+          worker_id?: string
+          workshop_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       debt_payments: {
         Row: {
@@ -385,6 +403,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workers: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       workshop_assignments: {
         Row: {

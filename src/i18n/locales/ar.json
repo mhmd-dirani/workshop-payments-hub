@@ -27,7 +27,8 @@
     "total": "الإجمالي",
     "of": "من",
     "noData": "لا توجد بيانات",
-    "loadingWorkshops": "جاري تحميل الورش..."
+    "loadingWorkshops": "جاري تحميل الورش...",
+    "workshop": "الورشة"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -297,7 +298,33 @@
     "updatedDesc": "تم تحديث ساعات العمل",
     "deleted": "تم حذف السجل",
     "deletedDesc": "تم إزالة سجل الحضور",
-    "duplicateError": "يوجد سجل لهذا التاريخ بالفعل"
+    "duplicateError": "يوجد سجل لهذا التاريخ بالفعل",
+    "allWorkers": "جميع العمال",
+    "allWorkshops": "جميع الورش",
+    "attendance": "الحضور"
+  },
+  "workers": {
+    "title": "العمال",
+    "description": "إدارة العمال الخارجيين الذين يعملون في ورشك",
+    "addWorker": "إضافة عامل",
+    "editWorker": "تعديل العامل",
+    "workerName": "اسم العامل",
+    "noWorkers": "لم يتم إضافة عمال بعد",
+    "showInactive": "عرض غير النشطين",
+    "hideInactive": "إخفاء غير النشطين",
+    "inactive": "غير نشط",
+    "added": "تمت إضافة العامل",
+    "addedDesc": "تمت إضافة العامل إلى قائمتك",
+    "updated": "تم تحديث العامل",
+    "updatedDesc": "تم تحديث اسم العامل",
+    "activated": "تم تفعيل العامل",
+    "activatedDesc": "العامل نشط الآن",
+    "deactivated": "تم إلغاء تفعيل العامل",
+    "deactivatedDesc": "تم وضع علامة غير نشط على العامل",
+    "deleted": "تم حذف العامل",
+    "deletedDesc": "تم إزالة العامل",
+    "deleteConfirm": "حذف العامل؟",
+    "deleteWarning": "هل أنت متأكد من حذف {{name}}؟ سيتم أيضاً حذف جميع سجلات حضوره."
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

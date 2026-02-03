@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,12 +32,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const attendanceSchema = z.object({
-  user_id: z.string().min(1, 'Worker is required'),
+  worker_id: z.string().min(1, 'Worker is required'),
+  workshop_id: z.string().min(1, 'Workshop is required'),
   work_date: z.string().min(1, 'Date is required'),
   hours_worked: z.coerce.number().min(0.5, 'Minimum 0.5 hours').max(24, 'Maximum 24 hours'),
   hourly_rate: z.coerce.number().min(1, 'Hourly rate must be at least 1'),
@@ -48,40 +63,58 @@ type AttendanceFormData = z.infer<typeof attendanceSchema>;
 
 interface AttendanceFormProps {
   attendance?: any;
-  preselectedUserId?: string;
+  preselectedWorkerId?: string;
+  preselectedWorkshopId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export default function AttendanceForm({ 
   attendance, 
-  preselectedUserId,
+  preselectedWorkerId,
+  preselectedWorkshopId,
   open, 
   onOpenChange 
 }: AttendanceFormProps) {
   const { t } = useTranslation();
-  const { user, role } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!attendance;
+  const [workerOpen, setWorkerOpen] = useState(false);
 
-  // Fetch workers (non-admin users)
+  // Fetch active workers
   const { data: workers = [] } = useQuery({
-    queryKey: ['workers-for-attendance'],
+    queryKey: ['workers-active'],
     queryFn: async () => {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
-      const { data: roles } = await supabase.from('user_roles').select('user_id, role');
-      
-      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
-      return profiles?.filter(p => roleMap.get(p.user_id) !== 'admin') || [];
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
     },
-    enabled: role === 'admin',
+  });
+
+  // Fetch workshops
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workshops')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const form = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
     defaultValues: {
-      user_id: preselectedUserId || (role !== 'admin' ? user?.id : ''),
+      worker_id: preselectedWorkerId || '',
+      workshop_id: preselectedWorkshopId || '',
       work_date: format(new Date(), 'yyyy-MM-dd'),
       hours_worked: 8,
       hourly_rate: 1000,
@@ -93,7 +126,8 @@ export default function AttendanceForm({
     if (open) {
       if (attendance) {
         form.reset({
-          user_id: attendance.user_id,
+          worker_id: attendance.worker_id,
+          workshop_id: attendance.workshop_id,
           work_date: attendance.work_date,
           hours_worked: attendance.hours_worked,
           hourly_rate: attendance.hourly_rate,
@@ -101,7 +135,8 @@ export default function AttendanceForm({
         });
       } else {
         form.reset({
-          user_id: preselectedUserId || (role !== 'admin' ? user?.id : ''),
+          worker_id: preselectedWorkerId || '',
+          workshop_id: preselectedWorkshopId || '',
           work_date: format(new Date(), 'yyyy-MM-dd'),
           hours_worked: 8,
           hourly_rate: 1000,
@@ -109,18 +144,22 @@ export default function AttendanceForm({
         });
       }
     }
-  }, [attendance, open, form, preselectedUserId, role, user?.id]);
+  }, [attendance, open, form, preselectedWorkerId, preselectedWorkshopId]);
 
   const mutation = useMutation({
     mutationFn: async (data: AttendanceFormData) => {
+      const dailySalary = data.hours_worked * data.hourly_rate;
+      
       if (isEditing) {
         const { error } = await supabase
           .from('attendance')
           .update({
-            user_id: data.user_id,
+            worker_id: data.worker_id,
+            workshop_id: data.workshop_id,
             work_date: data.work_date,
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
+            daily_salary: dailySalary,
             description: data.description || null,
           })
           .eq('id', attendance.id);
@@ -129,10 +168,12 @@ export default function AttendanceForm({
         const { error } = await supabase
           .from('attendance')
           .insert([{
-            user_id: data.user_id,
+            worker_id: data.worker_id,
+            workshop_id: data.workshop_id,
             work_date: data.work_date,
             hours_worked: data.hours_worked,
             hourly_rate: data.hourly_rate,
+            daily_salary: dailySalary,
             description: data.description || null,
             created_by: user?.id,
           }]);
@@ -164,6 +205,7 @@ export default function AttendanceForm({
   };
 
   const dailySalary = form.watch('hours_worked') * form.watch('hourly_rate');
+  const selectedWorker = workers.find(w => w.id === form.watch('worker_id'));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -179,39 +221,93 @@ export default function AttendanceForm({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {role === 'admin' && (
-              <FormField
-                control={form.control}
-                name="user_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('attendance.worker')}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+            {/* Worker Selection with Combobox */}
+            <FormField
+              control={form.control}
+              name="worker_id"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>{t('attendance.worker')} *</FormLabel>
+                  <Popover open={workerOpen} onOpenChange={setWorkerOpen}>
+                    <PopoverTrigger asChild>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('attendance.selectWorker')} />
-                        </SelectTrigger>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={workerOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedWorker?.name || t('attendance.selectWorker')}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
                       </FormControl>
-                      <SelectContent>
-                        {workers.map((worker) => (
-                          <SelectItem key={worker.user_id} value={worker.user_id}>
-                            {worker.full_name || t('team.unnamedUser')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder={t('common.search')} />
+                        <CommandList className="max-h-[200px]">
+                          <CommandEmpty>{t('workers.noWorkers')}</CommandEmpty>
+                          <CommandGroup>
+                            {workers.map((worker) => (
+                              <CommandItem
+                                key={worker.id}
+                                value={worker.name}
+                                onSelect={() => {
+                                  form.setValue('worker_id', worker.id);
+                                  setWorkerOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value === worker.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {worker.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Workshop Selection */}
+            <FormField
+              control={form.control}
+              name="workshop_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('common.workshop')} *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('workshops.selectWorkshop')} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {workshops.map((workshop) => (
+                        <SelectItem key={workshop.id} value={workshop.id}>
+                          {workshop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
               name="work_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('common.date')}</FormLabel>
+                  <FormLabel>{t('common.date')} *</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
