@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Users, Edit, UserX, UserCheck, ChevronRight, Wallet } from 'lucide-react';
+import { Loader2, Plus, Users, Edit, UserX, UserCheck, ChevronRight, Wallet, Trash2 } from 'lucide-react';
 import WorkerDetails from '@/components/WorkerDetails';
 
 interface Worker {
@@ -54,6 +54,7 @@ export default function Workers() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [workerToToggle, setWorkerToToggle] = useState<Worker | null>(null);
+  const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [workerName, setWorkerName] = useState('');
   const [workerRate, setWorkerRate] = useState('1000');
@@ -130,6 +131,36 @@ export default function Workers() {
         title: vars.is_active ? t('workers.activated') : t('workers.deactivated'),
         description: vars.is_active ? t('workers.activatedDesc') : t('workers.deactivatedDesc'),
       });
+    },
+  });
+
+  const deleteWorker = useMutation({
+    mutationFn: async (id: string) => {
+      // First delete all attendance records for this worker
+      const { error: attendanceError } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('worker_id', id);
+      if (attendanceError) throw attendanceError;
+      
+      // Then delete the worker
+      const { error } = await supabase
+        .from('workers')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setWorkerToDelete(null);
+      toast({
+        title: t('workers.deleted'),
+        description: t('workers.deletedDesc'),
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
@@ -281,6 +312,18 @@ export default function Workers() {
                             <UserCheck className="w-3.5 h-3.5 text-success" />
                           )}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setWorkerToDelete(worker);
+                          }}
+                          className="h-7 w-7"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
                         {worker.is_active && (
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         )}
@@ -405,6 +448,27 @@ export default function Workers() {
                 }
               >
                 {workerToToggle?.is_active ? t('workers.deactivate') : t('workers.activate')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Worker Confirmation */}
+        <AlertDialog open={!!workerToDelete} onOpenChange={(open) => !open && setWorkerToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('workers.deleteConfirm')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('workers.deleteWarning', { name: workerToDelete?.name })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => workerToDelete && deleteWorker.mutate(workerToDelete.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
