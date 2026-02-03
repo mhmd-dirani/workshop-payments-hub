@@ -129,25 +129,32 @@ export default function OvertimePaymentForm() {
 
         if (paymentError) throw paymentError;
 
-        // Create ONE shared attendance record (use first worker as reference)
-        // Store all worker IDs in description for filtering
-        const overtimeDescription = `${t('attendance.overtime')}: ${workerNames} - ${reason}`;
-        
-        const { error: attendanceError } = await supabase
-          .from('attendance')
-          .insert({
-            worker_id: workerIds[0], // Primary worker reference
+        // Create ONE attendance record PER WORKER so each can see it in their filtered history
+        // All records share the same payment_id (so deleting payment removes all)
+        const attendanceRecords = selectedWorkersList.map(worker => {
+          const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
+          const othersText = otherWorkers.length > 0 
+            ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}` 
+            : t('attendance.overtime');
+          
+          return {
+            worker_id: worker.id,
             workshop_id: selectedWorkshop,
             work_date: selectedDate,
             hours_worked: 1, // Minimum to satisfy constraint
             hourly_rate: 1, // Minimum positive value to satisfy check constraint
             has_extra: true,
-            extra_amount: amount,
-            description: overtimeDescription,
+            extra_amount: amount, // Total shared amount shown for reference
+            description: `${othersText} - ${reason}`,
             is_paid: true,
             payment_id: payment.id,
             created_by: user?.id,
-          });
+          };
+        });
+
+        const { error: attendanceError } = await supabase
+          .from('attendance')
+          .insert(attendanceRecords);
 
         if (attendanceError) throw attendanceError;
 
