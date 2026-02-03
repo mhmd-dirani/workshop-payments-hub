@@ -105,11 +105,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
 
-  // Fetch unpaid attendance for this worker
+  // Fetch unpaid attendance for this worker (direct + overtime where name appears in description)
   const { data: unpaidAttendance = [], isLoading: loadingUnpaid } = useQuery({
-    queryKey: ['worker-unpaid-attendance', worker.id],
+    queryKey: ['worker-unpaid-attendance', worker.id, worker.name],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get direct attendance for this worker
+      const { data: directAttendance, error: directError } = await supabase
         .from('attendance')
         .select(`
           *,
@@ -118,16 +119,31 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('worker_id', worker.id)
         .eq('is_paid', false)
         .order('work_date', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (directError) throw directError;
+
+      // Get overtime attendance where worker name appears in description
+      const { data: overtimeAttendance, error: overtimeError } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          workshops:workshop_id(id, name)
+        `)
+        .neq('worker_id', worker.id) // Exclude direct (already fetched)
+        .eq('is_paid', false)
+        .ilike('description', `%${worker.name}%`)
+        .order('work_date', { ascending: false });
+      if (overtimeError) throw overtimeError;
+
+      return [...(directAttendance || []), ...(overtimeAttendance || [])];
     },
   });
 
-  // Fetch paid/archived attendance
+  // Fetch paid/archived attendance (direct + overtime where name appears in description)
   const { data: paidAttendance = [], isLoading: loadingPaid } = useQuery({
-    queryKey: ['worker-paid-attendance', worker.id],
+    queryKey: ['worker-paid-attendance', worker.id, worker.name],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get direct paid attendance for this worker
+      const { data: directAttendance, error: directError } = await supabase
         .from('attendance')
         .select(`
           *,
@@ -138,8 +154,24 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('is_paid', true)
         .order('work_date', { ascending: false })
         .limit(50);
-      if (error) throw error;
-      return data || [];
+      if (directError) throw directError;
+
+      // Get overtime paid attendance where worker name appears in description
+      const { data: overtimeAttendance, error: overtimeError } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          workshops:workshop_id(id, name),
+          payments:payment_id(id, status, payment_date, reason)
+        `)
+        .neq('worker_id', worker.id) // Exclude direct (already fetched)
+        .eq('is_paid', true)
+        .ilike('description', `%${worker.name}%`)
+        .order('work_date', { ascending: false })
+        .limit(50);
+      if (overtimeError) throw overtimeError;
+
+      return [...(directAttendance || []), ...(overtimeAttendance || [])];
     },
   });
 

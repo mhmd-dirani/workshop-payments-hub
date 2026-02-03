@@ -129,35 +129,26 @@ export default function OvertimePaymentForm() {
 
         if (paymentError) throw paymentError;
 
-        // Create ONE attendance record PER WORKER so each can see it in their filtered history
-        // All records share the same payment_id (so deleting payment removes all)
-        // IMPORTANT: Divide amount among workers so totals sum correctly
-        const amountPerWorker = amount / selectedWorkersList.length;
+        // Create ONE attendance record with ALL worker names in description
+        // Use first worker as the reference worker_id (for foreign key constraint)
+        // Store all names in description so filtering can find by any name
+        const overtimeDescription = `${t('attendance.overtime')}: ${workerNames} - ${reason}`;
         
-        const attendanceRecords = selectedWorkersList.map(worker => {
-          const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
-          const othersText = otherWorkers.length > 0 
-            ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}` 
-            : t('attendance.overtime');
-          
-          return {
-            worker_id: worker.id,
+        const { error: attendanceError } = await supabase
+          .from('attendance')
+          .insert({
+            worker_id: selectedWorkersList[0].id, // First worker as reference
             workshop_id: selectedWorkshop,
             work_date: selectedDate,
             hours_worked: 1, // Minimum to satisfy constraint
             hourly_rate: 1, // Minimum to satisfy check constraint
             has_extra: true,
-            extra_amount: amountPerWorker, // Each worker's share (total / count)
-            description: `${othersText} - ${reason} (${t('common.total')}: ${amount.toLocaleString('fr-FR')} CFA)`,
+            extra_amount: amount, // Full amount (only ONE record)
+            description: overtimeDescription, // Contains all worker names for filtering
             is_paid: true,
             payment_id: payment.id,
             created_by: user?.id,
-          };
-        });
-
-        const { error: attendanceError } = await supabase
-          .from('attendance')
-          .insert(attendanceRecords);
+          });
 
         if (attendanceError) throw attendanceError;
 
