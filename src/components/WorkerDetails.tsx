@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -66,14 +66,25 @@ interface EditingAttendance {
   workshop_id: string;
 }
 
+// Helper function to get current week range (Monday to Saturday)
+function getWeekRange(date: Date): { weekLabel: string } {
+  // Get the Monday of the current week (week starts on Monday)
+  const monday = startOfWeek(date, { weekStartsOn: 1 });
+  // Saturday is 5 days after Monday
+  const saturday = new Date(monday);
+  saturday.setDate(monday.getDate() + 5);
+  
+  const weekLabel = `${format(monday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
+  
+  return { weekLabel };
+}
+
 export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPayOpen, setIsPayOpen] = useState(false);
-  const [payAmount, setPayAmount] = useState('');
-  const [selectedWorkshop, setSelectedWorkshop] = useState('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
 
   // Fetch unpaid attendance for this worker
@@ -103,7 +114,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .select(`
           *,
           workshops:workshop_id(id, name),
-          payments:payment_id(id, status, payment_date)
+          payments:payment_id(id, status, payment_date, reason)
         `)
         .eq('worker_id', worker.id)
         .eq('is_paid', true)
@@ -130,7 +141,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const totalOwed = unpaidAttendance.reduce((sum, a) => sum + Number(a.daily_salary), 0);
   const totalDays = unpaidAttendance.length;
 
-  // Group unpaid by workshop
+  // Group unpaid by workshop for display
   const unpaidByWorkshop = unpaidAttendance.reduce((acc, entry) => {
     const workshopId = entry.workshop_id;
     const workshopName = (entry.workshops as any)?.name || 'Unknown';
@@ -183,49 +194,81 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Create payment mutation
+  // Create payment mutation - pays ALL unpaid work across ALL workshops
+  // Groups payments by workshop, using "Travailleur" as paid_to and week dates as reason
   const createPayment = useMutation({
-    mutationFn: async ({ workshopId, amount }: { workshopId: string; amount: number }) => {
-      // Create the payment request
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          workshop_id: workshopId,
-          paid_to: worker.name,
-          reason: t('workers.salary'),
-          amount,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          created_by: user?.id,
-          status: 'pending',
-        }])
-        .select()
-        .single();
-
-      if (paymentError) throw paymentError;
-
-      // Mark attendance entries as paid and link to payment
-      const workshopEntryIds = unpaidAttendance
-        .filter(a => a.workshop_id === workshopId)
-        .map(a => a.id);
-
-      if (workshopEntryIds.length > 0) {
-        const { error: updateError } = await supabase
-          .from('attendance')
-          .update({ is_paid: true, payment_id: payment.id })
-          .in('id', workshopEntryIds);
-
-        if (updateError) throw updateError;
+    mutationFn: async () => {
+      // Get current week range (Monday to Saturday)
+      const { weekLabel } = getWeekRange(new Date());
+      const paymentReason = weekLabel;
+      
+      const results: any[] = [];
+      
+      // Process each workshop separately
+      for (const [workshopId, { total, entries }] of Object.entries(unpaidByWorkshop)) {
+        // Check if there's already a "Travailleur" payment for this week in this workshop
+        const { data: existingPayment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('workshop_id', workshopId)
+          .eq('paid_to', 'Travailleur')
+          .eq('reason', paymentReason)
+          .single();
+        
+        let paymentId: string;
+        
+        if (existingPayment) {
+          // Update existing payment by adding this worker's amount
+          const newAmount = Number(existingPayment.amount) + total;
+          const { error: updateError } = await supabase
+            .from('payments')
+            .update({ amount: newAmount })
+            .eq('id', existingPayment.id);
+          
+          if (updateError) throw updateError;
+          paymentId = existingPayment.id;
+        } else {
+          // Create new payment for this workshop
+          const { data: payment, error: paymentError } = await supabase
+            .from('payments')
+            .insert([{
+              workshop_id: workshopId,
+              paid_to: 'Travailleur',
+              reason: paymentReason,
+              amount: total,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+              created_by: user?.id,
+              status: 'pending',
+            }])
+            .select()
+            .single();
+          
+          if (paymentError) throw paymentError;
+          paymentId = payment.id;
+        }
+        
+        // Mark attendance entries as paid and link to payment
+        const entryIds = entries.map((a: any) => a.id);
+        
+        if (entryIds.length > 0) {
+          const { error: updateError } = await supabase
+            .from('attendance')
+            .update({ is_paid: true, payment_id: paymentId })
+            .in('id', entryIds);
+          
+          if (updateError) throw updateError;
+        }
+        
+        results.push({ workshopId, paymentId, amount: total });
       }
-
-      return payment;
+      
+      return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setIsPayOpen(false);
-      setPayAmount('');
-      setSelectedWorkshop('');
       toast({ 
         title: t('workers.paymentCreated'), 
         description: t('workers.paymentCreatedDesc') 
@@ -236,22 +279,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  const handlePay = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedWorkshop && payAmount) {
-      createPayment.mutate({ workshopId: selectedWorkshop, amount: parseFloat(payAmount) });
+  const handlePay = () => {
+    if (totalOwed > 0) {
+      createPayment.mutate();
     }
   };
 
-  const openPayDialog = (workshopId?: string) => {
-    if (workshopId) {
-      setSelectedWorkshop(workshopId);
-      const workshopTotal = unpaidByWorkshop[workshopId]?.total || 0;
-      setPayAmount(workshopTotal.toString());
-    } else {
-      setSelectedWorkshop('');
-      setPayAmount('');
-    }
+  const openPayDialog = () => {
     setIsPayOpen(true);
   };
 
@@ -361,14 +395,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         <Building2 className="w-4 h-4 text-muted-foreground" />
                         <CardTitle className="text-sm">{name}</CardTitle>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => openPayDialog(workshopId)}
-                        className="bg-success text-success-foreground hover:bg-success/90 h-7 text-xs gap-1"
-                      >
-                        <Wallet className="w-3 h-3" />
-                        {t('workers.pay')} {total.toLocaleString('fr-FR')}
-                      </Button>
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {total.toLocaleString('fr-FR')} CFA
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="px-3 pb-3">
@@ -490,64 +519,52 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Pay Dialog */}
+      {/* Pay Dialog - Simple confirmation */}
       <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{t('workers.payWorker')}</DialogTitle>
             <DialogDescription>
-              {t('workers.payDescription', { name: worker.name })}
+              {t('workers.payAllDescription', { name: worker.name })}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handlePay} className="space-y-4">
+          <div className="space-y-4">
+            {/* Summary of what will be paid */}
             <div className="space-y-2">
-              <Label>{t('common.workshop')}</Label>
-              <Select value={selectedWorkshop} onValueChange={(v) => {
-                setSelectedWorkshop(v);
-                const workshopTotal = unpaidByWorkshop[v]?.total || 0;
-                setPayAmount(workshopTotal.toString());
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(unpaidByWorkshop).map(([id, { name, total }]) => (
-                    <SelectItem key={id} value={id}>
-                      {name} ({total.toLocaleString('fr-FR')} CFA)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-sm font-medium">{t('workers.paymentSummary')}:</p>
+              {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
+                <div key={workshopId} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                  <span className="flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {name}
+                  </span>
+                  <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
+                <span>{t('common.total')}</span>
+                <span className="font-mono text-success">{totalOwed.toLocaleString('fr-FR')} CFA</span>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>{t('common.amount')} (CFA)</Label>
-              <Input
-                type="number"
-                min="1"
-                value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-                placeholder="0"
-              />
-              {selectedWorkshop && (
-                <p className="text-xs text-muted-foreground">
-                  {t('workers.maxAmount')}: {(unpaidByWorkshop[selectedWorkshop]?.total || 0).toLocaleString('fr-FR')} CFA
-                </p>
-              )}
-            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              {t('workers.weeklyPaymentNote')}
+            </p>
+            
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsPayOpen(false)}>
                 {t('common.cancel')}
               </Button>
               <Button
-                type="submit"
-                disabled={!selectedWorkshop || !payAmount || createPayment.isPending}
+                onClick={handlePay}
+                disabled={createPayment.isPending}
                 className="bg-success text-success-foreground hover:bg-success/90"
               >
                 {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {t('workers.createPayment')}
+                {t('workers.confirmPayment')}
               </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
