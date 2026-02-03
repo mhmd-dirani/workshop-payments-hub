@@ -173,13 +173,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // Update attendance mutation
   const updateAttendance = useMutation({
     mutationFn: async ({ id, work_date, hourly_rate, workshop_id, has_extra, extra_amount }: EditingAttendance) => {
-      const dailySalary = hourly_rate + (has_extra ? extra_amount : 0);
       const { error } = await supabase
         .from('attendance')
         .update({ 
           work_date, 
           hourly_rate, 
-          daily_salary: dailySalary,
           workshop_id,
           has_extra,
           extra_amount: has_extra ? extra_amount : 0,

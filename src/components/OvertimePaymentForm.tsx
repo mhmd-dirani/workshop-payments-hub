@@ -133,8 +133,8 @@ export default function OvertimePaymentForm() {
           worker_id: worker.id,
           workshop_id: selectedWorkshop,
           work_date: selectedDate,
-          hours_worked: 0, // No regular hours
-          hourly_rate: 0, // No regular rate
+          hours_worked: 1, // Minimum to satisfy constraint
+          hourly_rate: 1, // Minimum to satisfy constraint (actual value is in extra_amount)
           has_extra: true,
           extra_amount: amount, // Total shared amount (not split)
           description: `${othersText}${reason} (${t('common.total')}: ${amount.toLocaleString('fr-FR')} CFA - ${selectedWorkersList.length} ${t('attendance.workersSelected')})`,
