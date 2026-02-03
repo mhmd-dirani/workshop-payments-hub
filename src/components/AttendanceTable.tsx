@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2 } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, subWeeks, subMonths, subYears } from 'date-fns';
+import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2, Infinity } from 'lucide-react';
 
 interface AttendanceTableProps {
   workerId?: string;
@@ -34,11 +34,13 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [timeFilter, setTimeFilter] = useState('0'); // '0' = this week, '1' = last week, etc., 'all' = all time
   const [filterWorkshopId, setFilterWorkshopId] = useState(workshopId || 'all');
   const [filterWorkerId, setFilterWorkerId] = useState(workerId || 'all');
 
-  // Calculate week range
+  // Calculate date range based on filter
+  const isAllTime = timeFilter === 'all';
+  const weekOffset = isAllTime ? 0 : parseInt(timeFilter);
   const currentDate = subWeeks(new Date(), weekOffset);
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 6 }); // Saturday
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 6 });
@@ -71,7 +73,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', weekOffset, filterWorkerId, filterWorkshopId],
+    queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId],
     queryFn: async () => {
       let query = supabase
         .from('attendance')
@@ -80,9 +82,14 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
           workers:worker_id(id, name),
           workshops:workshop_id(id, name)
         `)
-        .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
-        .lte('work_date', format(weekEnd, 'yyyy-MM-dd'))
         .order('work_date', { ascending: false });
+
+      // Only apply date filters if not "all time"
+      if (!isAllTime) {
+        query = query
+          .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
+          .lte('work_date', format(weekEnd, 'yyyy-MM-dd'));
+      }
 
       if (filterWorkerId && filterWorkerId !== 'all') {
         query = query.eq('worker_id', filterWorkerId);
@@ -125,32 +132,33 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     <Card className="shadow-card">
       <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5" />
-                {t('attendance.weeklyAttendance')}
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-              </CardDescription>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                  <Calendar className="w-4 h-4 md:w-5 md:h-5" />
+                  {isAllTime ? t('attendance.allTime') : t('attendance.weeklyAttendance')}
+                </CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                  {isAllTime ? t('attendance.showingAllRecords') : `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`}
+                </CardDescription>
+              </div>
+              <Select
+                value={timeFilter}
+                onValueChange={setTimeFilter}
+              >
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
+                  <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
+                  <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
+                  <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
+                  <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
+                  <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={weekOffset.toString()}
-              onValueChange={(v) => setWeekOffset(parseInt(v))}
-            >
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
-                <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
-                <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
-                <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
-                <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Filters */}
           <div className="flex gap-2 flex-wrap">

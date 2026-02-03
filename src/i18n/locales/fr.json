@@ -314,7 +314,11 @@
     "savedAllDesc": "La présence de tous les travailleurs a été enregistrée",
     "saveAll": "Enregistrer tout",
     "attended": "Présent",
-    "perDay": "jour"
+    "perDay": "jour",
+    "allTime": "Tout",
+    "showingAllRecords": "Affichage de tous les enregistrements",
+    "editAttendance": "Modifier présence",
+    "updateAttendance": "Modifier l'enregistrement de présence"
   },
   "workers": {
     "title": "Travailleurs",

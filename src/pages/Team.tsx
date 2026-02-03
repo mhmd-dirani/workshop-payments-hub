@@ -74,22 +74,33 @@ export default function Team() {
         .select('created_by, amount')
         .eq('status', 'approved');
 
+      // Get all personal payments
+      const { data: personalPayments } = await supabase
+        .from('personal_payments')
+        .select('user_id, amount');
+
       // Calculate balances for each member
       const members: TeamMember[] = nonAdminProfiles.map(profile => {
         const received = transfers
           ?.filter(t => t.user_id === profile.user_id)
           .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
 
-        const spent = payments
+        const workshopSpent = payments
           ?.filter(p => p.created_by === profile.user_id)
           .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+        const personalSpent = personalPayments
+          ?.filter(p => p.user_id === profile.user_id)
+          .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+        const totalSpent = workshopSpent + personalSpent;
 
         return {
           user_id: profile.user_id,
           full_name: profile.full_name,
           totalReceived: received,
-          totalSpent: spent,
-          balance: received - spent,
+          totalSpent: totalSpent,
+          balance: received - totalSpent,
         };
       });
 

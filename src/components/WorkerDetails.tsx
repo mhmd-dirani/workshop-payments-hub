@@ -42,7 +42,9 @@ import {
   Loader2, 
   Building2, 
   History,
-  CheckCircle2
+  CheckCircle2,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface Worker {
@@ -57,6 +59,13 @@ interface WorkerDetailsProps {
   onBack: () => void;
 }
 
+interface EditingAttendance {
+  id: string;
+  work_date: string;
+  hourly_rate: number;
+  workshop_id: string;
+}
+
 export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -65,6 +74,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
+  const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
 
   // Fetch unpaid attendance for this worker
   const { data: unpaidAttendance = [], isLoading: loadingUnpaid } = useQuery({
@@ -131,6 +141,47 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     acc[workshopId].entries.push(entry);
     return acc;
   }, {} as Record<string, { name: string; total: number; entries: any[] }>);
+
+  // Update attendance mutation
+  const updateAttendance = useMutation({
+    mutationFn: async ({ id, work_date, hourly_rate, workshop_id }: EditingAttendance) => {
+      const { error } = await supabase
+        .from('attendance')
+        .update({ 
+          work_date, 
+          hourly_rate, 
+          daily_salary: hourly_rate, // daily_salary = rate for 1 day
+          workshop_id 
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setEditingAttendance(null);
+      toast({ title: t('attendance.updated'), description: t('attendance.updatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Delete attendance mutation
+  const deleteAttendance = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast({ title: t('attendance.deleted'), description: t('attendance.deletedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
 
   // Create payment mutation
   const createPayment = useMutation({
@@ -202,6 +253,22 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setPayAmount('');
     }
     setIsPayOpen(true);
+  };
+
+  const handleEditAttendance = (entry: any) => {
+    setEditingAttendance({
+      id: entry.id,
+      work_date: entry.work_date,
+      hourly_rate: Number(entry.hourly_rate),
+      workshop_id: entry.workshop_id,
+    });
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingAttendance) {
+      updateAttendance.mutate(editingAttendance);
+    }
   };
 
   return (
@@ -311,9 +378,27 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           <span className="font-mono text-xs">
                             {format(new Date(entry.work_date), 'EEE, dd/MM')}
                           </span>
-                          <span className="font-mono font-medium">
-                            {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-medium">
+                              {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditAttendance(entry)}
+                              className="h-6 w-6"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteAttendance.mutate(entry.id)}
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -423,7 +508,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 setPayAmount(workshopTotal.toString());
               }}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t('workshops.selectWorkshop')} />
+                  <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(unpaidByWorkshop).map(([id, { name, total }]) => (
@@ -460,6 +545,66 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               >
                 {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t('workers.createPayment')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Attendance Dialog */}
+      <Dialog open={!!editingAttendance} onOpenChange={(open) => !open && setEditingAttendance(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('attendance.editAttendance')}</DialogTitle>
+            <DialogDescription>
+              {t('attendance.updateAttendance')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t('common.date')}</Label>
+              <Input
+                type="date"
+                value={editingAttendance?.work_date || ''}
+                onChange={(e) => setEditingAttendance(prev => prev ? { ...prev, work_date: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('attendance.dailyRate')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editingAttendance?.hourly_rate || ''}
+                onChange={(e) => setEditingAttendance(prev => prev ? { ...prev, hourly_rate: Number(e.target.value) } : null)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.workshop')}</Label>
+              <Select 
+                value={editingAttendance?.workshop_id || ''} 
+                onValueChange={(v) => setEditingAttendance(prev => prev ? { ...prev, workshop_id: v } : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshops.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingAttendance(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateAttendance.isPending}
+              >
+                {updateAttendance.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t('common.save')}
               </Button>
             </DialogFooter>
           </form>
