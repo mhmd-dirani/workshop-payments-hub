@@ -46,7 +46,8 @@ import {
   CheckCircle2,
   Edit,
   Trash2,
-  Sparkles
+  Sparkles,
+  Clock
 } from 'lucide-react';
 
 interface Worker {
@@ -196,7 +197,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Delete attendance mutation
+  // Delete attendance mutation (for unpaid entries only - this is on the unpaid tab)
   const deleteAttendance = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('attendance').delete().eq('id', id);
@@ -205,6 +206,52 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
+      toast({ title: t('attendance.deleted'), description: t('attendance.deletedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Delete paid attendance mutation - also updates/deletes the parent payment
+  const deletePaidAttendance = useMutation({
+    mutationFn: async (entry: any) => {
+      const paymentId = entry.payment_id;
+      const entryAmount = Number(entry.daily_salary);
+      
+      if (paymentId) {
+        // Get the parent payment
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', paymentId)
+          .single();
+        
+        if (payment) {
+          const newAmount = Number(payment.amount) - entryAmount;
+          
+          if (newAmount <= 0) {
+            // Delete the payment if amount would be 0 or negative
+            await supabase.from('payments').delete().eq('id', paymentId);
+          } else {
+            // Update the payment with reduced amount
+            await supabase
+              .from('payments')
+              .update({ amount: newAmount })
+              .eq('id', paymentId);
+          }
+        }
+      }
+      
+      // Delete the attendance record
+      const { error } = await supabase.from('attendance').delete().eq('id', entry.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
       toast({ title: t('attendance.deleted'), description: t('attendance.deletedDesc') });
     },
     onError: (error: Error) => {
@@ -504,39 +551,65 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             <Card className="shadow-card">
               <CardContent className="p-0">
                 <div className="md:hidden">
-                  {paidAttendance.map((entry) => (
-                    <div key={entry.id} className="p-3 border-b last:border-0">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-mono text-xs">
-                            {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
-                          </p>
-                          <Badge variant="outline" className="text-[10px] mt-1">
-                            {(entry.workshops as any)?.name}
-                          </Badge>
-                          {entry.has_extra && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Sparkles className="w-3 h-3 text-warning" />
-                              <span className="text-[10px] text-warning">
-                                +{Number(entry.extra_amount).toLocaleString('fr-FR')}
-                              </span>
+                  {paidAttendance.map((entry) => {
+                    const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                    return (
+                      <div key={entry.id} className="p-3 border-b last:border-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-mono text-xs">
+                              {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
+                            </p>
+                            <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
+                              <span className="truncate">{(entry.workshops as any)?.name}</span>
+                            </Badge>
+                            {entry.description && (
+                              <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
+                                {entry.description}
+                              </p>
+                            )}
+                            {entry.has_extra && !isOvertime && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
+                                <span className="text-[10px] text-warning">
+                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="text-right">
+                              <p className="font-mono font-medium text-muted-foreground">
+                                {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                              </p>
+                              {isOvertime && (
+                                <Badge variant="secondary" className="text-[10px] mt-1 gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {t('attendance.overtimeShort')}
+                                </Badge>
+                              )}
+                              {!isOvertime && (
+                                <Badge 
+                                  variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
+                                  className="text-[10px] mt-1"
+                                >
+                                  {(entry.payments as any)?.status || 'paid'}
+                                </Badge>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-medium text-muted-foreground">
-                            {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                          </p>
-                          <Badge 
-                            variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                            className="text-[10px] mt-1"
-                          >
-                            {(entry.payments as any)?.status || 'paid'}
-                          </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deletePaidAttendance.mutate(entry)}
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="hidden md:block">
                   <Table>
@@ -545,41 +618,67 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         <TableHead>{t('common.date')}</TableHead>
                         <TableHead>{t('common.workshop')}</TableHead>
                         <TableHead>{t('attendance.dailySalary')}</TableHead>
-                        <TableHead>{t('attendance.extra')}</TableHead>
+                        <TableHead>{t('common.description')}</TableHead>
                         <TableHead>{t('common.status')}</TableHead>
+                        <TableHead className="text-right">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paidAttendance.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="font-mono">
-                            {format(new Date(entry.work_date), 'MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono">
-                            {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                          </TableCell>
-                          <TableCell>
-                            {entry.has_extra ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <Sparkles className="w-3 h-3" />
-                                +{Number(entry.extra_amount).toLocaleString('fr-FR')}
+                      {paidAttendance.map((entry) => {
+                        const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell className="font-mono">
+                              {format(new Date(entry.work_date), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono">
+                              {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                            </TableCell>
+                            <TableCell className="max-w-[200px]">
+                              {isOvertime ? (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="secondary" className="gap-1 flex-shrink-0">
+                                    <Clock className="w-3 h-3" />
+                                    {t('attendance.overtimeShort')}
+                                  </Badge>
+                                  {entry.description && (
+                                    <span className="text-xs text-muted-foreground truncate" title={entry.description}>
+                                      {entry.description}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : entry.has_extra ? (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Sparkles className="w-3 h-3" />
+                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
+                              >
+                                {(entry.payments as any)?.status || 'paid'}
                               </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                            >
-                              {(entry.payments as any)?.status || 'paid'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deletePaidAttendance.mutate(entry)}
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

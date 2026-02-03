@@ -108,6 +108,15 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
+      // If this is a "Travailleur Overtime" payment, delete linked attendance records
+      if (payment.paid_to === 'Travailleur Overtime') {
+        const { error: attendanceDeleteError } = await supabase
+          .from('attendance')
+          .delete()
+          .eq('payment_id', payment.id);
+        if (attendanceDeleteError) throw attendanceDeleteError;
+      }
+
       await supabase
         .from('user_transfers')
         .delete()
@@ -132,6 +141,9 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
       toast({
         title: t('payments.paymentDeleted'),
         description: t('payments.paymentDeletedDesc'),
@@ -290,9 +302,9 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                         <Paperclip className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{payment.reason}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{payment.reason}</p>
                   </div>
-                  <div className="text-right ml-2">
+                  <div className="text-right ml-2 flex-shrink-0">
                     <p className="font-mono font-bold text-sm text-destructive">
                       -{Number(payment.amount).toLocaleString('fr-FR')}
                     </p>
@@ -302,11 +314,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     {getStatusBadge(payment.status)}
-                    <span className="text-[10px] text-muted-foreground">{payment.creator_name}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">{payment.creator_name}</span>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0">
                     {payment.files?.length > 0 && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => previewFileHandler(payment.files[0])} className="h-7 w-7">
@@ -362,7 +374,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={payment.reason}>{payment.reason}</TableCell>
                   <TableCell className="text-right font-mono font-medium text-destructive">
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>

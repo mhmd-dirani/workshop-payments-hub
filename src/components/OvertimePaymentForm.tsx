@@ -123,21 +123,22 @@ export default function OvertimePaymentForm() {
 
       // Create attendance records for each worker
       // Each worker gets the TOTAL amount recorded (shared payment, not split)
+      // Use hourly_rate=0, hours_worked=0, and put actual amount in extra_amount
       const attendanceRecords = selectedWorkersList.map(worker => {
         const otherWorkers = selectedWorkersList.filter(w => w.id !== worker.id).map(w => w.name);
         const othersText = otherWorkers.length > 0 
-          ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}: ` 
-          : '';
+          ? `${t('attendance.overtimeWith')} ${otherWorkers.join(', ')}` 
+          : t('attendance.overtime');
         
         return {
           worker_id: worker.id,
           workshop_id: selectedWorkshop,
           work_date: selectedDate,
-          hours_worked: 1, // Minimum to satisfy constraint
-          hourly_rate: 1, // Minimum to satisfy constraint (actual value is in extra_amount)
+          hours_worked: 1, // Required for constraint
+          hourly_rate: 0, // Set to 0 so daily_salary = extra_amount only
           has_extra: true,
-          extra_amount: amount, // Total shared amount (not split)
-          description: `${othersText}${reason} (${t('common.total')}: ${amount.toLocaleString('fr-FR')} CFA - ${selectedWorkersList.length} ${t('attendance.workersSelected')})`,
+          extra_amount: amount, // Total shared amount
+          description: othersText, // Simplified: "Overtime with Name1, Name2"
           is_paid: true,
           payment_id: payment.id,
           created_by: user?.id,
