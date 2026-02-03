@@ -358,7 +358,9 @@
     "createOvertimePayment": "Create Overtime Payment",
     "overtimePaymentCreated": "Overtime payment created successfully",
     "overtimeWith": "Overtime with",
-    "extra": "extra"
+    "extra": "extra",
+    "sharedPayment": "shared payment",
+    "sharedAmongWorkers": "Shared among {{count}} workers"
   },
   "workers": {
     "title": "Workers",

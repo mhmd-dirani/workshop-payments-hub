@@ -357,7 +357,9 @@
     "createOvertimePayment": "Créer paiement heures supp.",
     "overtimePaymentCreated": "Paiement des heures supp. créé avec succès",
     "overtimeWith": "Heures supp. avec",
-    "extra": "extra"
+    "extra": "extra",
+    "sharedPayment": "paiement partagé",
+    "sharedAmongWorkers": "Partagé entre {{count}} travailleurs"
   },
   "workers": {
     "title": "Travailleurs",
