@@ -142,7 +142,9 @@
     "incomeDeletedDesc": "تم إزالة سجل الإيراد",
     "recordIncome": "تسجيل الأموال المستلمة لهذه الورشة",
     "noDescription": "بدون وصف",
-    "updateDetails": "تحديث تفاصيل الإيراد"
+    "updateDetails": "تحديث تفاصيل الإيراد",
+    "bankCheck": "شيك مصرفي / إثبات تحويل",
+    "bankCheckHint": "أرفق صورة للشيك المصرفي أو إثبات التحويل (اختياري)"
   },
   "approvals": {
     "title": "الموافقات المعلقة",
@@ -396,14 +398,17 @@
     "mapsAndReceipts": "رفع الخرائط والمخططات والإيصالات",
     "maps": "الخرائط",
     "receipts": "الإيصالات",
+    "bankChecks": "الشيكات",
     "uploadMap": "رفع خريطة",
     "captureReceipt": "التقاط إيصال",
     "noMaps": "لم يتم رفع خرائط بعد",
     "noReceipts": "لم يتم رفع إيصالات بعد",
+    "noBankChecks": "لم يتم رفع شيكات بعد",
     "uploaded": "تم رفع الملف",
     "uploadedDesc": "تم حفظ الملف",
     "deleted": "تم حذف الملف",
-    "deletedDesc": "تم إزالة الملف"
+    "deletedDesc": "تم إزالة الملف",
+    "uploadedBy": "رفعه"
   },
   "transfers": {
     "title": "التحويلات",

@@ -143,7 +143,9 @@
     "incomeDeletedDesc": "The income record has been removed",
     "recordIncome": "Record money received for this workshop (e.g., from owner)",
     "noDescription": "No description",
-    "updateDetails": "Update the income record details"
+    "updateDetails": "Update the income record details",
+    "bankCheck": "Bank Check / Transfer Proof",
+    "bankCheckHint": "Attach a photo of the bank check or transfer proof (optional)"
   },
   "approvals": {
     "title": "Pending Approvals",
@@ -397,14 +399,17 @@
     "mapsAndReceipts": "Upload maps, plans, and receipts",
     "maps": "Maps",
     "receipts": "Receipts",
+    "bankChecks": "Checks",
     "uploadMap": "Upload Map",
     "captureReceipt": "Capture Receipt",
     "noMaps": "No maps uploaded yet",
     "noReceipts": "No receipts uploaded yet",
+    "noBankChecks": "No bank checks uploaded yet",
     "uploaded": "File uploaded",
     "uploadedDesc": "The file has been saved",
     "deleted": "File deleted",
-    "deletedDesc": "The file has been removed"
+    "deletedDesc": "The file has been removed",
+    "uploadedBy": "Uploaded by"
   },
   "transfers": {
     "title": "Transfers",

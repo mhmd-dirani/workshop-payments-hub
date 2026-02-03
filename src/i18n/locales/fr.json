@@ -142,7 +142,9 @@
     "incomeDeletedDesc": "L'enregistrement a été supprimé",
     "recordIncome": "Enregistrer les fonds reçus pour cet atelier",
     "noDescription": "Pas de description",
-    "updateDetails": "Modifier les détails du revenu"
+    "updateDetails": "Modifier les détails du revenu",
+    "bankCheck": "Chèque / Preuve de virement",
+    "bankCheckHint": "Joindre une photo du chèque ou preuve de virement (optionnel)"
   },
   "approvals": {
     "title": "Approbations en attente",
@@ -396,14 +398,17 @@
     "mapsAndReceipts": "Télécharger cartes, plans et reçus",
     "maps": "Cartes",
     "receipts": "Reçus",
+    "bankChecks": "Chèques",
     "uploadMap": "Télécharger carte",
     "captureReceipt": "Capturer reçu",
     "noMaps": "Aucune carte téléchargée",
     "noReceipts": "Aucun reçu téléchargé",
+    "noBankChecks": "Aucun chèque téléchargé",
     "uploaded": "Fichier téléchargé",
     "uploadedDesc": "Le fichier a été sauvegardé",
     "deleted": "Fichier supprimé",
-    "deletedDesc": "Le fichier a été supprimé"
+    "deletedDesc": "Le fichier a été supprimé",
+    "uploadedBy": "Téléchargé par"
   },
   "transfers": {
     "title": "Transferts",
