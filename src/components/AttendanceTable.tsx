@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Loader2, Trash2, Edit, Calendar, Clock, DollarSign, Building2 } from 'lucide-react';
+import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2 } from 'lucide-react';
 
 interface AttendanceTableProps {
   workerId?: string;
@@ -108,7 +108,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     },
   });
 
-  const totalHours = data?.reduce((sum, a) => sum + Number(a.hours_worked), 0) || 0;
+  const totalDays = data?.reduce((sum, a) => sum + Number(a.hours_worked), 0) || 0;
   const totalSalary = data?.reduce((sum, a) => sum + Number(a.daily_salary), 0) || 0;
 
   if (isLoading) {
@@ -183,11 +183,11 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
           <div className="grid grid-cols-2 gap-2 md:gap-4">
             <div className="p-2 md:p-3 rounded-lg bg-primary/10 border border-primary/20">
               <div className="flex items-center gap-1.5 text-primary">
-                <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="text-[10px] md:text-xs font-medium">{t('attendance.totalHours')}</span>
+                <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="text-[10px] md:text-xs font-medium">{t('attendance.totalDays')}</span>
               </div>
               <p className="text-lg md:text-xl font-bold font-mono text-primary">
-                {totalHours}h
+                {totalDays} {t('common.days')}
               </p>
             </div>
             <div className="p-2 md:p-3 rounded-lg bg-success/10 border border-success/20">
@@ -228,8 +228,8 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                       <Badge variant="secondary" className="text-[10px] font-mono">
                         {format(new Date(entry.work_date), 'EEE, dd/MM')}
                       </Badge>
-                      <p className="text-sm">
-                        {entry.hours_worked}h × {Number(entry.hourly_rate).toLocaleString('fr-FR')}
+                      <p className="text-sm font-mono">
+                        {Number(entry.hourly_rate).toLocaleString('fr-FR')} CFA
                       </p>
                       {entry.description && (
                         <p className="text-xs text-muted-foreground truncate">
@@ -275,9 +275,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                     <TableHead>{t('attendance.worker')}</TableHead>
                     <TableHead>{t('common.workshop')}</TableHead>
                     <TableHead>{t('common.date')}</TableHead>
-                    <TableHead>{t('attendance.hours')}</TableHead>
-                    <TableHead>{t('attendance.rate')}</TableHead>
-                    <TableHead>{t('attendance.dailySalary')}</TableHead>
+                    <TableHead>{t('attendance.dailyRate')}</TableHead>
                     <TableHead>{t('common.description')}</TableHead>
                     <TableHead className="text-end">{t('common.actions')}</TableHead>
                   </TableRow>
@@ -296,12 +294,8 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                       <TableCell className="font-mono">
                         {format(new Date(entry.work_date), 'EEE, MMM d')}
                       </TableCell>
-                      <TableCell>{entry.hours_worked}h</TableCell>
-                      <TableCell className="font-mono">
-                        {Number(entry.hourly_rate).toLocaleString('fr-FR')}
-                      </TableCell>
                       <TableCell className="font-mono font-bold text-success">
-                        {Number(entry.daily_salary).toLocaleString('fr-FR')}
+                        {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-xs truncate">
                         {entry.description || '-'}

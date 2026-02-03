@@ -230,7 +230,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchMove={(e) => e.stopPropagation()}
                   >
-                    <CommandList>
+                    <CommandList className="max-h-none">
                       <CommandEmpty>
                         <div className="py-2 px-2 text-sm">
                           {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"

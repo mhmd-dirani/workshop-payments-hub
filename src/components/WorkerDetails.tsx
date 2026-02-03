@@ -36,7 +36,6 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { 
   ArrowLeft, 
-  Clock, 
   DollarSign, 
   Wallet, 
   Calendar, 
@@ -119,7 +118,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   });
 
   const totalOwed = unpaidAttendance.reduce((sum, a) => sum + Number(a.daily_salary), 0);
-  const totalHours = unpaidAttendance.reduce((sum, a) => sum + Number(a.hours_worked), 0);
+  const totalDays = unpaidAttendance.length;
 
   // Group unpaid by workshop
   const unpaidByWorkshop = unpaidAttendance.reduce((acc, entry) => {
@@ -215,20 +214,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         <div>
           <h1 className="text-lg md:text-2xl font-bold">{worker.name}</h1>
           <p className="text-xs md:text-sm text-muted-foreground font-mono">
-            {worker.hourly_rate.toLocaleString('fr-FR')} CFA/h
+            {worker.hourly_rate.toLocaleString('fr-FR')} CFA
           </p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="shadow-card">
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs">{t('attendance.totalHours')}</span>
+              <Calendar className="w-4 h-4" />
+              <span className="text-xs">{t('workers.workDays')}</span>
             </div>
-            <p className="text-xl md:text-2xl font-bold font-mono mt-1">{totalHours}h</p>
+            <p className="text-xl md:text-2xl font-bold font-mono mt-1">{totalDays}</p>
           </CardContent>
         </Card>
 
@@ -244,17 +243,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           </CardContent>
         </Card>
 
-        <Card className="shadow-card col-span-2 md:col-span-1">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span className="text-xs">{t('workers.workDays')}</span>
-            </div>
-            <p className="text-xl md:text-2xl font-bold font-mono mt-1">
-              {unpaidAttendance.length} {t('common.days')}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Pay Button - Only show if there's money owed */}
@@ -323,11 +311,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           <span className="font-mono text-xs">
                             {format(new Date(entry.work_date), 'EEE, dd/MM')}
                           </span>
-                          <span className="text-muted-foreground text-xs">
-                            {entry.hours_worked}h × {Number(entry.hourly_rate).toLocaleString('fr-FR')}
-                          </span>
                           <span className="font-mono font-medium">
-                            {Number(entry.daily_salary).toLocaleString('fr-FR')}
+                            {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
                           </span>
                         </div>
                       ))}
@@ -386,7 +371,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                       <TableRow>
                         <TableHead>{t('common.date')}</TableHead>
                         <TableHead>{t('common.workshop')}</TableHead>
-                        <TableHead>{t('attendance.hours')}</TableHead>
                         <TableHead>{t('attendance.dailySalary')}</TableHead>
                         <TableHead>{t('common.status')}</TableHead>
                       </TableRow>
@@ -400,7 +384,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           <TableCell>
                             <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
                           </TableCell>
-                          <TableCell>{entry.hours_worked}h</TableCell>
                           <TableCell className="font-mono">
                             {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
                           </TableCell>
