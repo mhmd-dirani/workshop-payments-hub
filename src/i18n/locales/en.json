@@ -332,7 +332,13 @@
     "allTime": "All Time",
     "showingAllRecords": "Showing all attendance records",
     "editAttendance": "Edit Attendance",
-    "updateAttendance": "Update the attendance record"
+    "updateAttendance": "Update the attendance record",
+    "workedExtra": "Worked Extra",
+    "workedExtraDesc": "Add extra payment for additional work",
+    "extraAmount": "Extra Amount",
+    "baseSalary": "Base Salary",
+    "totalSalary": "Total",
+    "hours": "Hours"
   },
   "workers": {
     "title": "Workers",

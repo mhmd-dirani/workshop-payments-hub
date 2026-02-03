@@ -331,7 +331,13 @@
     "allTime": "Tout",
     "showingAllRecords": "Affichage de tous les enregistrements",
     "editAttendance": "Modifier présence",
-    "updateAttendance": "Modifier l'enregistrement de présence"
+    "updateAttendance": "Modifier l'enregistrement de présence",
+    "workedExtra": "Travail supplémentaire",
+    "workedExtraDesc": "Ajouter un paiement extra pour travail additionnel",
+    "extraAmount": "Montant extra",
+    "baseSalary": "Salaire de base",
+    "totalSalary": "Total",
+    "hours": "Heures"
   },
   "workers": {
     "title": "Travailleurs",

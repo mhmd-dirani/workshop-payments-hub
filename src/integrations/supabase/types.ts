@@ -20,6 +20,8 @@ export type Database = {
           created_by: string
           daily_salary: number | null
           description: string | null
+          extra_amount: number | null
+          has_extra: boolean
           hourly_rate: number
           hours_worked: number
           id: string
@@ -35,6 +37,8 @@ export type Database = {
           created_by: string
           daily_salary?: number | null
           description?: string | null
+          extra_amount?: number | null
+          has_extra?: boolean
           hourly_rate: number
           hours_worked: number
           id?: string
@@ -50,6 +54,8 @@ export type Database = {
           created_by?: string
           daily_salary?: number | null
           description?: string | null
+          extra_amount?: number | null
+          has_extra?: boolean
           hourly_rate?: number
           hours_worked?: number
           id?: string
