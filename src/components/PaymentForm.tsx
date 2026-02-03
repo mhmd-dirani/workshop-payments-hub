@@ -224,33 +224,40 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                     value={formData.paid_to}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
                   />
-                  <CommandList className="max-h-[200px] overflow-y-auto">
-                    <CommandEmpty>
-                      <div className="py-2 px-2 text-sm">
-                        {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"
-                      </div>
-                    </CommandEmpty>
-                    <CommandGroup heading={t('payments.previousRecipients')}>
-                      {previousPayees.map((payee) => (
-                        <CommandItem
-                          key={payee}
-                          value={payee}
-                          onSelect={(value) => {
-                            setFormData(prev => ({ ...prev, paid_to: value }));
-                            setPaidToOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.paid_to === payee ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {payee}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
+                  <div 
+                    className="max-h-[200px] overflow-y-auto overscroll-contain"
+                    style={{ touchAction: 'pan-y' }}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                  >
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="py-2 px-2 text-sm">
+                          {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup heading={t('payments.previousRecipients')}>
+                        {previousPayees.map((payee) => (
+                          <CommandItem
+                            key={payee}
+                            value={payee}
+                            onSelect={(value) => {
+                              setFormData(prev => ({ ...prev, paid_to: value }));
+                              setPaidToOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.paid_to === payee ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {payee}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </div>
                 </Command>
               </PopoverContent>
             </Popover>
