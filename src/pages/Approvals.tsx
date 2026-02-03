@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import Layout from '@/components/Layout';
@@ -21,6 +22,7 @@ import { format } from 'date-fns';
 import { Check, X, Loader2, ClipboardCheck } from 'lucide-react';
 
 export default function Approvals() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -81,8 +83,8 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['rejected-payments'] });
       toast({
-        title: status === 'approved' ? 'Payment Approved' : 'Payment Rejected',
-        description: `The payment has been ${status}`,
+        title: status === 'approved' ? t('approvals.paymentApproved') : t('approvals.paymentRejected'),
+        description: status === 'approved' ? t('approvals.hasBeenApproved') : t('approvals.hasBeenRejected'),
       });
       setRejectDialogOpen(false);
       setSelectedPaymentId(null);
@@ -90,7 +92,7 @@ export default function Approvals() {
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -117,9 +119,9 @@ export default function Approvals() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pending Approvals</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t('approvals.title')}</h2>
           <p className="text-muted-foreground">
-            Review and approve payments submitted by users
+            {t('approvals.description')}
           </p>
         </div>
 
@@ -131,8 +133,8 @@ export default function Approvals() {
           <Card className="shadow-card">
             <CardContent className="py-12 text-center">
               <ClipboardCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No pending approvals</p>
-              <p className="text-sm text-muted-foreground mt-1">All payments have been reviewed</p>
+              <p className="text-muted-foreground">{t('approvals.noPending')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('approvals.allReviewed')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -146,7 +148,7 @@ export default function Approvals() {
                       <CardDescription>{payment.reason}</CardDescription>
                     </div>
                     <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                      Pending
+                      {t('payments.pending')}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -154,21 +156,21 @@ export default function Approvals() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div>
-                        <span className="text-muted-foreground">Amount:</span>{' '}
+                        <span className="text-muted-foreground">{t('common.amount')}:</span>{' '}
                         <span className="font-mono font-medium">
                           {Number(payment.amount).toLocaleString('fr-FR')} CFA
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Date:</span>{' '}
+                        <span className="text-muted-foreground">{t('common.date')}:</span>{' '}
                         <span className="font-mono">{format(new Date(payment.payment_date), 'MMM d, yyyy')}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Workshop:</span>{' '}
+                        <span className="text-muted-foreground">{t('approvals.workshop')}:</span>{' '}
                         <span>{(payment.workshops as any)?.name}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Submitted by:</span>{' '}
+                        <span className="text-muted-foreground">{t('approvals.submittedBy')}:</span>{' '}
                         <span>{payment.creator_name}</span>
                       </div>
                     </div>
@@ -182,7 +184,7 @@ export default function Approvals() {
                         className="gap-2 text-destructive hover:text-destructive"
                       >
                         <X className="w-4 h-4" />
-                        Reject
+                        {t('approvals.reject')}
                       </Button>
                       <Button
                         size="sm"
@@ -191,7 +193,7 @@ export default function Approvals() {
                         className="gap-2 bg-success hover:bg-success/90 text-success-foreground"
                       >
                         <Check className="w-4 h-4" />
-                        Approve
+                        {t('approvals.approve')}
                       </Button>
                     </div>
                   </div>
@@ -206,17 +208,17 @@ export default function Approvals() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Payment</DialogTitle>
+            <DialogTitle>{t('approvals.rejectPayment')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to reject this payment? You can optionally provide a reason.
+              {t('approvals.rejectConfirmation')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="rejection-reason">Reason for rejection (optional)</Label>
+              <Label htmlFor="rejection-reason">{t('approvals.rejectionReason')}</Label>
               <Textarea
                 id="rejection-reason"
-                placeholder="Enter the reason for rejecting this payment..."
+                placeholder={t('approvals.enterRejectionReason')}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={3}
@@ -229,7 +231,7 @@ export default function Approvals() {
               onClick={() => setRejectDialogOpen(false)}
               disabled={updateStatus.isPending}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -238,7 +240,7 @@ export default function Approvals() {
               className="gap-2"
             >
               {updateStatus.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Reject Payment
+              {t('approvals.confirmReject')}
             </Button>
           </DialogFooter>
         </DialogContent>

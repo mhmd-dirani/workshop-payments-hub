@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ interface PaymentFormProps {
 }
 
 export default function PaymentForm({ workshopId, payment, open, onOpenChange }: PaymentFormProps) {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -153,15 +155,15 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       onOpenChange(false);
       toast({
-        title: payment?.id ? 'Payment updated' : 'Payment added',
+        title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
         description: role === 'admin' 
-          ? 'The payment has been saved' 
-          : 'Your payment is pending admin approval',
+          ? t('payments.paymentSaved')
+          : t('payments.pendingApproval'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -175,7 +177,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     if (!result.success) {
       const firstError = result.error.errors[0];
       toast({
-        title: 'Validation Error',
+        title: t('validation.validationError'),
         description: firstError.message,
         variant: 'destructive',
       });
@@ -189,17 +191,17 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{payment?.id ? 'Edit Payment' : 'Add New Payment'}</DialogTitle>
+          <DialogTitle>{payment?.id ? t('payments.editPayment') : t('payments.addNewPayment')}</DialogTitle>
           <DialogDescription>
             {role === 'admin' 
-              ? 'Add a payment record to this workshop' 
-              : 'Your payment will be submitted for admin approval'}
+              ? t('payments.addPaymentRecord')
+              : t('payments.submitForApproval')}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Paid To *</Label>
+            <Label>{t('payments.paidTo')} *</Label>
             <Popover open={paidToOpen} onOpenChange={setPaidToOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -208,24 +210,24 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
                   aria-expanded={paidToOpen}
                   className="w-full justify-between font-normal"
                 >
-                  {formData.paid_to || "Select or type a name..."}
+                  {formData.paid_to || t('payments.selectOrTypeName')}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command>
                   <CommandInput 
-                    placeholder="Search or add new..." 
+                    placeholder={t('common.search')}
                     value={formData.paid_to}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, paid_to: value }))}
                   />
                   <CommandList>
                     <CommandEmpty>
                       <div className="py-2 px-2 text-sm">
-                        Press enter or click outside to use "<span className="font-medium">{formData.paid_to}</span>"
+                        {t('payments.pressEnterToUse')} "<span className="font-medium">{formData.paid_to}</span>"
                       </div>
                     </CommandEmpty>
-                    <CommandGroup heading="Previous Recipients">
+                    <CommandGroup heading={t('payments.previousRecipients')}>
                       {previousPayees.map((payee) => (
                         <CommandItem
                           key={payee}
@@ -252,10 +254,10 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason *</Label>
+            <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea
               id="reason"
-              placeholder="What was this payment for?"
+              placeholder={t('payments.whatWasPaymentFor')}
               value={formData.reason}
               onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
             />
@@ -263,7 +265,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount *</Label>
+              <Label htmlFor="amount">{t('common.amount')} *</Label>
               <Input
                 id="amount"
                 type="number"
@@ -276,7 +278,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="payment_date">Date *</Label>
+              <Label htmlFor="payment_date">{t('common.date')} *</Label>
               <Input
                 id="payment_date"
                 type="date"
@@ -288,7 +290,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               type="submit" 
@@ -296,7 +298,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
               className="gradient-primary text-primary-foreground"
             >
               {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {payment?.id ? 'Save Changes' : 'Add Payment'}
+              {payment?.id ? t('payments.saveChanges') : t('payments.addPayment')}
             </Button>
           </DialogFooter>
         </form>

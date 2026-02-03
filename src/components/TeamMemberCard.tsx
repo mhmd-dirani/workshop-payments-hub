@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, User, Wallet } from 'lucide-react';
@@ -17,6 +18,7 @@ interface TeamMemberCardProps {
 }
 
 export default function TeamMemberCard({ member, onClick, onAddMoney }: TeamMemberCardProps) {
+  const { t } = useTranslation();
   const isNegative = member.balance < 0;
 
   return (
@@ -32,9 +34,9 @@ export default function TeamMemberCard({ member, onClick, onAddMoney }: TeamMemb
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-sm md:text-base">
-                {member.full_name || 'Unnamed User'}
+                {member.full_name || t('team.unnamedUser')}
               </h3>
-              <p className="text-[10px] md:text-xs text-muted-foreground">Team Member</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">{t('roles.teamMember')}</p>
             </div>
           </div>
           <Button
@@ -53,7 +55,7 @@ export default function TeamMemberCard({ member, onClick, onAddMoney }: TeamMemb
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Wallet className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="text-[10px] md:text-xs">Balance</span>
+            <span className="text-[10px] md:text-xs">{t('dashboard.balance')}</span>
           </div>
           <span className={`font-mono font-bold text-sm md:text-base ${
             isNegative ? 'text-destructive' : 'text-success'

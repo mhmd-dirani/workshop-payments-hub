@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import Layout from '@/components/Layout';
@@ -13,6 +14,7 @@ import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 export default function Debts() {
+  const { t } = useTranslation();
   const { role } = useAuth();
   const [isDebtFormOpen, setIsDebtFormOpen] = useState(false);
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
@@ -97,9 +99,9 @@ export default function Debts() {
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Debt Management</h2>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">{t('debts.title')}</h2>
             <p className="text-xs md:text-sm text-muted-foreground">
-              Track debts you owe and debts owed to you
+              {t('debts.description')}
             </p>
           </div>
           
@@ -109,7 +111,7 @@ export default function Debts() {
             className="gap-1.5 gradient-primary text-primary-foreground h-8 text-xs md:text-sm md:h-9"
           >
             <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="hidden xs:inline">Add</span> Debt
+            <span className="hidden xs:inline">{t('common.add')}</span> {t('debts.addDebt')}
           </Button>
         </div>
 
@@ -125,13 +127,13 @@ export default function Debts() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-destructive">
                       <ArrowUpCircle className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">I Owe</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('debts.iOwe')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-destructive">
                       -{stats.iOweRemaining.toLocaleString('fr-FR')}
                     </p>
                     <p className="hidden md:block text-xs text-muted-foreground">
-                      of {stats.iOweTotal.toLocaleString('fr-FR')} total
+                      {t('common.of')} {stats.iOweTotal.toLocaleString('fr-FR')} {t('common.total')}
                     </p>
                   </div>
                 </div>
@@ -147,13 +149,13 @@ export default function Debts() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-success">
                       <ArrowDownCircle className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">They Owe</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('debts.theyOwe')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-success">
                       +{stats.theyOweRemaining.toLocaleString('fr-FR')}
                     </p>
                     <p className="hidden md:block text-xs text-muted-foreground">
-                      of {stats.theyOweTotal.toLocaleString('fr-FR')} total
+                      {t('common.of')} {stats.theyOweTotal.toLocaleString('fr-FR')} {t('common.total')}
                     </p>
                   </div>
                 </div>
@@ -169,13 +171,13 @@ export default function Debts() {
                   <div className="text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-1 text-primary">
                       <Wallet className="w-3 h-3 md:hidden" />
-                      <p className="text-[10px] md:text-sm font-medium">Net</p>
+                      <p className="text-[10px] md:text-sm font-medium">{t('debts.netPosition')}</p>
                     </div>
                     <p className="text-sm md:text-2xl font-bold font-mono text-primary">
                       {stats.netBalance >= 0 ? '+' : ''}{stats.netBalance.toLocaleString('fr-FR')}
                     </p>
                     <p className="hidden md:block text-xs text-muted-foreground">
-                      {stats.netBalance >= 0 ? 'People owe you more' : 'You owe more'}
+                      {stats.netBalance >= 0 ? t('debts.peopleOweYouMore') : t('debts.youOweMore')}
                     </p>
                   </div>
                 </div>
@@ -186,8 +188,8 @@ export default function Debts() {
         {/* Debts Tables */}
         <Tabs defaultValue="they_owe" className="space-y-3 md:space-y-4">
           <TabsList className="grid w-full grid-cols-2 h-9 md:h-10">
-            <TabsTrigger value="they_owe" className="text-xs md:text-sm">They Owe Me</TabsTrigger>
-            <TabsTrigger value="i_owe" className="text-xs md:text-sm">I Owe Them</TabsTrigger>
+            <TabsTrigger value="they_owe" className="text-xs md:text-sm">{t('debts.theyOweMe')}</TabsTrigger>
+            <TabsTrigger value="i_owe" className="text-xs md:text-sm">{t('debts.iOweThem')}</TabsTrigger>
           </TabsList>
           
           <TabsContent value="they_owe">

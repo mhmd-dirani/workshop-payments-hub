@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
 
 export default function UserBalanceCard() {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
 
   const { data: balance, isLoading } = useQuery({
@@ -53,7 +55,7 @@ export default function UserBalanceCard() {
       <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <CardTitle className="text-base md:text-lg flex items-center gap-2">
           <Wallet className="w-4 h-4 md:w-5 md:h-5" />
-          Your Global Balance
+          {t('userBalance.yourGlobalBalance')}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -61,7 +63,7 @@ export default function UserBalanceCard() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-destructive mb-1">
               <ArrowUpCircle className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="text-[10px] md:text-xs font-medium">Spent</span>
+              <span className="text-[10px] md:text-xs font-medium">{t('userBalance.spent')}</span>
             </div>
             <p className="text-sm md:text-lg font-bold font-mono text-destructive">
               -{balance.spent.toLocaleString('fr-FR')}
@@ -70,7 +72,7 @@ export default function UserBalanceCard() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-success mb-1">
               <ArrowDownCircle className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="text-[10px] md:text-xs font-medium">Received</span>
+              <span className="text-[10px] md:text-xs font-medium">{t('userBalance.received')}</span>
             </div>
             <p className="text-sm md:text-lg font-bold font-mono text-success">
               +{balance.received.toLocaleString('fr-FR')}
@@ -79,7 +81,7 @@ export default function UserBalanceCard() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-primary mb-1">
               <Wallet className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="text-[10px] md:text-xs font-medium">Balance</span>
+              <span className="text-[10px] md:text-xs font-medium">{t('userBalance.balance')}</span>
             </div>
             <p className="text-sm md:text-lg font-bold font-mono text-primary">
               {balance.balance >= 0 ? '+' : ''}{balance.balance.toLocaleString('fr-FR')}

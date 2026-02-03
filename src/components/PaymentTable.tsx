@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import {
@@ -25,6 +26,7 @@ interface PaymentTableProps {
 }
 
 export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -122,13 +124,13 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       toast({
-        title: 'Payment deleted',
-        description: 'The payment record has been removed',
+        title: t('payments.paymentDeleted'),
+        description: t('payments.paymentDeletedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -141,21 +143,21 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         return (
           <Badge className="bg-success/10 text-success border-success/20 gap-1">
             <CheckCircle className="w-3 h-3" />
-            Approved
+            {t('payments.approved')}
           </Badge>
         );
       case 'rejected':
         return (
           <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
             <XCircle className="w-3 h-3" />
-            Rejected
+            {t('payments.rejected')}
           </Badge>
         );
       default:
         return (
           <Badge className="bg-warning/10 text-warning border-warning/20 gap-1">
             <Clock className="w-3 h-3" />
-            Pending
+            {t('payments.pending')}
           </Badge>
         );
     }
@@ -190,15 +192,15 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name (paid to)..."
+            placeholder={t('payments.searchByName')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
         <div className="text-center py-12 text-muted-foreground">
-          <p>{searchTerm ? 'No payments found matching your search.' : 'No payments recorded for this workshop yet.'}</p>
-          <p className="text-sm mt-1">{searchTerm ? 'Try a different search term.' : 'Click "Add Payment" to create the first one.'}</p>
+          <p>{searchTerm ? t('payments.noMatchingPayments') : t('payments.noPayments')}</p>
+          <p className="text-sm mt-1">{searchTerm ? t('payments.tryDifferentSearch') : t('payments.clickToAdd')}</p>
         </div>
       </div>
     );
@@ -210,7 +212,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name..."
+          placeholder={t('payments.searchByName')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 h-9 md:h-10"
@@ -227,7 +229,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
               </div>
               <div>
                 <p className="text-xs md:text-sm text-destructive font-medium">
-                  Total paid to "{searchTerm}"
+                  {t('payments.totalPaidTo')} "{searchTerm}"
                 </p>
                 <p className="text-base md:text-xl font-bold font-mono text-destructive">
                   -{searchTotal.toLocaleString('fr-FR')} CFA
@@ -285,13 +287,13 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Date</TableHead>
-              <TableHead>Paid To</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Added By</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t('common.date')}</TableHead>
+              <TableHead>{t('payments.paidTo')}</TableHead>
+              <TableHead>{t('common.reason')}</TableHead>
+              <TableHead className="text-right">{t('common.amount')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead>{t('payments.addedBy')}</TableHead>
+              <TableHead className="text-right">{t('common.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

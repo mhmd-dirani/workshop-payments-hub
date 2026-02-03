@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,7 @@ interface ProfileWithRoles {
 }
 
 export default function Users() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -125,13 +127,13 @@ export default function Users() {
       setIsDialogOpen(false);
       setNewUserForm({ full_name: '', email: '', password: '' });
       toast({
-        title: 'User Created',
-        description: 'The new user has been added successfully',
+        title: t('users.userCreated'),
+        description: t('users.userCreatedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -142,7 +144,7 @@ export default function Users() {
     const result = createUserSchema.safeParse(newUserForm);
     if (!result.success) {
       toast({
-        title: 'Validation Error',
+        title: t('validation.validationError'),
         description: result.error.errors[0].message,
         variant: 'destructive',
       });
@@ -176,13 +178,13 @@ export default function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
-        title: 'Role Updated',
-        description: 'User role has been changed',
+        title: t('users.roleUpdated'),
+        description: t('users.roleUpdatedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -195,7 +197,7 @@ export default function Users() {
       return (
         <Badge className="gap-1 bg-primary/10 text-primary border-primary/20">
           <Shield className="w-3 h-3" />
-          Admin
+          {t('roles.admin')}
         </Badge>
       );
     }
@@ -203,26 +205,26 @@ export default function Users() {
       return (
         <Badge className="gap-1 bg-accent/50 text-accent-foreground border-accent/30">
           <Shield className="w-3 h-3" />
-          Co-Admin
+          {t('roles.coAdmin')}
         </Badge>
       );
     }
     return (
       <Badge variant="outline" className="gap-1">
         <User className="w-3 h-3" />
-        User
+        {t('roles.user')}
       </Badge>
     );
   };
 
   const getWorkshopCount = (userId: string, role: string) => {
     if (role === 'admin') {
-      return <span className="text-muted-foreground">All (Admin)</span>;
+      return <span className="text-muted-foreground">{t('users.allAdmin')}</span>;
     }
     const count = assignmentCounts?.[userId] || 0;
     return count === 0 
-      ? <span className="text-destructive">None</span>
-      : <span>{count} workshop{count !== 1 ? 's' : ''}</span>;
+      ? <span className="text-destructive">{t('common.none')}</span>
+      : <span>{count} {t('users.workshopsSelected')}</span>;
   };
 
   return (
@@ -231,9 +233,9 @@ export default function Users() {
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg md:text-2xl font-bold tracking-tight">User Management</h2>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">{t('users.title')}</h2>
             <p className="text-xs md:text-sm text-muted-foreground truncate">
-              Manage user roles and access
+              {t('users.description')}
             </p>
           </div>
           
@@ -241,44 +243,44 @@ export default function Users() {
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5 md:gap-2 gradient-primary text-primary-foreground shrink-0">
                 <UserPlus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="hidden sm:inline">Add User</span>
-                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">{t('users.addUser')}</span>
+                <span className="sm:hidden">{t('common.add')}</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
+                <DialogTitle>{t('users.addNewUser')}</DialogTitle>
                 <DialogDescription>
-                  Create a new user account with name, email, and password
+                  {t('users.createUserDesc')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name *</Label>
+                  <Label htmlFor="full_name">{t('auth.fullName')} *</Label>
                   <Input
                     id="full_name"
-                    placeholder="Enter full name"
+                    placeholder={t('users.enterFullName')}
                     value={newUserForm.full_name}
                     onChange={(e) => setNewUserForm(prev => ({ ...prev, full_name: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">{t('auth.email')} *</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder={t('users.enterEmail')}
                     value={newUserForm.email}
                     onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password">{t('auth.password')} *</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter password (min 6 characters)"
+                      placeholder={t('users.enterPassword')}
                       value={newUserForm.password}
                       onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
                     />
@@ -296,7 +298,7 @@ export default function Users() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   onClick={handleCreateUser}
@@ -304,7 +306,7 @@ export default function Users() {
                   className="gradient-primary text-primary-foreground"
                 >
                   {createUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Create User
+                  {t('users.createUser')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -313,9 +315,9 @@ export default function Users() {
 
         <Card className="shadow-card">
           <CardHeader className="pb-3 md:pb-6">
-            <CardTitle className="text-base md:text-lg">All Users</CardTitle>
+            <CardTitle className="text-base md:text-lg">{t('users.allUsers')}</CardTitle>
             <CardDescription className="text-xs md:text-sm">
-              Manage roles and workshop access
+              {t('users.manageRolesDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-3 md:px-6">
@@ -325,7 +327,7 @@ export default function Users() {
               </div>
             ) : !users || users.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p>No users found</p>
+                <p>{t('users.noUsersFound')}</p>
               </div>
             ) : (
               <>
@@ -338,10 +340,10 @@ export default function Users() {
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">
-                              {user.full_name || 'No name set'}
+                              {user.full_name || t('users.noNameSet')}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              Joined {format(new Date(user.created_at), 'MMM d, yyyy')}
+                              {t('users.joined')} {format(new Date(user.created_at), 'MMM d, yyyy')}
                             </p>
                           </div>
                           {getRoleBadge(user.user_roles)}
@@ -360,11 +362,11 @@ export default function Users() {
                                 className="h-7 text-xs px-2"
                                 onClick={() => setAssignmentUser({ 
                                   id: user.user_id, 
-                                  name: user.full_name || 'User' 
+                                  name: user.full_name || t('roles.user')
                                 })}
                               >
                                 <FolderOpen className="w-3 h-3 mr-1" />
-                                Assign
+                                {t('users.assign')}
                               </Button>
                             )}
                             <Select
@@ -378,9 +380,9 @@ export default function Users() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="co_admin">Co-Admin</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="user">{t('roles.user')}</SelectItem>
+                                <SelectItem value="co_admin">{t('roles.coAdmin')}</SelectItem>
+                                <SelectItem value="admin">{t('roles.admin')}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -395,11 +397,11 @@ export default function Users() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Workshops</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('common.name')}</TableHead>
+                        <TableHead>{t('users.role')}</TableHead>
+                        <TableHead>{t('users.workshops')}</TableHead>
+                        <TableHead>{t('users.joined')}</TableHead>
+                        <TableHead className="text-right">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -408,7 +410,7 @@ export default function Users() {
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="font-medium">
-                              {user.full_name || 'No name set'}
+                              {user.full_name || t('users.noNameSet')}
                             </TableCell>
                             <TableCell>
                               {getRoleBadge(user.user_roles)}
@@ -428,11 +430,11 @@ export default function Users() {
                                     className="gap-1"
                                     onClick={() => setAssignmentUser({ 
                                       id: user.user_id, 
-                                      name: user.full_name || 'User' 
+                                      name: user.full_name || t('roles.user')
                                     })}
                                   >
                                     <FolderOpen className="w-3 h-3" />
-                                    Workshops
+                                    {t('users.workshops')}
                                   </Button>
                                 )}
                                 <Select
@@ -446,9 +448,9 @@ export default function Users() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="user">User</SelectItem>
-                                    <SelectItem value="co_admin">Co-Admin</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="user">{t('roles.user')}</SelectItem>
+                                    <SelectItem value="co_admin">{t('roles.coAdmin')}</SelectItem>
+                                    <SelectItem value="admin">{t('roles.admin')}</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -465,7 +467,7 @@ export default function Users() {
         </Card>
       </div>
 
-      {/* Workshop Assignments Dialog */}
+      {/* Workshop Assignment Dialog */}
       {assignmentUser && (
         <WorkshopAssignments
           userId={assignmentUser.id}

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowDownCircle, ArrowUpCircle, Plus, User, Wallet } from 'lucide-react';
@@ -18,6 +19,7 @@ interface TeamMemberProfileProps {
 }
 
 export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProfileProps) {
+  const { t } = useTranslation();
   const isNegative = member.balance < 0;
 
   return (
@@ -29,8 +31,8 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
             <User className="w-5 h-5 md:w-7 md:h-7 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold truncate">{member.full_name || 'Unnamed User'}</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">Team Member Profile</p>
+            <h1 className="text-lg md:text-2xl font-bold truncate">{member.full_name || t('team.unnamedUser')}</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">{t('team.teamMemberProfile')}</p>
           </div>
         </div>
         <Button 
@@ -39,8 +41,8 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
           className="gap-1.5 gradient-primary text-primary-foreground shrink-0 h-8 md:h-9 text-xs md:text-sm"
         >
           <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span className="hidden sm:inline">Add Money</span>
-          <span className="sm:hidden">Add</span>
+          <span className="hidden sm:inline">{t('team.addMoney')}</span>
+          <span className="sm:hidden">{t('common.add')}</span>
         </Button>
       </div>
 
@@ -49,7 +51,7 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
         <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
           <CardTitle className="text-base md:text-lg flex items-center gap-2">
             <Wallet className="w-4 h-4 md:w-5 md:h-5" />
-            Financial Summary
+            {t('team.financialSummary')}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -57,7 +59,7 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
             <div className="text-center p-2 md:p-4 rounded-lg bg-success/5 border border-success/20">
               <div className="flex items-center justify-center gap-1 text-success mb-1 md:mb-2">
                 <ArrowDownCircle className="w-3 h-3 md:w-5 md:h-5" />
-                <span className="text-[10px] md:text-sm font-medium">Received</span>
+                <span className="text-[10px] md:text-sm font-medium">{t('team.received')}</span>
               </div>
               <p className="text-sm md:text-2xl font-bold font-mono text-success truncate">
                 +{member.totalReceived.toLocaleString('fr-FR')}
@@ -67,7 +69,7 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
             <div className="text-center p-2 md:p-4 rounded-lg bg-destructive/5 border border-destructive/20">
               <div className="flex items-center justify-center gap-1 text-destructive mb-1 md:mb-2">
                 <ArrowUpCircle className="w-3 h-3 md:w-5 md:h-5" />
-                <span className="text-[10px] md:text-sm font-medium">Spent</span>
+                <span className="text-[10px] md:text-sm font-medium">{t('team.spent')}</span>
               </div>
               <p className="text-sm md:text-2xl font-bold font-mono text-destructive truncate">
                 -{member.totalSpent.toLocaleString('fr-FR')}
@@ -83,7 +85,7 @@ export default function TeamMemberProfile({ member, onAddMoney }: TeamMemberProf
                 isNegative ? 'text-destructive' : 'text-primary'
               }`}>
                 <Wallet className="w-3 h-3 md:w-5 md:h-5" />
-                <span className="text-[10px] md:text-sm font-medium">Balance</span>
+                <span className="text-[10px] md:text-sm font-medium">{t('dashboard.balance')}</span>
               </div>
               <p className={`text-sm md:text-2xl font-bold font-mono truncate ${
                 isNegative ? 'text-destructive' : 'text-primary'
