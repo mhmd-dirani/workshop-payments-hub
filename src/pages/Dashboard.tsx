@@ -277,8 +277,8 @@ export default function Dashboard() {
         )}
 
 
-        {/* Stats Cards - 3 totals (admin only) */}
-        {selectedWorkshop && stats && role === 'admin' && (
+        {/* Stats Cards - 3 totals (admin and co_admin) */}
+        {selectedWorkshop && stats && (role === 'admin' || role === 'co_admin') && (
           <div className="grid grid-cols-3 gap-2 md:gap-4">
             <Card className="shadow-card border-success/20">
               <CardContent className="p-2 md:pt-6 md:px-6">
