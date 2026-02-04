@@ -1,4 +1,11 @@
 {
+  "attendance": {
+    "extraReason": "Raison du bonus",
+    "discount": "Réduction",
+    "discountReason": "Raison de la réduction",
+    "enterExtraReason": "Pourquoi ce bonus?",
+    "enterDiscountReason": "Pourquoi cette réduction?"
+  },
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",

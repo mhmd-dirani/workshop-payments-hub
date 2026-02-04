@@ -4,9 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -16,8 +14,15 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Check, Calendar, Building2, Users, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2, Calendar, Building2, Users } from 'lucide-react';
+import WorkerAttendanceCard from './WorkerAttendanceCard';
+
+interface AttendanceData {
+  extraAmount: string;
+  extraReason: string;
+  discountAmount: string;
+  discountReason: string;
+}
 
 interface Worker {
   id: string;
@@ -81,7 +86,7 @@ export default function QuickAttendanceForm() {
   const attendedWorkerIds = new Set(existingAttendance.map(a => a.worker_id));
 
   const saveAttendance = useMutation({
-    mutationFn: async ({ workerId }: { workerId: string }) => {
+    mutationFn: async ({ workerId, data }: { workerId: string; data: AttendanceData }) => {
       const worker = workers.find(w => w.id === workerId);
       if (!worker) throw new Error('Worker not found');
 
@@ -99,6 +104,10 @@ export default function QuickAttendanceForm() {
         return;
       }
 
+      const extraAmount = Number(data.extraAmount) || 0;
+      const discountAmount = Number(data.discountAmount) || 0;
+      const hasExtra = extraAmount > 0;
+
       // Insert new with hours_worked = 1 (1 day)
       const { error } = await supabase
         .from('attendance')
@@ -108,6 +117,11 @@ export default function QuickAttendanceForm() {
           work_date: selectedDate,
           hours_worked: 1, // 1 day attendance
           hourly_rate: worker.hourly_rate, // This is daily rate
+          has_extra: hasExtra,
+          extra_amount: extraAmount,
+          extra_reason: data.extraReason || null,
+          discount_amount: discountAmount,
+          discount_reason: data.discountReason || null,
           created_by: user?.id,
         }]);
       if (error) throw error;
@@ -149,11 +163,11 @@ export default function QuickAttendanceForm() {
     },
   });
 
-  const handleToggleAttendance = (workerId: string) => {
+  const handleToggleAttendance = (workerId: string, data: AttendanceData) => {
     if (attendedWorkerIds.has(workerId)) {
       removeAttendance.mutate(workerId);
     } else {
-      saveAttendance.mutate({ workerId });
+      saveAttendance.mutate({ workerId, data });
     }
   };
 
@@ -232,63 +246,14 @@ export default function QuickAttendanceForm() {
               const isPending = saveAttendance.isPending || removeAttendance.isPending;
 
               return (
-                <div
+                <WorkerAttendanceCard
                   key={worker.id}
-                  className={cn(
-                    "border rounded-lg p-3 transition-colors",
-                    isAttended && "border-success bg-success/5",
-                    isSaved && "border-success bg-success/10"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">{worker.name}</span>
-                        {isAttended && !isSaved && (
-                          <Badge variant="secondary" className="text-[10px] bg-success/20 text-success">
-                            <Check className="w-2.5 h-2.5 mr-1" />
-                            {t('attendance.attended')}
-                          </Badge>
-                        )}
-                        {isSaved && (
-                          <Badge className="text-[10px] bg-success text-success-foreground">
-                            <Check className="w-2.5 h-2.5 mr-1" />
-                            {t('common.saved')}
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.perDay')}
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={isAttended ? "outline" : "default"}
-                      onClick={() => handleToggleAttendance(worker.id)}
-                      disabled={isPending}
-                      className={cn(
-                        "h-8 gap-1.5",
-                        isAttended 
-                          ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" 
-                          : "bg-success text-success-foreground hover:bg-success/90"
-                      )}
-                    >
-                      {isPending ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : isAttended ? (
-                        <>
-                          <X className="w-3.5 h-3.5" />
-                          {t('common.cancel')}
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          {t('attendance.attended')}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                  worker={worker}
+                  isAttended={isAttended}
+                  isSaved={isSaved}
+                  isPending={isPending}
+                  onToggleAttendance={handleToggleAttendance}
+                />
               );
             })}
           </div>

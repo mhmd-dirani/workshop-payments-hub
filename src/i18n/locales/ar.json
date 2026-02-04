@@ -1,4 +1,11 @@
 {
+  "attendance": {
+    "extraReason": "سبب المكافأة",
+    "discount": "خصم",
+    "discountReason": "سبب الخصم",
+    "enterExtraReason": "لماذا هذه المكافأة؟",
+    "enterDiscountReason": "لماذا هذا الخصم؟"
+  },
   "common": {
     "loading": "جاري التحميل...",
     "save": "حفظ",
