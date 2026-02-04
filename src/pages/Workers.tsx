@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Users } from 'lucide-react';
 import WorkerDetails from '@/components/WorkerDetails';
 import WorkerCard from '@/components/WorkerCard';
+import WorkshopSelector from '@/components/WorkshopSelector';
 import { format, startOfWeek } from 'date-fns';
 
 interface Worker {
@@ -78,6 +79,7 @@ export default function Workers() {
   const [workerRate, setWorkerRate] = useState('1000');
   const [showInactive, setShowInactive] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState<string | null>(null);
   const [isPaySelectedOpen, setIsPaySelectedOpen] = useState(false);
 
   const { data: workers = [], isLoading } = useQuery({
@@ -115,43 +117,95 @@ export default function Workers() {
   });
 
   // Calculate owed amounts per worker
-  const owedByWorker = useMemo(() => {
-    const result: Record<string, number> = {};
+  const { owedTotalsByWorker, owedBreakdownByWorker } = useMemo(() => {
+    const totals: Record<string, number> = {};
+    const breakdown: Record<string, Record<string, { amount: number; name: string }>> = {};
     allUnpaidAttendance.forEach((entry) => {
       const workerId = entry.worker_id;
-      if (!result[workerId]) result[workerId] = 0;
-      result[workerId] += Number(entry.daily_salary);
-    });
-    return result;
-  }, [allUnpaidAttendance]);
+      const workshopId = entry.workshop_id;
+      const workshopName =
+        (entry.workshops as any)?.name ||
+        t('workers.unknownWorkshop', { defaultValue: 'Unknown workshop' });
+      const amount = Number(entry.daily_salary);
 
-  // Get total owed for selected workers
-  const selectedTotalOwed = useMemo(() => {
-    let total = 0;
-    selectedWorkerIds.forEach((id) => {
-      total += owedByWorker[id] || 0;
-    });
-    return total;
-  }, [selectedWorkerIds, owedByWorker]);
+      totals[workerId] = (totals[workerId] || 0) + amount;
 
-  // Get attendance for selected workers
+      if (!breakdown[workerId]) {
+        breakdown[workerId] = {};
+      }
+
+      if (!breakdown[workerId][workshopId]) {
+        breakdown[workerId][workshopId] = { amount: 0, name: workshopName };
+      }
+
+      breakdown[workerId][workshopId].amount += amount;
+    });
+    return { owedTotalsByWorker: totals, owedBreakdownByWorker: breakdown };
+  }, [allUnpaidAttendance, t]);
+
+  const workerIdsForSelectedWorkshop = useMemo(() => {
+    if (!selectedWorkshopId) return null;
+    const ids = new Set<string>();
+    allUnpaidAttendance.forEach((entry) => {
+      if (entry.workshop_id === selectedWorkshopId) {
+        ids.add(entry.worker_id);
+      }
+    });
+    return ids;
+  }, [allUnpaidAttendance, selectedWorkshopId]);
+
+  const displayedWorkers = useMemo(() => {
+    if (!selectedWorkshopId || !workerIdsForSelectedWorkshop) {
+      return workers;
+    }
+    return workers.filter((worker) => workerIdsForSelectedWorkshop.has(worker.id));
+  }, [workers, selectedWorkshopId, workerIdsForSelectedWorkshop]);
+
+  const getWorkerOwedAmount = (workerId: string) => {
+    if (selectedWorkshopId) {
+      return owedBreakdownByWorker[workerId]?.[selectedWorkshopId]?.amount || 0;
+    }
+    return owedTotalsByWorker[workerId] || 0;
+  };
+
+  // Get attendance for selected workers (respecting workshop filter)
   const selectedWorkersAttendance = useMemo(() => {
-    return allUnpaidAttendance.filter((entry) => selectedWorkerIds.has(entry.worker_id));
-  }, [allUnpaidAttendance, selectedWorkerIds]);
+    return allUnpaidAttendance.filter(
+      (entry) =>
+        selectedWorkerIds.has(entry.worker_id) &&
+        (!selectedWorkshopId || entry.workshop_id === selectedWorkshopId)
+    );
+  }, [allUnpaidAttendance, selectedWorkerIds, selectedWorkshopId]);
+
+  // Total owed for the current selection/filter scope
+  const selectedTotalOwed = useMemo(() => {
+    return selectedWorkersAttendance.reduce((total, entry) => total + Number(entry.daily_salary), 0);
+  }, [selectedWorkersAttendance]);
 
   // Group selected workers' attendance by workshop for summary display
   const selectedByWorkshop = useMemo(() => {
     const result: Record<string, { name: string; total: number }> = {};
     selectedWorkersAttendance.forEach((entry) => {
       const workshopId = entry.workshop_id;
-      const workshopName = (entry.workshops as any)?.name || 'Unknown';
+      const workshopName =
+        (entry.workshops as any)?.name ||
+        t('workers.unknownWorkshop', { defaultValue: 'Unknown workshop' });
       if (!result[workshopId]) {
         result[workshopId] = { name: workshopName, total: 0 };
       }
       result[workshopId].total += Number(entry.daily_salary);
     });
     return result;
-  }, [selectedWorkersAttendance]);
+  }, [selectedWorkersAttendance, t]);
+
+  const selectedWorkerIdsForDisplay = useMemo<Set<string>>(() => {
+    if (!selectedWorkshopId) {
+      return selectedWorkerIds;
+    }
+    return new Set(selectedWorkersAttendance.map((entry) => entry.worker_id));
+  }, [selectedWorkerIds, selectedWorkersAttendance, selectedWorkshopId]);
+
+  const selectedWorkerCount = selectedWorkerIdsForDisplay.size;
 
   const addWorker = useMutation({
     mutationFn: async ({ name, hourly_rate }: { name: string; hourly_rate: number }) => {
@@ -367,7 +421,9 @@ export default function Workers() {
   };
 
   const selectAllWithOwed = () => {
-    const workersWithOwed = workers.filter(w => w.is_active && (owedByWorker[w.id] || 0) > 0);
+    const workersWithOwed = displayedWorkers.filter(
+      (w) => w.is_active && getWorkerOwedAmount(w.id) > 0
+    );
     setSelectedWorkerIds(new Set(workersWithOwed.map(w => w.id)));
   };
 
@@ -376,7 +432,9 @@ export default function Workers() {
   };
 
   // Count workers with owed amounts
-  const workersWithOwedCount = workers.filter(w => w.is_active && (owedByWorker[w.id] || 0) > 0).length;
+  const workersWithOwedCount = displayedWorkers.filter(
+    (w) => w.is_active && getWorkerOwedAmount(w.id) > 0
+  ).length;
 
   if (loading) {
     return (
@@ -428,6 +486,26 @@ export default function Workers() {
           </Button>
         </div>
 
+        {/* Workshop Filter */}
+        <div className="space-y-2">
+          <WorkshopSelector
+            selectedWorkshop={selectedWorkshopId}
+            onSelect={(workshopId) => setSelectedWorkshopId(workshopId)}
+          />
+          {selectedWorkshopId && (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedWorkshopId(null)}
+                className="h-8 text-xs"
+              >
+                {t('workers.clearWorkshopFilter')}
+              </Button>
+            </div>
+          )}
+        </div>
+
         {/* Filters and Multi-Select Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -442,7 +520,7 @@ export default function Workers() {
           {workersWithOwedCount > 0 && (
             <>
               <div className="h-4 w-px bg-border" />
-              {selectedWorkerIds.size === 0 ? (
+              {selectedWorkerCount === 0 ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -466,7 +544,7 @@ export default function Workers() {
                     onClick={() => setIsPaySelectedOpen(true)}
                     className="text-xs h-8 gap-1 bg-success text-success-foreground hover:bg-success/90"
                   >
-                    {t('workers.paySelected')} ({selectedWorkerIds.size})
+                    {t('workers.paySelected')} ({selectedWorkerCount})
                   </Button>
                 </>
               )}
@@ -475,12 +553,12 @@ export default function Workers() {
         </div>
 
         {/* Selected summary */}
-        {selectedWorkerIds.size > 0 && (
+        {selectedWorkerCount > 0 && (
           <Card className="border-primary bg-primary/5">
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
-                  {selectedWorkerIds.size} {t('workers.selected')}
+                  {selectedWorkerCount} {t('workers.selected')}
                 </span>
                 <Badge variant="outline" className="font-mono text-warning border-warning">
                   {selectedTotalOwed.toLocaleString('fr-FR')} CFA
@@ -497,17 +575,19 @@ export default function Workers() {
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
-            ) : workers.length === 0 ? (
+            ) : displayedWorkers.length === 0 ? (
               <p className="text-center text-muted-foreground py-8 text-sm">
-                {t('workers.noWorkers')}
+                {selectedWorkshopId
+                  ? t('workers.noWorkersForWorkshop')
+                  : t('workers.noWorkers')}
               </p>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {workers.map((worker) => (
+                {displayedWorkers.map((worker) => (
                   <WorkerCard
                     key={worker.id}
                     worker={worker}
-                    owedAmount={owedByWorker[worker.id] || 0}
+                    owedAmount={getWorkerOwedAmount(worker.id)}
                     isSelected={selectedWorkerIds.has(worker.id)}
                     onSelect={(checked) => toggleWorkerSelection(worker.id, checked)}
                     onClick={() => setSelectedWorker(worker)}
@@ -520,6 +600,14 @@ export default function Workers() {
                       e.stopPropagation();
                       setWorkerToDelete(worker);
                     }}
+                    workshopBreakdown={Object.entries(owedBreakdownByWorker[worker.id] || {}).map(
+                      ([workshopId, info]) => ({
+                        id: workshopId,
+                        name: info.name,
+                        amount: info.amount,
+                      })
+                    )}
+                    selectedWorkshopId={selectedWorkshopId}
                   />
                 ))}
               </div>
@@ -671,7 +759,7 @@ export default function Workers() {
             <DialogHeader>
               <DialogTitle>{t('workers.paySelectedWorkers')}</DialogTitle>
               <DialogDescription>
-                {t('workers.paySelectedDescription', { count: selectedWorkerIds.size })}
+                {t('workers.paySelectedDescription', { count: selectedWorkerCount })}
               </DialogDescription>
             </DialogHeader>
             
@@ -681,7 +769,7 @@ export default function Workers() {
                 <p className="text-muted-foreground mb-2">{t('workers.workersIncluded')}:</p>
                 <div className="flex flex-wrap gap-1">
                   {workers
-                    .filter(w => selectedWorkerIds.has(w.id))
+                    .filter(w => selectedWorkerIdsForDisplay.has(w.id))
                     .map(w => (
                       <Badge key={w.id} variant="secondary" className="text-xs">
                         {w.name}

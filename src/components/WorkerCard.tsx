@@ -20,6 +20,8 @@ interface WorkerCardProps {
   onEdit: (e: React.MouseEvent) => void;
   onToggleStatus: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
+  workshopBreakdown?: { id: string; name: string; amount: number }[];
+  selectedWorkshopId?: string | null;
 }
 
 export default function WorkerCard({
@@ -31,8 +33,16 @@ export default function WorkerCard({
   onEdit,
   onToggleStatus,
   onDelete,
+  workshopBreakdown = [],
+  selectedWorkshopId = null,
 }: WorkerCardProps) {
   const { t } = useTranslation();
+  const otherWorkshopBreakdown = selectedWorkshopId
+    ? workshopBreakdown
+        .filter((entry) => entry.id !== selectedWorkshopId)
+        .sort((a, b) => b.amount - a.amount)
+    : [];
+  const showWorkshopBreakdown = worker.is_active && otherWorkshopBreakdown.length > 0;
 
   return (
     <div
@@ -120,6 +130,15 @@ export default function WorkerCard({
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 )}
               </div>
+            </div>
+          )}
+          {showWorkshopBreakdown && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {otherWorkshopBreakdown.map(({ id, name, amount }) => (
+                <Badge key={id} variant="outline" className="text-[10px] font-mono">
+                  {name}: {amount.toLocaleString('fr-FR')} CFA
+                </Badge>
+              ))}
             </div>
           )}
           
