@@ -107,6 +107,9 @@ export default function QuickAttendanceForm() {
       const extraAmount = Number(data.extraAmount) || 0;
       const discountAmount = Number(data.discountAmount) || 0;
       const hasExtra = extraAmount > 0;
+      
+      // Calculate daily_salary: base rate + bonus - discount
+      const dailySalary = worker.hourly_rate + extraAmount - discountAmount;
 
       // Insert new with hours_worked = 1 (1 day)
       const { error } = await supabase
@@ -117,6 +120,7 @@ export default function QuickAttendanceForm() {
           work_date: selectedDate,
           hours_worked: 1, // 1 day attendance
           hourly_rate: worker.hourly_rate, // This is daily rate
+          daily_salary: dailySalary, // Computed: rate + bonus - discount
           has_extra: hasExtra,
           extra_amount: extraAmount,
           extra_reason: data.extraReason || null,

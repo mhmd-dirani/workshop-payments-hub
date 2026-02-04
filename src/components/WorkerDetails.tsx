@@ -31,7 +31,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek } from 'date-fns';
@@ -67,8 +66,6 @@ interface EditingAttendance {
   work_date: string;
   hourly_rate: number;
   workshop_id: string;
-  has_extra: boolean;
-  extra_amount: number;
 }
 
 // Helper function to get week range (Monday to Saturday) for a given date
@@ -188,7 +185,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  const totalOwed = unpaidAttendance.reduce((sum, a) => sum + Number(a.daily_salary), 0);
+  // Calculate total owed accounting for discounts
+  const totalOwed = unpaidAttendance.reduce((sum, a) => {
+    const discount = Number(a.discount_amount) || 0;
+    return sum + (Number(a.daily_salary) - discount);
+  }, 0);
   const totalDays = unpaidAttendance.length;
 
   // Group unpaid by workshop for display
@@ -205,15 +206,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
   // Update attendance mutation
   const updateAttendance = useMutation({
-    mutationFn: async ({ id, work_date, hourly_rate, workshop_id, has_extra, extra_amount }: EditingAttendance) => {
+    mutationFn: async ({ id, work_date, hourly_rate, workshop_id }: EditingAttendance) => {
       const { error } = await supabase
         .from('attendance')
         .update({ 
           work_date, 
           hourly_rate, 
           workshop_id,
-          has_extra,
-          extra_amount: has_extra ? extra_amount : 0,
+          daily_salary: hourly_rate, // Reset to base rate when editing
         })
         .eq('id', id);
       if (error) throw error;
@@ -406,8 +406,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       work_date: entry.work_date,
       hourly_rate: Number(entry.hourly_rate),
       workshop_id: entry.workshop_id,
-      has_extra: entry.has_extra || false,
-      extra_amount: Number(entry.extra_amount) || 0,
     });
   };
 
@@ -814,32 +812,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               </Select>
             </div>
             
-            {/* Extra Work Section */}
-            <div className="space-y-3 pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="edit-has-extra" className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-warning" />
-                  {t('attendance.workedExtra')}
-                </Label>
-                <Switch
-                  id="edit-has-extra"
-                  checked={editingAttendance?.has_extra || false}
-                  onCheckedChange={(checked) => setEditingAttendance(prev => prev ? { ...prev, has_extra: checked } : null)}
-                />
-              </div>
-              {editingAttendance?.has_extra && (
-                <div className="space-y-2">
-                  <Label>{t('attendance.extraAmount')} (CFA)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={editingAttendance?.extra_amount || ''}
-                    onChange={(e) => setEditingAttendance(prev => prev ? { ...prev, extra_amount: Number(e.target.value) } : null)}
-                    placeholder="0"
-                  />
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground pt-2 border-t">
+              {t('attendance.bonusDiscountNote', { defaultValue: 'To add bonuses or discounts, mark attendance from the Attendance page.' })}
+            </p>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingAttendance(null)}>
                 {t('common.cancel')}
