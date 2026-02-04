@@ -77,8 +77,11 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     },
   });
 
+  // Get selected worker name for flexible filtering
+  const selectedWorkerName = workers.find(w => w.id === filterWorkerId)?.name || '';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId, selectedDate?.toISOString()],
+    queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId, selectedDate?.toISOString(), selectedWorkerName],
     queryFn: async () => {
       let query = supabase
         .from('attendance')
@@ -98,16 +101,29 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
           .lte('work_date', format(weekEnd, 'yyyy-MM-dd'));
       }
 
-      if (filterWorkerId && filterWorkerId !== 'all') {
-        query = query.eq('worker_id', filterWorkerId);
-      }
+      // For worker filter: search by worker_id OR by name in description (for overtime records)
+      // We'll fetch all and filter client-side to handle the OR condition with description search
       if (filterWorkshopId && filterWorkshopId !== 'all') {
         query = query.eq('workshop_id', filterWorkshopId);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      let results = data || [];
+      
+      // Client-side filtering for worker - allows matching by worker_id OR by name in description
+      if (filterWorkerId && filterWorkerId !== 'all' && selectedWorkerName) {
+        results = results.filter(entry => {
+          // Match by worker_id (normal attendance)
+          if (entry.worker_id === filterWorkerId) return true;
+          // Match by name in description (overtime records contain all worker names)
+          if (entry.description && entry.description.toLowerCase().includes(selectedWorkerName.toLowerCase())) return true;
+          return false;
+        });
+      }
+      
+      return results;
     },
   });
 
@@ -125,7 +141,11 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   // Count unique days, not transactions
   const uniqueDays = new Set(data?.map(a => a.work_date) || []);
   const totalDays = uniqueDays.size;
-  const totalSalary = data?.reduce((sum, a) => sum + Number(a.daily_salary), 0) || 0;
+  // Calculate total: for overtime records use extra_amount, for normal use daily_salary
+  const totalSalary = data?.reduce((sum, a) => {
+    const isOvertime = a.has_extra && a.extra_amount;
+    return sum + (isOvertime ? Number(a.extra_amount) : Number(a.daily_salary));
+  }, 0) || 0;
 
   if (isLoading) {
     return (
@@ -278,59 +298,81 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
           <>
             {/* Mobile view */}
             <div className="md:hidden space-y-2">
-              {data.map((entry) => (
-                <div key={entry.id} className="border rounded-lg p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">
-                          {(entry.workers as any)?.name}
-                        </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          <Building2 className="w-2.5 h-2.5 mr-1" />
-                          {(entry.workshops as any)?.name}
+              {data.map((entry) => {
+                // For overtime records (has_extra=true), show extra_amount, not daily_salary
+                const isOvertimeRecord = entry.has_extra && entry.extra_amount;
+                const displayAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                // Extract worker names from description for overtime
+                const displayName = isOvertimeRecord && entry.description 
+                  ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
+                  : (entry.workers as any)?.name;
+                
+                return (
+                  <div key={entry.id} className="border rounded-lg p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">
+                            {displayName}
+                          </span>
+                          {isOvertimeRecord && (
+                            <Badge variant="outline" className="text-[10px] border-warning text-warning">
+                              {t('attendance.overtime')}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px]">
+                            <Building2 className="w-2.5 h-2.5 mr-1" />
+                            {(entry.workshops as any)?.name}
+                          </Badge>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] font-mono">
+                          {format(new Date(entry.work_date), 'EEE, dd/MM')}
                         </Badge>
+                        {!isOvertimeRecord && (
+                          <p className="text-sm font-mono">
+                            {Number(entry.hourly_rate).toLocaleString('fr-FR')} CFA
+                          </p>
+                        )}
+                        {entry.description && !isOvertimeRecord && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {entry.description}
+                          </p>
+                        )}
+                        {isOvertimeRecord && entry.description && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {entry.description.split(' - ')[1] || ''}
+                          </p>
+                        )}
                       </div>
-                      <Badge variant="secondary" className="text-[10px] font-mono">
-                        {format(new Date(entry.work_date), 'EEE, dd/MM')}
-                      </Badge>
-                      <p className="text-sm font-mono">
-                        {Number(entry.hourly_rate).toLocaleString('fr-FR')} CFA
-                      </p>
-                      {entry.description && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {entry.description}
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-success">
+                          {displayAmount.toLocaleString('fr-FR')}
                         </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-bold text-success">
-                        {Number(entry.daily_salary).toLocaleString('fr-FR')}
-                      </p>
-                      <div className="flex gap-1 mt-1 justify-end">
-                        {onEdit && (
+                        <div className="flex gap-1 mt-1 justify-end">
+                          {onEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onEdit(entry)}
+                              className="h-6 w-6"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onEdit(entry)}
-                            className="h-6 w-6"
+                            onClick={() => deleteAttendance.mutate(entry.id)}
+                            className="h-6 w-6 text-destructive hover:text-destructive"
                           >
-                            <Edit className="w-3 h-3" />
+                            <Trash2 className="w-3 h-3" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteAttendance.mutate(entry.id)}
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Desktop view */}
@@ -347,49 +389,69 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium">
-                        {(entry.workers as any)?.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {(entry.workshops as any)?.name}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {format(new Date(entry.work_date), 'EEE, MMM d')}
-                      </TableCell>
-                      <TableCell className="font-mono font-bold text-success">
-                        {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-xs truncate">
-                        {entry.description || '-'}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <div className="flex justify-end gap-1">
-                          {onEdit && (
+                  {data.map((entry) => {
+                    // For overtime records (has_extra=true), show extra_amount, not daily_salary
+                    const isOvertimeRecord = entry.has_extra && entry.extra_amount;
+                    const displayAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                    // Extract worker names from description for overtime
+                    const displayName = isOvertimeRecord && entry.description 
+                      ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
+                      : (entry.workers as any)?.name;
+                    const displayDescription = isOvertimeRecord && entry.description
+                      ? entry.description.split(' - ')[1] || ''
+                      : entry.description;
+                    
+                    return (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {displayName}
+                            {isOvertimeRecord && (
+                              <Badge variant="outline" className="text-[10px] border-warning text-warning">
+                                {t('attendance.overtime')}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {(entry.workshops as any)?.name}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {format(new Date(entry.work_date), 'EEE, MMM d')}
+                        </TableCell>
+                        <TableCell className="font-mono font-bold text-success">
+                          {displayAmount.toLocaleString('fr-FR')} CFA
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-xs truncate">
+                          {displayDescription || '-'}
+                        </TableCell>
+                        <TableCell className="text-end">
+                          <div className="flex justify-end gap-1">
+                            {onEdit && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit(entry)}
+                                className="h-8 w-8"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => onEdit(entry)}
-                              className="h-8 w-8"
+                              onClick={() => deleteAttendance.mutate(entry.id)}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteAttendance.mutate(entry.id)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
