@@ -332,6 +332,8 @@
     "day": "jour",
     "allTime": "Tout",
     "showingAllRecords": "Affichage de tous les enregistrements",
+    "specificDate": "Date précise",
+    "pickDate": "Choisir une date",
     "editAttendance": "Modifier présence",
     "updateAttendance": "Modifier l'enregistrement de présence",
     "workedExtra": "Travail supplémentaire",

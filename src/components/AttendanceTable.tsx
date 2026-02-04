@@ -20,9 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, endOfWeek, subWeeks, subMonths, subYears } from 'date-fns';
-import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2, Infinity } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface AttendanceTableProps {
   workerId?: string;
@@ -34,13 +37,15 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [timeFilter, setTimeFilter] = useState('0'); // '0' = this week, '1' = last week, etc., 'all' = all time
+  const [timeFilter, setTimeFilter] = useState('0'); // '0' = this week, '1' = last week, etc., 'all' = all time, 'date' = specific date
   const [filterWorkshopId, setFilterWorkshopId] = useState(workshopId || 'all');
   const [filterWorkerId, setFilterWorkerId] = useState(workerId || 'all');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   // Calculate date range based on filter
   const isAllTime = timeFilter === 'all';
-  const weekOffset = isAllTime ? 0 : parseInt(timeFilter);
+  const isSpecificDate = timeFilter === 'date';
+  const weekOffset = (isAllTime || isSpecificDate) ? 0 : parseInt(timeFilter);
   const currentDate = subWeeks(new Date(), weekOffset);
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 6 }); // Saturday
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 6 });
@@ -73,7 +78,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId],
+    queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId, selectedDate?.toISOString()],
     queryFn: async () => {
       let query = supabase
         .from('attendance')
@@ -84,8 +89,10 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
         `)
         .order('work_date', { ascending: false });
 
-      // Only apply date filters if not "all time"
-      if (!isAllTime) {
+      // Apply date filters based on filter type
+      if (isSpecificDate && selectedDate) {
+        query = query.eq('work_date', format(selectedDate, 'yyyy-MM-dd'));
+      } else if (!isAllTime) {
         query = query
           .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
           .lte('work_date', format(weekEnd, 'yyyy-MM-dd'));
@@ -115,7 +122,9 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     },
   });
 
-  const totalDays = data?.reduce((sum, a) => sum + Number(a.hours_worked), 0) || 0;
+  // Count unique days, not transactions
+  const uniqueDays = new Set(data?.map(a => a.work_date) || []);
+  const totalDays = uniqueDays.size;
   const totalSalary = data?.reduce((sum, a) => sum + Number(a.daily_salary), 0) || 0;
 
   if (isLoading) {
@@ -136,28 +145,77 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
               <div>
                 <CardTitle className="text-base md:text-lg flex items-center gap-2">
                   <Calendar className="w-4 h-4 md:w-5 md:h-5" />
-                  {isAllTime ? t('attendance.allTime') : t('attendance.weeklyAttendance')}
+                  {isAllTime ? t('attendance.allTime') : isSpecificDate ? t('attendance.specificDate') : t('attendance.weeklyAttendance')}
                 </CardTitle>
                 <CardDescription className="text-xs md:text-sm">
-                  {isAllTime ? t('attendance.showingAllRecords') : `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`}
+                  {isAllTime 
+                    ? t('attendance.showingAllRecords') 
+                    : isSpecificDate && selectedDate 
+                      ? format(selectedDate, 'EEEE, MMM d, yyyy')
+                      : `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`}
                 </CardDescription>
               </div>
-              <Select
-                value={timeFilter}
-                onValueChange={setTimeFilter}
-              >
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
-                  <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
-                  <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
-                  <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
-                  <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
-                  <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 items-center">
+                <Select
+                  value={timeFilter}
+                  onValueChange={(value) => {
+                    setTimeFilter(value);
+                    if (value !== 'date') {
+                      setSelectedDate(undefined);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
+                    <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
+                    <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
+                    <SelectItem value="date">{t('attendance.specificDate')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {timeFilter === 'date' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "h-8 text-xs justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-3 w-3" />
+                        {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : t('attendance.pickDate')}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+                
+                {selectedDate && timeFilter === 'date' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSelectedDate(undefined)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
 
           {/* Filters */}

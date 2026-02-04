@@ -332,6 +332,8 @@
     "day": "يوم",
     "allTime": "كل الوقت",
     "showingAllRecords": "عرض جميع سجلات الحضور",
+    "specificDate": "تاريخ محدد",
+    "pickDate": "اختر تاريخ",
     "editAttendance": "تعديل الحضور",
     "updateAttendance": "تحديث سجل الحضور",
     "workedExtra": "عمل إضافي",
