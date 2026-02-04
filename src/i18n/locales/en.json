@@ -1,4 +1,11 @@
 {
+  "attendance": {
+    "extraReason": "Bonus Reason",
+    "discount": "Discount",
+    "discountReason": "Discount Reason",
+    "enterExtraReason": "Why this bonus?",
+    "enterDiscountReason": "Why this discount?"
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",

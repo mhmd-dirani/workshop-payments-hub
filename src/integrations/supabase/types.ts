@@ -20,7 +20,10 @@ export type Database = {
           created_by: string
           daily_salary: number | null
           description: string | null
+          discount_amount: number | null
+          discount_reason: string | null
           extra_amount: number | null
+          extra_reason: string | null
           has_extra: boolean
           hourly_rate: number
           hours_worked: number
@@ -37,7 +40,10 @@ export type Database = {
           created_by: string
           daily_salary?: number | null
           description?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
           extra_amount?: number | null
+          extra_reason?: string | null
           has_extra?: boolean
           hourly_rate: number
           hours_worked: number
@@ -54,7 +60,10 @@ export type Database = {
           created_by?: string
           daily_salary?: number | null
           description?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
           extra_amount?: number | null
+          extra_reason?: string | null
           has_extra?: boolean
           hourly_rate?: number
           hours_worked?: number

@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2, X } from 'lucide-react';
+import { Loader2, Trash2, Edit, Calendar, DollarSign, Building2, X, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AttendanceTableProps {
@@ -141,10 +141,11 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   // Count unique days, not transactions
   const uniqueDays = new Set(data?.map(a => a.work_date) || []);
   const totalDays = uniqueDays.size;
-  // Calculate total: for overtime records use extra_amount, for normal use daily_salary
+  // Calculate total: for overtime use extra_amount, for normal use daily_salary - discount_amount
   const totalSalary = data?.reduce((sum, a) => {
-    const isOvertime = a.has_extra && a.extra_amount;
-    return sum + (isOvertime ? Number(a.extra_amount) : Number(a.daily_salary));
+    const isOvertime = a.has_extra && a.extra_amount && !a.extra_reason;
+    const discount = Number(a.discount_amount) || 0;
+    return sum + (isOvertime ? Number(a.extra_amount) : (Number(a.daily_salary) - discount));
   }, 0) || 0;
 
   if (isLoading) {
@@ -301,11 +302,16 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
               {data.map((entry) => {
                 // For overtime records (has_extra=true), show extra_amount, not daily_salary
                 const isOvertimeRecord = entry.has_extra && entry.extra_amount;
-                const displayAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                const discountAmt = Number(entry.discount_amount) || 0;
+                const baseAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                const displayAmount = isOvertimeRecord ? baseAmount : (baseAmount - discountAmt);
                 // Extract worker names from description for overtime
                 const displayName = isOvertimeRecord && entry.description 
                   ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
                   : (entry.workers as any)?.name;
+                
+                const hasBonus = !isOvertimeRecord && entry.has_extra && Number(entry.extra_amount) > 0;
+                const hasDiscount = discountAmt > 0;
                 
                 return (
                   <div key={entry.id} className="border rounded-lg p-3">
@@ -318,6 +324,18 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                           {isOvertimeRecord && (
                             <Badge variant="outline" className="text-[10px] border-warning text-warning">
                               {t('attendance.overtime')}
+                            </Badge>
+                          )}
+                          {hasBonus && (
+                            <Badge variant="outline" className="text-[10px] border-success text-success">
+                              <Plus className="w-2 h-2 mr-0.5" />
+                              {Number(entry.extra_amount).toLocaleString('fr-FR')}
+                            </Badge>
+                          )}
+                          {hasDiscount && (
+                            <Badge variant="outline" className="text-[10px] border-destructive text-destructive">
+                              <Minus className="w-2 h-2 mr-0.5" />
+                              {discountAmt.toLocaleString('fr-FR')}
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">
@@ -333,7 +351,18 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                             {Number(entry.hourly_rate).toLocaleString('fr-FR')} CFA
                           </p>
                         )}
-                        {entry.description && !isOvertimeRecord && (
+                        {/* Show bonus/discount reasons */}
+                        {entry.extra_reason && (
+                          <p className="text-xs text-success truncate">
+                            <Plus className="w-2.5 h-2.5 inline mr-0.5" />{entry.extra_reason}
+                          </p>
+                        )}
+                        {entry.discount_reason && (
+                          <p className="text-xs text-destructive truncate">
+                            <Minus className="w-2.5 h-2.5 inline mr-0.5" />{entry.discount_reason}
+                          </p>
+                        )}
+                        {entry.description && !isOvertimeRecord && !entry.extra_reason && !entry.discount_reason && (
                           <p className="text-xs text-muted-foreground truncate">
                             {entry.description}
                           </p>
@@ -391,8 +420,10 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                 <TableBody>
                   {data.map((entry) => {
                     // For overtime records (has_extra=true), show extra_amount, not daily_salary
-                    const isOvertimeRecord = entry.has_extra && entry.extra_amount;
-                    const displayAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                    const isOvertimeRecord = entry.has_extra && entry.extra_amount && !entry.extra_reason;
+                    const discountAmt = Number(entry.discount_amount) || 0;
+                    const baseAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
+                    const displayAmount = isOvertimeRecord ? baseAmount : (baseAmount - discountAmt);
                     // Extract worker names from description for overtime
                     const displayName = isOvertimeRecord && entry.description 
                       ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
@@ -400,6 +431,9 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                     const displayDescription = isOvertimeRecord && entry.description
                       ? entry.description.split(' - ')[1] || ''
                       : entry.description;
+
+                    const hasBonus = !isOvertimeRecord && entry.has_extra && Number(entry.extra_amount) > 0;
+                    const hasDiscount = discountAmt > 0;
                     
                     return (
                       <TableRow key={entry.id}>
@@ -409,6 +443,18 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                             {isOvertimeRecord && (
                               <Badge variant="outline" className="text-[10px] border-warning text-warning">
                                 {t('attendance.overtime')}
+                              </Badge>
+                            )}
+                            {hasBonus && (
+                              <Badge variant="outline" className="text-[10px] border-success text-success">
+                                <Plus className="w-2 h-2 mr-0.5" />
+                                {Number(entry.extra_amount).toLocaleString('fr-FR')}
+                              </Badge>
+                            )}
+                            {hasDiscount && (
+                              <Badge variant="outline" className="text-[10px] border-destructive text-destructive">
+                                <Minus className="w-2 h-2 mr-0.5" />
+                                {discountAmt.toLocaleString('fr-FR')}
                               </Badge>
                             )}
                           </div>
@@ -424,8 +470,23 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                         <TableCell className="font-mono font-bold text-success">
                           {displayAmount.toLocaleString('fr-FR')} CFA
                         </TableCell>
-                        <TableCell className="text-muted-foreground max-w-xs truncate">
-                          {displayDescription || '-'}
+                        <TableCell className="text-muted-foreground max-w-xs">
+                          <div className="space-y-0.5">
+                            {entry.extra_reason && (
+                              <p className="text-xs text-success truncate">
+                                <Plus className="w-2.5 h-2.5 inline mr-0.5" />{entry.extra_reason}
+                              </p>
+                            )}
+                            {entry.discount_reason && (
+                              <p className="text-xs text-destructive truncate">
+                                <Minus className="w-2.5 h-2.5 inline mr-0.5" />{entry.discount_reason}
+                              </p>
+                            )}
+                            {displayDescription && !entry.extra_reason && !entry.discount_reason && (
+                              <span className="truncate">{displayDescription}</span>
+                            )}
+                            {!displayDescription && !entry.extra_reason && !entry.discount_reason && '-'}
+                          </div>
                         </TableCell>
                         <TableCell className="text-end">
                           <div className="flex justify-end gap-1">
