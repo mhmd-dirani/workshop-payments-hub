@@ -46,7 +46,8 @@ import {
   Edit,
   Trash2,
   Sparkles,
-  Clock
+  Clock,
+  MinusCircle
 } from 'lucide-react';
 
 interface Worker {
@@ -512,51 +513,83 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   </CardHeader>
                   <CardContent className="px-3 pb-3">
                     <div className="space-y-1">
-                      {entries.map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                          <div className="flex flex-col">
-                            <span className="font-mono text-xs">
-                              {format(new Date(entry.work_date), 'EEE, dd/MM')}
-                            </span>
-                            {entry.has_extra && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Sparkles className="w-3 h-3 text-warning" />
-                                <span className="text-[10px] text-warning">
-                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              <span className="font-mono font-medium">
-                                {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                      {entries.map((entry) => {
+                        const extraAmount = Number(entry.extra_amount) || 0;
+                        const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+                        const discountAmount = Number(entry.discount_amount) || 0;
+                        const hasDiscount = discountAmount > 0;
+                        const extraReason = entry.extra_reason?.trim();
+                        const discountReason = entry.discount_reason?.trim();
+                        return (
+                          <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
+                            <div className="flex flex-col">
+                              <span className="font-mono text-xs">
+                                {format(new Date(entry.work_date), 'EEE, dd/MM')}
                               </span>
-                              {entry.has_extra && (
-                                <p className="text-[10px] text-muted-foreground font-mono">
-                                  ({Number(entry.hourly_rate).toLocaleString('fr-FR')} + {Number(entry.extra_amount).toLocaleString('fr-FR')})
-                                </p>
+                              {hasExtra && (
+                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                  <div className="flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3 text-warning" />
+                                    <span className="text-[10px] text-warning">
+                                      +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+                                    </span>
+                                  </div>
+                                  {extraReason && (
+                                    <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                      {extraReason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              {hasDiscount && (
+                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                  <div className="flex items-center gap-1">
+                                    <MinusCircle className="w-3 h-3 text-destructive" />
+                                    <span className="text-[10px] text-destructive">
+                                      -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+                                    </span>
+                                  </div>
+                                  {discountReason && (
+                                    <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                      {discountReason}
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditAttendance(entry)}
-                              className="h-6 w-6"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteAttendance.mutate(entry.id)}
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <span className="font-mono font-medium">
+                                  {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                                </span>
+                                {(hasExtra || hasDiscount) && (
+                                  <p className="text-[10px] text-muted-foreground font-mono">
+                                    {Number(entry.hourly_rate).toLocaleString('fr-FR')}
+                                    {hasExtra && ` + ${extraAmount.toLocaleString('fr-FR')}`}
+                                    {hasDiscount && ` - ${discountAmount.toLocaleString('fr-FR')}`}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditAttendance(entry)}
+                                className="h-6 w-6"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteAttendance.mutate(entry.id)}
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -582,6 +615,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 <div className="md:hidden">
                   {paidAttendance.map((entry) => {
                     const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                    const extraAmount = Number(entry.extra_amount) || 0;
+                    const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+                    const discountAmount = Number(entry.discount_amount) || 0;
+                    const hasDiscount = discountAmount > 0;
+                    const extraReason = entry.extra_reason?.trim();
+                    const discountReason = entry.discount_reason?.trim();
                     return (
                       <div key={entry.id} className="p-3 border-b last:border-0">
                         <div className="flex items-center justify-between gap-2">
@@ -597,12 +636,34 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 {entry.description}
                               </p>
                             )}
-                            {entry.has_extra && !isOvertime && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
-                                <span className="text-[10px] text-warning">
-                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
-                                </span>
+                            {hasExtra && !isOvertime && (
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                <div className="flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
+                                  <span className="text-[10px] text-warning">
+                                    +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+                                  </span>
+                                </div>
+                                {extraReason && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                    {extraReason}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {hasDiscount && (
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                <div className="flex items-center gap-1">
+                                  <MinusCircle className="w-3 h-3 text-destructive" />
+                                  <span className="text-[10px] text-destructive">
+                                    -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+                                  </span>
+                                </div>
+                                {discountReason && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                    {discountReason}
+                                  </p>
+                                )}
                               </div>
                             )}
                           </div>
@@ -655,6 +716,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <TableBody>
                       {paidAttendance.map((entry) => {
                         const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                        const extraAmount = Number(entry.extra_amount) || 0;
+                        const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+                        const discountAmount = Number(entry.discount_amount) || 0;
+                        const hasDiscount = discountAmount > 0;
+                        const extraReason = entry.extra_reason?.trim();
+                        const discountReason = entry.discount_reason?.trim();
+                        const description = entry.description?.trim();
                         return (
                           <TableRow key={entry.id}>
                             <TableCell className="font-mono">
@@ -673,19 +741,48 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                     <Clock className="w-3 h-3" />
                                     {t('attendance.overtimeShort')}
                                   </Badge>
-                                  {entry.description && (
-                                    <span className="text-xs text-muted-foreground truncate" title={entry.description}>
-                                      {entry.description}
+                                  {description && (
+                                    <span className="text-xs text-muted-foreground truncate" title={description}>
+                                      {description}
                                     </span>
                                   )}
                                 </div>
-                              ) : entry.has_extra ? (
-                                <Badge variant="secondary" className="gap-1">
-                                  <Sparkles className="w-3 h-3" />
-                                  +{Number(entry.extra_amount).toLocaleString('fr-FR')} {t('attendance.extra')}
-                                </Badge>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <div className="space-y-1">
+                                  {hasExtra || hasDiscount ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {hasExtra && (
+                                        <Badge variant="secondary" className="gap-1">
+                                          <Sparkles className="w-3 h-3" />
+                                          +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+                                        </Badge>
+                                      )}
+                                      {hasDiscount && (
+                                        <Badge variant="destructive" className="gap-1">
+                                          <MinusCircle className="w-3 h-3" />
+                                          -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                  {description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2" title={description}>
+                                      {description}
+                                    </p>
+                                  )}
+                                  {extraReason && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {extraReason}
+                                    </p>
+                                  )}
+                                  {discountReason && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {discountReason}
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </TableCell>
                             <TableCell>
