@@ -333,6 +333,8 @@
     "day": "day",
     "allTime": "All Time",
     "showingAllRecords": "Showing all attendance records",
+    "specificDate": "Specific Date",
+    "pickDate": "Pick a date",
     "editAttendance": "Edit Attendance",
     "updateAttendance": "Update the attendance record",
     "workedExtra": "Worked Extra",
