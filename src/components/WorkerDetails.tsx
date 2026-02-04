@@ -213,7 +213,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           work_date, 
           hourly_rate, 
           workshop_id,
-          daily_salary: hourly_rate, // Reset to base rate when editing
         })
         .eq('id', id);
       if (error) throw error;
