@@ -41,7 +41,8 @@
     "saved": "Saved",
     "success": "Success",
     "selectAll": "Select All",
-    "deselectAll": "Deselect All"
+    "deselectAll": "Deselect All",
+    "update": "Update"
   },
   "auth": {
     "signIn": "Sign In",
@@ -295,7 +296,12 @@
     "debt": "debt",
     "debtsLabel": "debts",
     "paid": "Paid",
-    "addDebtForPerson": "Add Debt"
+    "addDebtForPerson": "Add Debt",
+    "selectType": "Select type",
+    "whoPlaceholder": "Who?",
+    "howMuchPlaceholder": "How much?",
+    "notesPlaceholder": "Any notes about this debt...",
+    "descriptionOptional": "Description (optional)"
   },
   "attendance": {
     "title": "Worker Attendance",

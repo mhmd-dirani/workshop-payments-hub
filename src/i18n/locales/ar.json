@@ -40,7 +40,8 @@
     "saved": "تم الحفظ",
     "success": "نجاح",
     "selectAll": "تحديد الكل",
-    "deselectAll": "إلغاء التحديد"
+    "deselectAll": "إلغاء التحديد",
+    "update": "تحديث"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -294,7 +295,12 @@
     "debt": "دين",
     "debtsLabel": "ديون",
     "paid": "مدفوع",
-    "addDebtForPerson": "إضافة دين"
+    "addDebtForPerson": "إضافة دين",
+    "selectType": "اختر النوع",
+    "whoPlaceholder": "من؟",
+    "howMuchPlaceholder": "كم المبلغ؟",
+    "notesPlaceholder": "أي ملاحظات حول هذا الدين...",
+    "descriptionOptional": "الوصف (اختياري)"
   },
   "attendance": {
     "title": "حضور العمال",
