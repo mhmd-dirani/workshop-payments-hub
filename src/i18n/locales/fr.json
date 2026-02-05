@@ -40,7 +40,8 @@
     "saved": "Enregistré",
     "success": "Succès",
     "selectAll": "Tout sélectionner",
-    "deselectAll": "Tout désélectionner"
+    "deselectAll": "Tout désélectionner",
+    "update": "Mettre à jour"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -294,7 +295,12 @@
     "debt": "dette",
     "debtsLabel": "dettes",
     "paid": "Payé",
-    "addDebtForPerson": "Ajouter dette"
+    "addDebtForPerson": "Ajouter dette",
+    "selectType": "Sélectionner le type",
+    "whoPlaceholder": "Qui ?",
+    "howMuchPlaceholder": "Combien ?",
+    "notesPlaceholder": "Notes sur cette dette...",
+    "descriptionOptional": "Description (optionnel)"
   },
   "attendance": {
     "title": "Présence des travailleurs",

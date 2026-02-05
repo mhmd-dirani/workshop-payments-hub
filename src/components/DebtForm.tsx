@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useForm } from 'react-hook-form';
@@ -60,6 +61,7 @@ export default function DebtForm({
   prefilledPersonName = '', 
   prefilledDebtType = 'they_owe' 
 }: DebtFormProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -129,13 +131,13 @@ export default function DebtForm({
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       onOpenChange(false);
       toast({
-        title: isEditing ? 'Debt updated' : 'Debt added',
-        description: isEditing ? 'The debt has been updated' : 'The debt has been recorded',
+        title: isEditing ? t('debts.debtUpdated') : t('debts.debtAdded'),
+        description: isEditing ? t('debts.debtUpdatedDesc') : t('debts.debtAddedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -150,9 +152,9 @@ export default function DebtForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Debt' : 'Add New Debt'}</DialogTitle>
+          <DialogTitle>{isEditing ? t('debts.editDebt') : t('debts.addNewDebt')}</DialogTitle>
           <DialogDescription>
-            {isEditing ? 'Update the debt details' : 'Record a new debt'}
+            {isEditing ? t('debts.updateDebtDetails') : t('debts.recordNewDebt')}
           </DialogDescription>
         </DialogHeader>
         
@@ -163,16 +165,16 @@ export default function DebtForm({
               name="debt_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Debt Type</FormLabel>
+                  <FormLabel>{t('debts.debtType')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t('debts.selectType')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="they_owe">They owe me</SelectItem>
-                      <SelectItem value="i_owe">I owe them</SelectItem>
+                      <SelectItem value="they_owe">{t('debts.theyOweMe')}</SelectItem>
+                      <SelectItem value="i_owe">{t('debts.iOweThem')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -185,9 +187,9 @@ export default function DebtForm({
               name="person_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Person Name</FormLabel>
+                  <FormLabel>{t('debts.personName')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Who?" {...field} />
+                    <Input placeholder={t('debts.whoPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -199,9 +201,9 @@ export default function DebtForm({
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (CFA)</FormLabel>
+                  <FormLabel>{t('common.amount')} (CFA)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="How much?" {...field} />
+                    <Input type="number" placeholder={t('debts.howMuchPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -213,7 +215,7 @@ export default function DebtForm({
               name="debt_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date</FormLabel>
+                  <FormLabel>{t('common.date')}</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -227,9 +229,9 @@ export default function DebtForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (optional)</FormLabel>
+                  <FormLabel>{t('debts.descriptionOptional')}</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any notes about this debt..." {...field} />
+                    <Textarea placeholder={t('debts.notesPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -238,7 +240,7 @@ export default function DebtForm({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button 
                 type="submit" 
@@ -246,7 +248,7 @@ export default function DebtForm({
                 className="gradient-primary text-primary-foreground"
               >
                 {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isEditing ? 'Update' : 'Add Debt'}
+                {isEditing ? t('common.update') : t('debts.addDebt')}
               </Button>
             </DialogFooter>
           </form>
