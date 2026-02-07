@@ -3,33 +3,26 @@ import { getDay } from 'date-fns';
 const SHORT_DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 /**
- * Get the effective pay for an attendance entry, handling both old records
- * (where discount wasn't baked into daily_salary) and new records (where it is).
+ * Get the effective pay for an attendance entry.
+ * Now that bonuses/discounts are in a separate table, this just returns the daily salary or hourly rate.
  */
 export function getEffectivePay(entry: {
   daily_salary: number | null;
-  discount_amount: number | null;
-  extra_amount: number | null;
   hourly_rate: number;
 }): number {
   const salary = Number(entry.daily_salary) || 0;
-  const discount = Number(entry.discount_amount) || 0;
-  const extra = Number(entry.extra_amount) || 0;
-  const base = Number(entry.hourly_rate) || 0;
-  // If daily_salary equals hourly_rate (or hourly_rate + extra), discount wasn't baked in
-  if (discount > 0 && salary >= base) {
-    return base + extra - discount;
-  }
-  return salary;
+  if (salary > 0) return salary;
+  return Number(entry.hourly_rate) || 0;
 }
 
 /**
- * Build a payment reason string with worker names and their work days.
- * Format: "Melfi (mon tue fri)\nPaull (wed sat)"
+ * Build a payment reason string with worker names, their work days, and adjustments.
+ * Format: "Melfi (mon tue fri) [+500 bonus] [-200 discount]\nPaull (wed sat)"
  */
 export function buildWorkerPaymentReason(
   entries: Array<{ worker_id: string; work_date: string }>,
-  workerNames: Record<string, string>
+  workerNames: Record<string, string>,
+  adjustments?: Array<{ worker_id: string; adjustment_type: string; amount: number; reason?: string | null }>
 ): string {
   // Group entries by worker
   const byWorker: Record<string, Set<string>> = {};
@@ -42,14 +35,45 @@ export function buildWorkerPaymentReason(
     byWorker[name].add(SHORT_DAYS[dayIndex]);
   });
 
+  // Group adjustments by worker
+  const adjByWorker: Record<string, { bonuses: number; discounts: number }> = {};
+  if (adjustments) {
+    adjustments.forEach((adj) => {
+      const name = workerNames[adj.worker_id] || 'Unknown';
+      if (!adjByWorker[name]) {
+        adjByWorker[name] = { bonuses: 0, discounts: 0 };
+      }
+      if (adj.adjustment_type === 'bonus') {
+        adjByWorker[name].bonuses += Number(adj.amount);
+      } else {
+        adjByWorker[name].discounts += Number(adj.amount);
+      }
+    });
+  }
+
   // Build description lines
   const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-  return Object.entries(byWorker)
-    .map(([name, days]) => {
-      const sortedDays = Array.from(days).sort(
-        (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
-      );
-      return `${name} (${sortedDays.join(' ')})`;
+  
+  // Collect all worker names (from attendance + adjustments)
+  const allNames = new Set([...Object.keys(byWorker), ...Object.keys(adjByWorker)]);
+  
+  return Array.from(allNames)
+    .map((name) => {
+      const days = byWorker[name];
+      const adj = adjByWorker[name];
+      
+      let line = name;
+      if (days && days.size > 0) {
+        const sortedDays = Array.from(days).sort(
+          (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
+        );
+        line += ` (${sortedDays.join(' ')})`;
+      }
+      if (adj) {
+        if (adj.bonuses > 0) line += ` [+${adj.bonuses}]`;
+        if (adj.discounts > 0) line += ` [-${adj.discounts}]`;
+      }
+      return line;
     })
     .join('\n');
 }
