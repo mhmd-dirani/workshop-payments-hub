@@ -439,7 +439,20 @@
       "ferrailleur": "حداد",
       "travailleur": "عامل",
       "macon": "بنّاء"
-    }
+    },
+    "payBonusOnly": "دفع المكافأة",
+    "payBonusOnlyDesc": "دفع المكافآت/الخصومات غير المدفوعة فقط لـ {{name}}",
+    "payPartial": "دفع جزئي",
+    "payPartialDesc": "دفع مبلغ مخصص من الراتب المستحق لـ {{name}}",
+    "partialAmount": "المبلغ المطلوب دفعه",
+    "partialAmountHint": "أدخل المبلغ الذي تريد دفعه (الحد الأقصى: {{max}} CFA)",
+    "selectWorkshop": "اختر الورشة",
+    "partialPaymentReason": "دفعة جزئية من الراتب",
+    "bonusPaymentCreated": "تم إنشاء دفعة المكافأة",
+    "bonusPaymentCreatedDesc": "دفعة المكافآت/الخصومات في انتظار الموافقة",
+    "partialPaymentCreated": "تم إنشاء الدفعة الجزئية",
+    "partialPaymentCreatedDesc": "الدفعة الجزئية في انتظار الموافقة",
+    "noBonuses": "لا توجد مكافآت أو خصومات غير مدفوعة"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

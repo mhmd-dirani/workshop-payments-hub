@@ -103,6 +103,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPayOpen, setIsPayOpen] = useState(false);
+  const [isPayBonusOpen, setIsPayBonusOpen] = useState(false);
+  const [isPayPartialOpen, setIsPayPartialOpen] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
+  const [partialWorkshopId, setPartialWorkshopId] = useState<string>('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
 
   // Fetch unpaid attendance for this worker (direct + overtime where name appears in description)
@@ -455,6 +459,135 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     }
   };
 
+  // Pay bonus/discount only mutation
+  const payBonusOnly = useMutation({
+    mutationFn: async () => {
+      const workerNames: Record<string, string> = { [worker.id]: worker.name };
+      
+      // Group adjustments by workshop
+      const adjByWorkshop: Record<string, any[]> = {};
+      unpaidAdjustments.forEach((adj) => {
+        if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
+        adjByWorkshop[adj.workshop_id].push(adj);
+      });
+      
+      const results: any[] = [];
+      for (const [workshopId, adjs] of Object.entries(adjByWorkshop)) {
+        const adjBonuses = adjs.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
+        const adjDiscounts = adjs.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
+        const adjTotal = adjBonuses - adjDiscounts;
+        if (adjTotal === 0) continue;
+        
+        const reason = buildWorkerPaymentReason([], workerNames, adjs);
+        
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: workshopId,
+            paid_to: 'Travailleur',
+            reason,
+            amount: Math.max(adjTotal, 0),
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: 'pending',
+          }])
+          .select()
+          .single();
+        if (paymentError) throw paymentError;
+        
+        const adjIds = adjs.map((a: any) => a.id);
+        if (adjIds.length > 0) {
+          await supabase
+            .from('worker_adjustments')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', adjIds);
+        }
+        results.push({ workshopId, paymentId: payment.id, amount: adjTotal });
+      }
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      setIsPayBonusOpen(false);
+      toast({ 
+        title: t('workers.bonusPaymentCreated'), 
+        description: t('workers.bonusPaymentCreatedDesc') 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Pay partial salary mutation
+  const payPartial = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(partialAmount);
+      if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
+      
+      const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          workshop_id: partialWorkshopId,
+          paid_to: 'Travailleur',
+          reason,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          created_by: user?.id,
+          status: 'pending',
+        }])
+        .select()
+        .single();
+      if (paymentError) throw paymentError;
+      
+      // Mark attendance entries as paid starting from oldest, up to the amount
+      let remaining = amount;
+      const workshopAttendance = unpaidAttendance
+        .filter(a => a.workshop_id === partialWorkshopId)
+        .sort((a, b) => new Date(a.work_date).getTime() - new Date(b.work_date).getTime());
+      
+      const idsToMark: string[] = [];
+      for (const entry of workshopAttendance) {
+        if (remaining <= 0) break;
+        const pay = getEffectivePay(entry);
+        if (pay <= remaining) {
+          idsToMark.push(entry.id);
+          remaining -= pay;
+        }
+      }
+      
+      if (idsToMark.length > 0) {
+        await supabase
+          .from('attendance')
+          .update({ is_paid: true, payment_id: payment.id })
+          .in('id', idsToMark);
+      }
+      
+      return payment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      setIsPayPartialOpen(false);
+      setPartialAmount('');
+      setPartialWorkshopId('');
+      toast({ 
+        title: t('workers.partialPaymentCreated'), 
+        description: t('workers.partialPaymentCreatedDesc') 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
   const openPayDialog = () => {
     setIsPayOpen(true);
   };
@@ -516,15 +649,50 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
       </div>
 
-      {/* Pay Button - Only show if there's money owed */}
+      {/* Payment Action Buttons */}
       {totalOwed > 0 && (
-        <Button 
-          onClick={() => openPayDialog()} 
-          className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
-        >
-          <Wallet className="w-4 h-4" />
-          {t('workers.payWorker')}
-        </Button>
+        <div className="space-y-2">
+          <Button 
+            onClick={() => openPayDialog()} 
+            className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
+          >
+            <Wallet className="w-4 h-4" />
+            {t('workers.payWorker')} ({totalOwed.toLocaleString('fr-FR')} CFA)
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Pay Bonus Only */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPayBonusOpen(true)}
+              disabled={unpaidAdjustments.length === 0}
+              className="gap-1.5 text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {t('workers.payBonusOnly')}
+              {bonusTotal - discountTotal !== 0 && (
+                <span className="font-mono">({(bonusTotal - discountTotal).toLocaleString('fr-FR')})</span>
+              )}
+            </Button>
+            {/* Pay Partial Salary */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Pre-select the first workshop with unpaid work
+                const firstWorkshopId = Object.keys(unpaidByWorkshop)[0] || '';
+                setPartialWorkshopId(firstWorkshopId);
+                setPartialAmount('');
+                setIsPayPartialOpen(true);
+              }}
+              disabled={attendanceTotal <= 0}
+              className="gap-1.5 text-xs"
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              {t('workers.payPartial')}
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Tabs for unpaid/history */}
@@ -983,6 +1151,119 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Bonus Only Dialog */}
+      <Dialog open={isPayBonusOpen} onOpenChange={setIsPayBonusOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.payBonusOnly')}</DialogTitle>
+            <DialogDescription>
+              {t('workers.payBonusOnlyDesc', { name: worker.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {unpaidAdjustments.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">{t('workers.noBonuses')}</p>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {unpaidAdjustments.map((adj) => (
+                    <div key={adj.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                      <div className="flex items-center gap-2">
+                        {adj.adjustment_type === 'bonus' ? (
+                          <Sparkles className="w-3.5 h-3.5 text-success" />
+                        ) : (
+                          <MinusCircle className="w-3.5 h-3.5 text-destructive" />
+                        )}
+                        <div>
+                          <span className="text-xs">{format(new Date(adj.work_date), 'dd/MM')}</span>
+                          {adj.reason && <p className="text-[10px] text-muted-foreground">{adj.reason}</p>}
+                        </div>
+                      </div>
+                      <span className={`font-mono font-medium ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
+                        {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} CFA
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
+                    <span>{t('common.total')}</span>
+                    <span className="font-mono text-success">{(bonusTotal - discountTotal).toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsPayBonusOpen(false)}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    onClick={() => payBonusOnly.mutate()}
+                    disabled={payBonusOnly.isPending || (bonusTotal - discountTotal) <= 0}
+                    className="bg-success text-success-foreground hover:bg-success/90"
+                  >
+                    {payBonusOnly.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {t('workers.confirmPayment')}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Partial Salary Dialog */}
+      <Dialog open={isPayPartialOpen} onOpenChange={setIsPayPartialOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.payPartial')}</DialogTitle>
+            <DialogDescription>
+              {t('workers.payPartialDesc', { name: worker.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t('workers.selectWorkshop')}</Label>
+              <Select value={partialWorkshopId} onValueChange={setPartialWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
+                    <SelectItem key={workshopId} value={workshopId}>
+                      {name} ({total.toLocaleString('fr-FR')} CFA)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('workers.partialAmount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                max={partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal}
+                value={partialAmount}
+                onChange={(e) => setPartialAmount(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('workers.partialAmountHint', { max: (partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal).toLocaleString('fr-FR') })}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsPayPartialOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => payPartial.mutate()}
+                disabled={payPartial.isPending || !partialAmount || parseFloat(partialAmount) <= 0 || !partialWorkshopId}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
+                {payPartial.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t('workers.confirmPayment')}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

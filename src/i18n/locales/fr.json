@@ -439,7 +439,20 @@
       "ferrailleur": "Ferrailleur",
       "travailleur": "Travailleur",
       "macon": "Maçon"
-    }
+    },
+    "payBonusOnly": "Payer bonus",
+    "payBonusOnlyDesc": "Payer uniquement les bonus/réductions impayés de {{name}}",
+    "payPartial": "Paiement partiel",
+    "payPartialDesc": "Payer un montant personnalisé du salaire dû de {{name}}",
+    "partialAmount": "Montant à payer",
+    "partialAmountHint": "Entrez le montant que vous voulez payer (max: {{max}} CFA)",
+    "selectWorkshop": "Sélectionner l'atelier",
+    "partialPaymentReason": "Paiement partiel du salaire",
+    "bonusPaymentCreated": "Paiement du bonus créé",
+    "bonusPaymentCreatedDesc": "Le paiement des bonus/réductions est en attente d'approbation",
+    "partialPaymentCreated": "Paiement partiel créé",
+    "partialPaymentCreatedDesc": "Le paiement partiel du salaire est en attente d'approbation",
+    "noBonuses": "Aucun bonus ou réduction impayé"
   },
   "personalPayments": {
     "title": "Paiements personnels",
