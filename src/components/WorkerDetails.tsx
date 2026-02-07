@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { getEffectivePay, buildWorkerPaymentReason } from '@/lib/worker-payment-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,11 +187,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Calculate total owed accounting for discounts
-  const totalOwed = unpaidAttendance.reduce((sum, a) => {
-    const discount = Number(a.discount_amount) || 0;
-    return sum + (Number(a.daily_salary) - discount);
-  }, 0);
+
+
+  // Calculate total owed
+  const totalOwed = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
   const totalDays = unpaidAttendance.length;
 
   // Group unpaid by workshop for display
@@ -200,7 +200,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     if (!acc[workshopId]) {
       acc[workshopId] = { name: workshopName, total: 0, entries: [] };
     }
-    acc[workshopId].total += Number(entry.daily_salary);
+    acc[workshopId].total += getEffectivePay(entry);
     acc[workshopId].entries.push(entry);
     return acc;
   }, {} as Record<string, { name: string; total: number; entries: any[] }>);
@@ -297,6 +297,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     mutationFn: async () => {
       const results: any[] = [];
       
+      // Build worker name map
+      const workerNames: Record<string, string> = { [worker.id]: worker.name };
+      
       // First, group all unpaid attendance by work week
       const byWeek = groupByWorkWeek(unpaidAttendance);
       
@@ -309,53 +312,34 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             acc[workshopId] = { entries: [], total: 0 };
           }
           acc[workshopId].entries.push(entry);
-          acc[workshopId].total += Number(entry.daily_salary);
+          acc[workshopId].total += getEffectivePay(entry);
           return acc;
         }, {} as Record<string, { entries: any[]; total: number }>);
         
         // Process each workshop for this week
         for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
           const { entries, total } = workshopData;
-          // Check if there's already a "Travailleur" payment for this week in this workshop
-          const { data: existingPayment } = await supabase
+          
+          // Build reason with worker names and days
+          const reason = buildWorkerPaymentReason(entries, workerNames);
+          
+          // Create new payment for this workshop and week
+          const { data: payment, error: paymentError } = await supabase
             .from('payments')
-            .select('*')
-            .eq('workshop_id', workshopId)
-            .eq('paid_to', 'Travailleur')
-            .eq('reason', weekLabel)
+            .insert([{
+              workshop_id: workshopId,
+              paid_to: 'Travailleur',
+              reason,
+              amount: total as number,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+              created_by: user?.id,
+              status: 'pending',
+            }])
+            .select()
             .single();
           
-          let paymentId: string;
-          
-          if (existingPayment) {
-            // Update existing payment by adding this worker's amount
-            const newAmount = Number(existingPayment.amount) + (total as number);
-            const { error: updateError } = await supabase
-              .from('payments')
-              .update({ amount: newAmount })
-              .eq('id', existingPayment.id);
-            
-            if (updateError) throw updateError;
-            paymentId = existingPayment.id;
-          } else {
-            // Create new payment for this workshop and week
-            const { data: payment, error: paymentError } = await supabase
-              .from('payments')
-              .insert([{
-                workshop_id: workshopId,
-                paid_to: 'Travailleur',
-                reason: weekLabel,
-                amount: total as number,
-                payment_date: format(new Date(), 'yyyy-MM-dd'),
-                created_by: user?.id,
-                status: 'pending',
-              }])
-              .select()
-              .single();
-            
-            if (paymentError) throw paymentError;
-            paymentId = payment.id;
-          }
+          if (paymentError) throw paymentError;
+          const paymentId = payment.id;
           
           // Mark attendance entries as paid and link to payment
           const entryIds = (entries as any[]).map((a: any) => a.id);

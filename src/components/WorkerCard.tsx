@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, UserX, UserCheck, Trash2, ChevronRight, Wallet } from 'lucide-react';
+import { Edit, UserX, UserCheck, Trash2, ChevronRight, Wallet, Sparkles, MinusCircle } from 'lucide-react';
 
 interface Worker {
   id: string;
@@ -22,6 +22,8 @@ interface WorkerCardProps {
   onDelete: (e: React.MouseEvent) => void;
   workshopBreakdown?: { id: string; name: string; amount: number }[];
   selectedWorkshopId?: string | null;
+  weeklyBonus?: number;
+  weeklyDiscount?: number;
 }
 
 export default function WorkerCard({
@@ -35,6 +37,8 @@ export default function WorkerCard({
   onDelete,
   workshopBreakdown = [],
   selectedWorkshopId = null,
+  weeklyBonus = 0,
+  weeklyDiscount = 0,
 }: WorkerCardProps) {
   const { t } = useTranslation();
   const otherWorkshopBreakdown = selectedWorkshopId
@@ -72,9 +76,23 @@ export default function WorkerCard({
               <div className={`w-2 h-2 rounded-full shrink-0 ${worker.is_active ? 'bg-success' : 'bg-muted-foreground'}`} />
               <div className="min-w-0">
                 <span className="font-medium text-sm block truncate">{worker.name}</span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}
+                  </span>
+                  {weeklyBonus > 0 && (
+                    <Badge variant="secondary" className="text-[10px] gap-0.5 px-1 py-0 bg-success/15 text-success">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      +{weeklyBonus.toLocaleString('fr-FR')}
+                    </Badge>
+                  )}
+                  {weeklyDiscount > 0 && (
+                    <Badge variant="secondary" className="text-[10px] gap-0.5 px-1 py-0 bg-destructive/15 text-destructive">
+                      <MinusCircle className="w-2.5 h-2.5" />
+                      -{weeklyDiscount.toLocaleString('fr-FR')}
+                    </Badge>
+                  )}
+                </div>
               </div>
               {!worker.is_active && (
                 <Badge variant="secondary" className="text-[10px] shrink-0">
