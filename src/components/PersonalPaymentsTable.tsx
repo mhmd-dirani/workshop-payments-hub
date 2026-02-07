@@ -16,8 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Edit, Wallet, Plus } from 'lucide-react';
+import { Loader2, Trash2, Edit, Wallet, Plus, ChevronDown } from 'lucide-react';
 import PersonalPaymentForm from './PersonalPaymentForm';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -82,40 +83,38 @@ export default function PersonalPaymentsTable() {
 
   const totalSpent = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <>
       <Card className="shadow-card">
-        <CardHeader className="pb-3 px-3 md:px-6 pt-3 md:pt-6">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                <Wallet className="w-4 h-4 md:w-5 md:h-5" />
-                {t('personalPayments.title')}
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                {t('personalPayments.tableDescription')}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-[10px] md:text-xs text-muted-foreground">{t('common.total')}</p>
-                <p className="text-sm md:text-base font-bold font-mono text-destructive">
-                  -{totalSpent.toLocaleString('fr-FR')} CFA
-                </p>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Wallet className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
+                  <CardTitle className="text-sm md:text-base truncate">{t('personalPayments.title')}</CardTitle>
+                  <span className="text-xs md:text-sm font-bold font-mono text-destructive flex-shrink-0">
+                    -{totalSpent.toLocaleString('fr-FR')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); setIsFormOpen(true); }}
+                    className="gap-1 h-7 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
               </div>
-              <Button
-                size="sm"
-                onClick={() => setIsFormOpen(true)}
-                className="gap-1 h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {t('common.add')}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
+            </CollapsibleTrigger>
+          </CardHeader>
 
-        <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+          <CollapsibleContent>
+            <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -203,7 +202,9 @@ export default function PersonalPaymentsTable() {
               </table>
             </div>
           )}
-        </CardContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Form */}
