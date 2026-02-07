@@ -302,7 +302,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                         <Paperclip className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{payment.reason}</p>
+                    <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{payment.reason}</p>
                   </div>
                   <div className="text-right ml-2 flex-shrink-0">
                     <p className="font-mono font-bold text-sm text-destructive">
@@ -374,7 +374,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={payment.reason}>{payment.reason}</TableCell>
+                  <TableCell className="max-w-[300px] whitespace-pre-line break-words">{payment.reason}</TableCell>
                   <TableCell className="text-right font-mono font-medium text-destructive">
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>
