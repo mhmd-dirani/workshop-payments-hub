@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import {
@@ -10,12 +12,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { ArrowDownCircle } from 'lucide-react';
+import { ArrowDownCircle, ChevronDown } from 'lucide-react';
 
 export default function UserIncomeTable() {
+  const { t } = useTranslation();
   const { user, role } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: transfers, isLoading } = useQuery({
     queryKey: ['user-team-transfers', user?.id],
@@ -67,65 +72,82 @@ export default function UserIncomeTable() {
     return null;
   }
 
+  const totalReceived = transfers.reduce((sum, t) => sum + Number(t.amount), 0);
+
   return (
     <Card className="shadow-card border-success/20">
-      <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-        <CardTitle className="text-sm md:text-lg flex items-center gap-2 text-success">
-          <ArrowDownCircle className="w-4 h-4 md:w-5 md:h-5" />
-          Received from Admin
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-        {/* Mobile Card View */}
-        <div className="md:hidden space-y-2">
-          {transfers.map((transfer) => (
-            <div key={transfer.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5 border-success/20">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{transfer.admin_name}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{transfer.description || '-'}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {format(new Date(transfer.transfer_date), 'MMM d, yyyy')}
-                </p>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <ArrowDownCircle className="w-4 h-4 md:w-5 md:h-5 text-success flex-shrink-0" />
+                <CardTitle className="text-sm md:text-base text-success truncate">
+                  {t('userBalance.receivedFromAdmin')}
+                </CardTitle>
+                <span className="text-xs md:text-sm font-bold font-mono text-success flex-shrink-0">
+                  +{totalReceived.toLocaleString('fr-FR')}
+                </span>
               </div>
-              <span className="font-mono font-bold text-sm text-success flex-shrink-0">
-                +{Number(transfer.amount).toLocaleString('fr-FR')}
-              </span>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
-          ))}
-        </div>
+          </CollapsibleTrigger>
+        </CardHeader>
 
-        {/* Desktop Table View */}
-        <div className="hidden md:block rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-success/5">
-                <TableHead>Date</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <CollapsibleContent>
+          <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-2">
               {transfers.map((transfer) => (
-                <TableRow key={transfer.id} className="animate-fade-in">
-                  <TableCell className="font-mono text-sm">
-                    {format(new Date(transfer.transfer_date), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {transfer.admin_name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {transfer.description || '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-medium text-success">
-                    +{Number(transfer.amount).toLocaleString('fr-FR')} CFA
-                  </TableCell>
-                </TableRow>
+                <div key={transfer.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5 border-success/20">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{transfer.admin_name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{transfer.description || '-'}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(transfer.transfer_date), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  <span className="font-mono font-bold text-sm text-success flex-shrink-0">
+                    +{Number(transfer.amount).toLocaleString('fr-FR')}
+                  </span>
+                </div>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-success/5">
+                    <TableHead>{t('common.date')}</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>{t('common.description')}</TableHead>
+                    <TableHead className="text-right">{t('common.amount')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transfers.map((transfer) => (
+                    <TableRow key={transfer.id} className="animate-fade-in">
+                      <TableCell className="font-mono text-sm">
+                        {format(new Date(transfer.transfer_date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {transfer.admin_name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {transfer.description || '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-medium text-success">
+                        +{Number(transfer.amount).toLocaleString('fr-FR')} CFA
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
