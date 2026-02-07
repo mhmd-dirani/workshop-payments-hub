@@ -9,6 +9,7 @@ interface Worker {
   name: string;
   hourly_rate: number;
   is_active: boolean;
+  category?: string;
 }
 
 interface WorkerCardProps {
@@ -76,7 +77,12 @@ export default function WorkerCard({
               <div className={`w-2 h-2 rounded-full shrink-0 ${worker.is_active ? 'bg-success' : 'bg-muted-foreground'}`} />
               <div className="min-w-0">
                 <span className="font-medium text-sm block truncate">{worker.name}</span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {worker.category && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                      {t(`workers.categories.${worker.category}`)}
+                    </Badge>
+                  )}
                   <span className="text-xs text-muted-foreground font-mono">
                     {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}
                   </span>

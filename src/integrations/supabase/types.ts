@@ -434,6 +434,7 @@ export type Database = {
       }
       workers: {
         Row: {
+          category: string
           created_at: string
           created_by: string
           hourly_rate: number
@@ -443,6 +444,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string
           created_at?: string
           created_by: string
           hourly_rate?: number
@@ -452,6 +454,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string
           created_at?: string
           created_by?: string
           hourly_rate?: number

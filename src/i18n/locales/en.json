@@ -433,7 +433,14 @@
     "selected": "selected",
     "paySelectedWorkers": "Pay Selected Workers",
     "paySelectedDescription": "Create payment requests for {{count}} selected workers",
-    "workersIncluded": "Workers included"
+    "workersIncluded": "Workers included",
+    "category": "Category",
+    "categories": {
+      "coffreur": "Formwork Carpenter",
+      "ferrailleur": "Iron Worker",
+      "travailleur": "Worker",
+      "macon": "Builder"
+    }
   },
   "personalPayments": {
     "title": "Personal Payments",

@@ -8,6 +8,13 @@ import Layout from '@/components/Layout';
 import { getEffectivePay, buildWorkerPaymentReason } from '@/lib/worker-payment-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -42,7 +49,10 @@ interface Worker {
   hourly_rate: number;
   is_active: boolean;
   created_at: string;
+  category: string;
 }
+
+const WORKER_CATEGORIES = ['coffreur', 'ferrailleur', 'travailleur', 'macon'] as const;
 
 // Helper function to get week range (Monday to Saturday) for a given date
 function getWeekRange(date: Date): { weekLabel: string; monday: Date } {
@@ -78,7 +88,9 @@ export default function Workers() {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [workerName, setWorkerName] = useState('');
   const [workerRate, setWorkerRate] = useState('1000');
+  const [workerCategory, setWorkerCategory] = useState<string>('travailleur');
   const [showInactive, setShowInactive] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
   const [selectedWorkshopId, setSelectedWorkshopId] = useState<string | null>(null);
   const [isPaySelectedOpen, setIsPaySelectedOpen] = useState(false);
@@ -174,11 +186,15 @@ export default function Workers() {
   }, [allUnpaidAttendance, selectedWorkshopId]);
 
   const displayedWorkers = useMemo(() => {
-    if (!selectedWorkshopId || !workerIdsForSelectedWorkshop) {
-      return workers;
+    let result = workers;
+    if (selectedWorkshopId && workerIdsForSelectedWorkshop) {
+      result = result.filter((worker) => workerIdsForSelectedWorkshop.has(worker.id));
     }
-    return workers.filter((worker) => workerIdsForSelectedWorkshop.has(worker.id));
-  }, [workers, selectedWorkshopId, workerIdsForSelectedWorkshop]);
+    if (filterCategory) {
+      result = result.filter((worker) => worker.category === filterCategory);
+    }
+    return result;
+  }, [workers, selectedWorkshopId, workerIdsForSelectedWorkshop, filterCategory]);
 
   const getWorkerOwedAmount = (workerId: string) => {
     if (selectedWorkshopId) {
@@ -231,6 +247,7 @@ export default function Workers() {
       const { error } = await supabase.from('workers').insert([{
         name: name.trim(),
         hourly_rate,
+        category: workerCategory,
         created_by: user?.id,
       }]);
       if (error) throw error;
@@ -240,6 +257,7 @@ export default function Workers() {
       setIsAddOpen(false);
       setWorkerName('');
       setWorkerRate('1000');
+      setWorkerCategory('travailleur');
       toast({ title: t('workers.added'), description: t('workers.addedDesc') });
     },
     onError: (error: Error) => {
@@ -248,10 +266,10 @@ export default function Workers() {
   });
 
   const updateWorker = useMutation({
-    mutationFn: async ({ id, name, hourly_rate }: { id: string; name: string; hourly_rate: number }) => {
+    mutationFn: async ({ id, name, hourly_rate, category }: { id: string; name: string; hourly_rate: number; category: string }) => {
       const { error } = await supabase
         .from('workers')
-        .update({ name: name.trim(), hourly_rate })
+        .update({ name: name.trim(), hourly_rate, category })
         .eq('id', id);
       if (error) throw error;
     },
@@ -402,7 +420,7 @@ export default function Workers() {
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingWorker && workerName.trim() && workerRate) {
-      updateWorker.mutate({ id: editingWorker.id, name: workerName, hourly_rate: parseFloat(workerRate) });
+      updateWorker.mutate({ id: editingWorker.id, name: workerName, hourly_rate: parseFloat(workerRate), category: workerCategory });
     }
   };
 
@@ -411,6 +429,7 @@ export default function Workers() {
     setEditingWorker(worker);
     setWorkerName(worker.name);
     setWorkerRate(worker.hourly_rate.toString());
+    setWorkerCategory(worker.category || 'travailleur');
   };
 
   const toggleWorkerSelection = (workerId: string, isSelected: boolean) => {
@@ -509,6 +528,29 @@ export default function Workers() {
               </Button>
             </div>
           )}
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            variant={!filterCategory ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilterCategory(null)}
+            className="text-xs h-7 px-2"
+          >
+            {t('common.all')}
+          </Button>
+          {WORKER_CATEGORIES.map((cat) => (
+            <Button
+              key={cat}
+              variant={filterCategory === cat ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+              className="text-xs h-7 px-2"
+            >
+              {t(`workers.categories.${cat}`)}
+            </Button>
+          ))}
         </div>
 
         {/* Filters and Multi-Select Actions */}
@@ -650,6 +692,21 @@ export default function Workers() {
                   onChange={(e) => setWorkerRate(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>{t('workers.category')}</Label>
+                <Select value={workerCategory} onValueChange={setWorkerCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORKER_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {t(`workers.categories.${cat}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
                   {t('common.cancel')}
@@ -694,6 +751,21 @@ export default function Workers() {
                   value={workerRate}
                   onChange={(e) => setWorkerRate(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('workers.category')}</Label>
+                <Select value={workerCategory} onValueChange={setWorkerCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORKER_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {t(`workers.categories.${cat}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditingWorker(null)}>
