@@ -440,7 +440,20 @@
       "ferrailleur": "Iron Worker",
       "travailleur": "Worker",
       "macon": "Builder"
-    }
+    },
+    "payBonusOnly": "Pay Bonus",
+    "payBonusOnlyDesc": "Pay only the unpaid bonuses/discounts for {{name}}",
+    "payPartial": "Partial Pay",
+    "payPartialDesc": "Pay a custom amount from {{name}}'s owed salary",
+    "partialAmount": "Amount to Pay",
+    "partialAmountHint": "Enter the amount you want to pay (max: {{max}} CFA)",
+    "selectWorkshop": "Select Workshop",
+    "partialPaymentReason": "Partial salary payment",
+    "bonusPaymentCreated": "Bonus payment created",
+    "bonusPaymentCreatedDesc": "The bonus/discount payment is pending approval",
+    "partialPaymentCreated": "Partial payment created",
+    "partialPaymentCreatedDesc": "The partial salary payment is pending approval",
+    "noBonuses": "No unpaid bonuses or discounts"
   },
   "personalPayments": {
     "title": "Personal Payments",
