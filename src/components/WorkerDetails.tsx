@@ -56,6 +56,7 @@ interface Worker {
   name: string;
   hourly_rate: number;
   is_active: boolean;
+  category?: string;
 }
 
 interface WorkerDetailsProps {

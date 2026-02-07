@@ -432,7 +432,14 @@
     "selected": "sélectionné(s)",
     "paySelectedWorkers": "Payer les travailleurs sélectionnés",
     "paySelectedDescription": "Créer des demandes de paiement pour {{count}} travailleurs sélectionnés",
-    "workersIncluded": "Travailleurs inclus"
+    "workersIncluded": "Travailleurs inclus",
+    "category": "Catégorie",
+    "categories": {
+      "coffreur": "Coffreur",
+      "ferrailleur": "Ferrailleur",
+      "travailleur": "Travailleur",
+      "macon": "Maçon"
+    }
   },
   "personalPayments": {
     "title": "Paiements personnels",

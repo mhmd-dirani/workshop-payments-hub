@@ -432,7 +432,14 @@
     "selected": "محدد",
     "paySelectedWorkers": "دفع للعمال المحددين",
     "paySelectedDescription": "إنشاء طلبات دفع لـ {{count}} عمال محددين",
-    "workersIncluded": "العمال المشمولين"
+    "workersIncluded": "العمال المشمولين",
+    "category": "الفئة",
+    "categories": {
+      "coffreur": "نجار القوالب",
+      "ferrailleur": "حداد",
+      "travailleur": "عامل",
+      "macon": "بنّاء"
+    }
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",
