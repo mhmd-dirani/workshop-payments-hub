@@ -528,5 +528,27 @@
     "error": "Error",
     "somethingWentWrong": "Something went wrong",
     "tryAgain": "Please try again"
+  },
+  "adjustments": {
+    "title": "Bonuses & Discounts",
+    "tabLabel": "Bonus/Discount",
+    "tabLabelShort": "B/D",
+    "description": "Add bonuses or discounts to workers during the day",
+    "type": "Type",
+    "bonus": "Bonus",
+    "discount": "Discount",
+    "addAdjustment": "Add",
+    "editAdjustment": "Edit Adjustment",
+    "reasonPlaceholder": "Why this bonus/discount?",
+    "noAdjustments": "No bonuses or discounts for this date yet",
+    "added": "Adjustment added",
+    "addedDesc": "The bonus/discount has been recorded",
+    "updated": "Adjustment updated",
+    "updatedDesc": "The adjustment has been updated",
+    "deleted": "Adjustment deleted",
+    "deletedDesc": "The adjustment has been removed",
+    "paid": "Paid",
+    "bonusTotal": "Bonuses",
+    "discountTotal": "Discounts"
   }
 }

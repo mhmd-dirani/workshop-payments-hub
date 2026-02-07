@@ -432,6 +432,73 @@ export type Database = {
           },
         ]
       }
+      worker_adjustments: {
+        Row: {
+          adjustment_type: string
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          is_paid: boolean
+          payment_id: string | null
+          reason: string | null
+          updated_at: string
+          work_date: string
+          worker_id: string
+          workshop_id: string
+        }
+        Insert: {
+          adjustment_type: string
+          amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          is_paid?: boolean
+          payment_id?: string | null
+          reason?: string | null
+          updated_at?: string
+          work_date: string
+          worker_id: string
+          workshop_id: string
+        }
+        Update: {
+          adjustment_type?: string
+          amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_paid?: boolean
+          payment_id?: string | null
+          reason?: string | null
+          updated_at?: string
+          work_date?: string
+          worker_id?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_adjustments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_adjustments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_adjustments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           category: string

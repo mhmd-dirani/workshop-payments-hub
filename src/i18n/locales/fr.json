@@ -527,5 +527,27 @@
     "error": "Erreur",
     "somethingWentWrong": "Une erreur s'est produite",
     "tryAgain": "Veuillez réessayer"
+  },
+  "adjustments": {
+    "title": "Bonus & Réductions",
+    "tabLabel": "Bonus/Réduction",
+    "tabLabelShort": "B/R",
+    "description": "Ajouter des bonus ou réductions aux travailleurs pendant la journée",
+    "type": "Type",
+    "bonus": "Bonus",
+    "discount": "Réduction",
+    "addAdjustment": "Ajouter",
+    "editAdjustment": "Modifier l'ajustement",
+    "reasonPlaceholder": "Pourquoi ce bonus/réduction ?",
+    "noAdjustments": "Aucun bonus ou réduction pour cette date",
+    "added": "Ajustement ajouté",
+    "addedDesc": "Le bonus/réduction a été enregistré",
+    "updated": "Ajustement mis à jour",
+    "updatedDesc": "L'ajustement a été mis à jour",
+    "deleted": "Ajustement supprimé",
+    "deletedDesc": "L'ajustement a été supprimé",
+    "paid": "Payé",
+    "bonusTotal": "Bonus",
+    "discountTotal": "Réductions"
   }
 }

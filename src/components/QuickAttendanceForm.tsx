@@ -17,17 +17,10 @@ import { format } from 'date-fns';
 import { Loader2, Calendar, Building2, Users } from 'lucide-react';
 import WorkerAttendanceCard from './WorkerAttendanceCard';
 
-interface AttendanceData {
-  extraAmount: string;
-  extraReason: string;
-  discountAmount: string;
-  discountReason: string;
-}
-
 interface Worker {
   id: string;
   name: string;
-  hourly_rate: number; // This is now daily_rate in concept
+  hourly_rate: number;
 }
 
 export default function QuickAttendanceForm() {
@@ -39,7 +32,6 @@ export default function QuickAttendanceForm() {
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
   const [savedWorkers, setSavedWorkers] = useState<Set<string>>(new Set());
 
-  // Fetch active workers with their rates
   const { data: workers = [], isLoading: loadingWorkers } = useQuery({
     queryKey: ['workers-active'],
     queryFn: async () => {
@@ -53,7 +45,6 @@ export default function QuickAttendanceForm() {
     },
   });
 
-  // Fetch workshops
   const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
     queryKey: ['workshops'],
     queryFn: async () => {
@@ -66,7 +57,6 @@ export default function QuickAttendanceForm() {
     },
   });
 
-  // Fetch existing attendance for selected date/workshop
   const { data: existingAttendance = [] } = useQuery({
     queryKey: ['existing-attendance', selectedDate, selectedWorkshop],
     queryFn: async () => {
@@ -82,15 +72,13 @@ export default function QuickAttendanceForm() {
     enabled: !!selectedWorkshop,
   });
 
-  // Get set of workers who already have attendance for this date/workshop
   const attendedWorkerIds = new Set(existingAttendance.map(a => a.worker_id));
 
   const saveAttendance = useMutation({
-    mutationFn: async ({ workerId, data }: { workerId: string; data: AttendanceData }) => {
+    mutationFn: async (workerId: string) => {
       const worker = workers.find(w => w.id === workerId);
       if (!worker) throw new Error('Worker not found');
 
-      // Check if attendance already exists
       const { data: existing } = await supabase
         .from('attendance')
         .select('id')
@@ -99,38 +87,26 @@ export default function QuickAttendanceForm() {
         .eq('work_date', selectedDate)
         .single();
 
-      if (existing) {
-        // Already exists, just mark as saved
-        return;
-      }
+      if (existing) return;
 
-      const extraAmount = Number(data.extraAmount) || 0;
-      const discountAmount = Number(data.discountAmount) || 0;
-      const hasExtra = extraAmount > 0;
-
-      // Insert new with hours_worked = 1 (1 day)
       const { error } = await supabase
         .from('attendance')
         .insert([{
           worker_id: workerId,
           workshop_id: selectedWorkshop,
           work_date: selectedDate,
-          hours_worked: 1, // 1 day attendance
-          hourly_rate: worker.hourly_rate, // This is daily rate
-          has_extra: hasExtra,
-          extra_amount: extraAmount,
-          extra_reason: data.extraReason || null,
-          discount_amount: discountAmount,
-          discount_reason: data.discountReason || null,
+          hours_worked: 1,
+          hourly_rate: worker.hourly_rate,
+          has_extra: false,
+          extra_amount: 0,
           created_by: user?.id,
         }]);
       if (error) throw error;
     },
-    onSuccess: (_, { workerId }) => {
+    onSuccess: (_, workerId) => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
       setSavedWorkers(prev => new Set([...prev, workerId]));
-      // Clear the saved indicator after 2 seconds
       setTimeout(() => {
         setSavedWorkers(prev => {
           const next = new Set(prev);
@@ -163,11 +139,11 @@ export default function QuickAttendanceForm() {
     },
   });
 
-  const handleToggleAttendance = (workerId: string, data: AttendanceData) => {
+  const handleToggleAttendance = (workerId: string) => {
     if (attendedWorkerIds.has(workerId)) {
       removeAttendance.mutate(workerId);
     } else {
-      saveAttendance.mutate({ workerId, data });
+      saveAttendance.mutate(workerId);
     }
   };
 
@@ -196,7 +172,6 @@ export default function QuickAttendanceForm() {
       </CardHeader>
 
       <CardContent className="px-3 md:px-6 pb-3 md:pb-6 space-y-4">
-        {/* Date and Workshop Selection */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-medium flex items-center gap-1.5">
@@ -218,7 +193,6 @@ export default function QuickAttendanceForm() {
             <Select value={selectedWorkshop} onValueChange={setSelectedWorkshop}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
-                
               </SelectTrigger>
               <SelectContent>
                 {workshops.map((w) => (
@@ -238,7 +212,6 @@ export default function QuickAttendanceForm() {
             {t('workers.noWorkers')}
           </p>
         ) : (
-          /* Workers List */
           <div className="space-y-2">
             {workers.map((worker) => {
               const isAttended = attendedWorkerIds.has(worker.id);

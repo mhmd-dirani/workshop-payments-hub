@@ -109,26 +109,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { data: unpaidAttendance = [], isLoading: loadingUnpaid } = useQuery({
     queryKey: ['worker-unpaid-attendance', worker.id, worker.name],
     queryFn: async () => {
-      // Get direct attendance for this worker
       const { data: directAttendance, error: directError } = await supabase
         .from('attendance')
-        .select(`
-          *,
-          workshops:workshop_id(id, name)
-        `)
+        .select(`*, workshops:workshop_id(id, name)`)
         .eq('worker_id', worker.id)
         .eq('is_paid', false)
         .order('work_date', { ascending: false });
       if (directError) throw directError;
 
-      // Get overtime attendance where worker name appears in description
       const { data: overtimeAttendance, error: overtimeError } = await supabase
         .from('attendance')
-        .select(`
-          *,
-          workshops:workshop_id(id, name)
-        `)
-        .neq('worker_id', worker.id) // Exclude direct (already fetched)
+        .select(`*, workshops:workshop_id(id, name)`)
+        .neq('worker_id', worker.id)
         .eq('is_paid', false)
         .ilike('description', `%${worker.name}%`)
         .order('work_date', { ascending: false });
@@ -138,33 +130,38 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  // Fetch unpaid adjustments for this worker
+  const { data: unpaidAdjustments = [] } = useQuery({
+    queryKey: ['worker-unpaid-adjustments', worker.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('worker_adjustments')
+        .select('*, workshops:workshop_id(id, name)')
+        .eq('worker_id', worker.id)
+        .eq('is_paid', false)
+        .order('work_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch paid/archived attendance (direct + overtime where name appears in description)
   const { data: paidAttendance = [], isLoading: loadingPaid } = useQuery({
     queryKey: ['worker-paid-attendance', worker.id, worker.name],
     queryFn: async () => {
-      // Get direct paid attendance for this worker
       const { data: directAttendance, error: directError } = await supabase
         .from('attendance')
-        .select(`
-          *,
-          workshops:workshop_id(id, name),
-          payments:payment_id(id, status, payment_date, reason)
-        `)
+        .select(`*, workshops:workshop_id(id, name), payments:payment_id(id, status, payment_date, reason)`)
         .eq('worker_id', worker.id)
         .eq('is_paid', true)
         .order('work_date', { ascending: false })
         .limit(50);
       if (directError) throw directError;
 
-      // Get overtime paid attendance where worker name appears in description
       const { data: overtimeAttendance, error: overtimeError } = await supabase
         .from('attendance')
-        .select(`
-          *,
-          workshops:workshop_id(id, name),
-          payments:payment_id(id, status, payment_date, reason)
-        `)
-        .neq('worker_id', worker.id) // Exclude direct (already fetched)
+        .select(`*, workshops:workshop_id(id, name), payments:payment_id(id, status, payment_date, reason)`)
+        .neq('worker_id', worker.id)
         .eq('is_paid', true)
         .ilike('description', `%${worker.name}%`)
         .order('work_date', { ascending: false })
@@ -190,11 +187,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
 
 
-  // Calculate total owed
-  const totalOwed = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
+  // Calculate total owed (attendance + adjustments)
+  const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
+  const bonusTotal = unpaidAdjustments
+    .filter(a => a.adjustment_type === 'bonus')
+    .reduce((sum, a) => sum + Number(a.amount), 0);
+  const discountTotal = unpaidAdjustments
+    .filter(a => a.adjustment_type === 'discount')
+    .reduce((sum, a) => sum + Number(a.amount), 0);
+  const totalOwed = attendanceTotal + bonusTotal - discountTotal;
   const totalDays = unpaidAttendance.length;
 
-  // Group unpaid by workshop for display
+  // Group unpaid by workshop for display (attendance + adjustments)
   const unpaidByWorkshop = unpaidAttendance.reduce((acc, entry) => {
     const workshopId = entry.workshop_id;
     const workshopName = (entry.workshops as any)?.name || 'Unknown';
@@ -205,6 +209,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     acc[workshopId].entries.push(entry);
     return acc;
   }, {} as Record<string, { name: string; total: number; entries: any[] }>);
+  
+  // Add adjustments to workshop totals
+  unpaidAdjustments.forEach((adj) => {
+    const workshopId = adj.workshop_id;
+    const workshopName = (adj.workshops as any)?.name || 'Unknown';
+    if (!unpaidByWorkshop[workshopId]) {
+      unpaidByWorkshop[workshopId] = { name: workshopName, total: 0, entries: [] };
+    }
+    if (adj.adjustment_type === 'bonus') {
+      unpaidByWorkshop[workshopId].total += Number(adj.amount);
+    } else {
+      unpaidByWorkshop[workshopId].total -= Number(adj.amount);
+    }
+  });
 
   // Update attendance mutation
   const updateAttendance = useMutation({
@@ -293,7 +311,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   });
 
   // Create payment mutation - pays ALL unpaid work across ALL workshops
-  // Groups payments by workshop AND by work week, using "Travailleur" as paid_to
   const createPayment = useMutation({
     mutationFn: async () => {
       const results: any[] = [];
@@ -304,9 +321,15 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       // First, group all unpaid attendance by work week
       const byWeek = groupByWorkWeek(unpaidAttendance);
       
+      // Group adjustments by workshop
+      const adjByWorkshop: Record<string, any[]> = {};
+      unpaidAdjustments.forEach((adj) => {
+        if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
+        adjByWorkshop[adj.workshop_id].push(adj);
+      });
+      
       // Process each week separately
       for (const [weekLabel, weekEntries] of Object.entries(byWeek)) {
-        // Group this week's entries by workshop
         const byWorkshop = (weekEntries as any[]).reduce((acc, entry) => {
           const workshopId = entry.workshop_id;
           if (!acc[workshopId]) {
@@ -317,21 +340,25 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           return acc;
         }, {} as Record<string, { entries: any[]; total: number }>);
         
-        // Process each workshop for this week
         for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
           const { entries, total } = workshopData;
           
-          // Build reason with worker names and days
-          const reason = buildWorkerPaymentReason(entries, workerNames);
+          // Get adjustments for this workshop
+          const workshopAdj = adjByWorkshop[workshopId] || [];
+          const adjBonuses = workshopAdj.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
+          const adjDiscounts = workshopAdj.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
+          const finalTotal = total + adjBonuses - adjDiscounts;
           
-          // Create new payment for this workshop and week
+          // Build reason with worker names, days, and adjustments
+          const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+          
           const { data: payment, error: paymentError } = await supabase
             .from('payments')
             .insert([{
               workshop_id: workshopId,
               paid_to: 'Travailleur',
               reason,
-              amount: total as number,
+              amount: Math.max(finalTotal, 0),
               payment_date: format(new Date(), 'yyyy-MM-dd'),
               created_by: user?.id,
               status: 'pending',
@@ -342,20 +369,66 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           if (paymentError) throw paymentError;
           const paymentId = payment.id;
           
-          // Mark attendance entries as paid and link to payment
+          // Mark attendance entries as paid
           const entryIds = (entries as any[]).map((a: any) => a.id);
-          
           if (entryIds.length > 0) {
             const { error: updateError } = await supabase
               .from('attendance')
               .update({ is_paid: true, payment_id: paymentId })
               .in('id', entryIds);
-            
             if (updateError) throw updateError;
           }
           
-          results.push({ workshopId, weekLabel, paymentId, amount: total });
+          // Mark adjustments as paid
+          const adjIds = workshopAdj.map((a: any) => a.id);
+          if (adjIds.length > 0) {
+            const { error: adjError } = await supabase
+              .from('worker_adjustments')
+              .update({ is_paid: true, payment_id: paymentId })
+              .in('id', adjIds);
+            if (adjError) throw adjError;
+          }
+          
+          // Remove from adjByWorkshop so we don't double-count
+          delete adjByWorkshop[workshopId];
+          
+          results.push({ workshopId, weekLabel, paymentId, amount: finalTotal });
         }
+      }
+      
+      // Handle adjustments for workshops with no attendance entries
+      for (const [workshopId, adjs] of Object.entries(adjByWorkshop)) {
+        const adjBonuses = adjs.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
+        const adjDiscounts = adjs.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
+        const adjTotal = adjBonuses - adjDiscounts;
+        if (adjTotal === 0) continue;
+        
+        const reason = buildWorkerPaymentReason([], workerNames, adjs);
+        
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: workshopId,
+            paid_to: 'Travailleur',
+            reason,
+            amount: Math.max(adjTotal, 0),
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: 'pending',
+          }])
+          .select()
+          .single();
+        if (paymentError) throw paymentError;
+        
+        const adjIds = adjs.map((a: any) => a.id);
+        if (adjIds.length > 0) {
+          await supabase
+            .from('worker_adjustments')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', adjIds);
+        }
+        
+        results.push({ workshopId, paymentId: payment.id, amount: adjTotal });
       }
       
       return results;
@@ -363,6 +436,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setIsPayOpen(false);
       toast({ 

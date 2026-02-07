@@ -119,10 +119,20 @@ export default function Workers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('attendance')
-        .select(`
-          *,
-          workshops:workshop_id(id, name)
-        `)
+        .select(`*, workshops:workshop_id(id, name)`)
+        .eq('is_paid', false);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch all unpaid adjustments
+  const { data: allUnpaidAdjustments = [] } = useQuery({
+    queryKey: ['all-worker-adjustments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('worker_adjustments')
+        .select('*')
         .eq('is_paid', false);
       if (error) throw error;
       return data || [];
@@ -155,24 +165,28 @@ export default function Workers() {
       if (!breakdown[workerId]) {
         breakdown[workerId] = {};
       }
-
       if (!breakdown[workerId][workshopId]) {
         breakdown[workerId][workshopId] = { amount: 0, name: workshopName };
       }
-
       breakdown[workerId][workshopId].amount += amount;
+    });
+    
+    // Include adjustments in totals
+    allUnpaidAdjustments.forEach((adj) => {
+      const workerId = adj.worker_id;
+      const adjAmount = Number(adj.amount);
       
-      // Track weekly bonuses/discounts
-      const workDate = new Date(entry.work_date);
-      if (workDate >= monday && workDate <= saturday) {
-        const extra = Number(entry.extra_amount) || 0;
-        const discount = Number(entry.discount_amount) || 0;
-        if (extra > 0) bonuses[workerId] = (bonuses[workerId] || 0) + extra;
-        if (discount > 0) discounts[workerId] = (discounts[workerId] || 0) + discount;
+      if (adj.adjustment_type === 'bonus') {
+        totals[workerId] = (totals[workerId] || 0) + adjAmount;
+        bonuses[workerId] = (bonuses[workerId] || 0) + adjAmount;
+      } else {
+        totals[workerId] = (totals[workerId] || 0) - adjAmount;
+        discounts[workerId] = (discounts[workerId] || 0) + adjAmount;
       }
     });
+    
     return { owedTotalsByWorker: totals, owedBreakdownByWorker: breakdown, weeklyBonusByWorker: bonuses, weeklyDiscountByWorker: discounts };
-  }, [allUnpaidAttendance, t]);
+  }, [allUnpaidAttendance, allUnpaidAdjustments, t]);
 
   const workerIdsForSelectedWorkshop = useMemo(() => {
     if (!selectedWorkshopId) return null;
@@ -333,21 +347,23 @@ export default function Workers() {
   const paySelectedWorkers = useMutation({
     mutationFn: async () => {
       const results: any[] = [];
-      
-      // Build worker name map
       const workerNames: Record<string, string> = {};
       workers.forEach((w) => { workerNames[w.id] = w.name; });
       
-      // Group selected workers' attendance by work week
+      // Get adjustments for selected workers
+      const selectedAdj = allUnpaidAdjustments.filter(a => selectedWorkerIds.has(a.worker_id) && (!selectedWorkshopId || a.workshop_id === selectedWorkshopId));
+      const adjByWorkshop: Record<string, any[]> = {};
+      selectedAdj.forEach(a => {
+        if (!adjByWorkshop[a.workshop_id]) adjByWorkshop[a.workshop_id] = [];
+        adjByWorkshop[a.workshop_id].push(a);
+      });
+      
       const byWeek = groupByWorkWeek(selectedWorkersAttendance);
       
       for (const [weekLabel, weekEntries] of Object.entries(byWeek)) {
-        // Group this week's entries by workshop
         const byWorkshop = (weekEntries as any[]).reduce((acc, entry) => {
           const workshopId = entry.workshop_id;
-          if (!acc[workshopId]) {
-            acc[workshopId] = { entries: [], total: 0 };
-          }
+          if (!acc[workshopId]) acc[workshopId] = { entries: [], total: 0 };
           acc[workshopId].entries.push(entry);
           acc[workshopId].total += getEffectivePay(entry);
           return acc;
@@ -355,9 +371,12 @@ export default function Workers() {
         
         for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
           const { entries, total } = workshopData;
+          const wAdj = adjByWorkshop[workshopId] || [];
+          const adjB = wAdj.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
+          const adjD = wAdj.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
+          const finalTotal = total + adjB - adjD;
           
-          // Build reason with worker names and days
-          const reason = buildWorkerPaymentReason(entries, workerNames);
+          const reason = buildWorkerPaymentReason(entries, workerNames, wAdj);
           
           const { data: payment, error: paymentError } = await supabase
             .from('payments')
@@ -365,39 +384,36 @@ export default function Workers() {
               workshop_id: workshopId,
               paid_to: 'Travailleur',
               reason,
-              amount: total,
+              amount: Math.max(finalTotal, 0),
               payment_date: format(new Date(), 'yyyy-MM-dd'),
               created_by: user?.id,
               status: 'pending',
             }])
             .select()
             .single();
-          
           if (paymentError) throw paymentError;
-          const paymentId = payment.id;
           
           const entryIds = entries.map((a: any) => a.id);
-          
           if (entryIds.length > 0) {
-            const { error: updateError } = await supabase
-              .from('attendance')
-              .update({ is_paid: true, payment_id: paymentId })
-              .in('id', entryIds);
-            
-            if (updateError) throw updateError;
+            await supabase.from('attendance').update({ is_paid: true, payment_id: payment.id }).in('id', entryIds);
           }
-          
-          results.push({ workshopId, weekLabel, paymentId, amount: total });
+          const adjIds = wAdj.map((a: any) => a.id);
+          if (adjIds.length > 0) {
+            await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: payment.id }).in('id', adjIds);
+          }
+          delete adjByWorkshop[workshopId];
+          results.push({ workshopId, weekLabel, paymentId: payment.id, amount: finalTotal });
         }
       }
-      
       return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       setSelectedWorkerIds(new Set());
       setIsPaySelectedOpen(false);
       toast({ 

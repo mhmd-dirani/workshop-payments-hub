@@ -527,5 +527,27 @@
     "error": "خطأ",
     "somethingWentWrong": "حدث خطأ ما",
     "tryAgain": "يرجى المحاولة مرة أخرى"
+  },
+  "adjustments": {
+    "title": "المكافآت والخصومات",
+    "tabLabel": "مكافأة/خصم",
+    "tabLabelShort": "م/خ",
+    "description": "إضافة مكافآت أو خصومات للعمال خلال اليوم",
+    "type": "النوع",
+    "bonus": "مكافأة",
+    "discount": "خصم",
+    "addAdjustment": "إضافة",
+    "editAdjustment": "تعديل",
+    "reasonPlaceholder": "لماذا هذه المكافأة/الخصم؟",
+    "noAdjustments": "لا توجد مكافآت أو خصومات لهذا التاريخ",
+    "added": "تمت إضافة التعديل",
+    "addedDesc": "تم تسجيل المكافأة/الخصم",
+    "updated": "تم تحديث التعديل",
+    "updatedDesc": "تم تحديث التعديل",
+    "deleted": "تم حذف التعديل",
+    "deletedDesc": "تم إزالة التعديل",
+    "paid": "مدفوع",
+    "bonusTotal": "المكافآت",
+    "discountTotal": "الخصومات"
   }
 }
