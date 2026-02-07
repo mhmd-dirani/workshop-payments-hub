@@ -5,6 +5,7 @@ import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
+import { getEffectivePay, buildWorkerPaymentReason } from '@/lib/worker-payment-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,17 +117,26 @@ export default function Workers() {
     },
   });
 
-  // Calculate owed amounts per worker
-  const { owedTotalsByWorker, owedBreakdownByWorker } = useMemo(() => {
+  // Calculate owed amounts and weekly bonus/discount totals per worker
+  const { owedTotalsByWorker, owedBreakdownByWorker, weeklyBonusByWorker, weeklyDiscountByWorker } = useMemo(() => {
     const totals: Record<string, number> = {};
     const breakdown: Record<string, Record<string, { amount: number; name: string }>> = {};
+    const bonuses: Record<string, number> = {};
+    const discounts: Record<string, number> = {};
+    
+    // Get current week boundaries
+    const now = new Date();
+    const monday = startOfWeek(now, { weekStartsOn: 1 });
+    const saturday = new Date(monday);
+    saturday.setDate(monday.getDate() + 6);
+    
     allUnpaidAttendance.forEach((entry) => {
       const workerId = entry.worker_id;
       const workshopId = entry.workshop_id;
       const workshopName =
         (entry.workshops as any)?.name ||
         t('workers.unknownWorkshop', { defaultValue: 'Unknown workshop' });
-      const amount = Number(entry.daily_salary);
+      const amount = getEffectivePay(entry);
 
       totals[workerId] = (totals[workerId] || 0) + amount;
 
@@ -139,8 +149,17 @@ export default function Workers() {
       }
 
       breakdown[workerId][workshopId].amount += amount;
+      
+      // Track weekly bonuses/discounts
+      const workDate = new Date(entry.work_date);
+      if (workDate >= monday && workDate <= saturday) {
+        const extra = Number(entry.extra_amount) || 0;
+        const discount = Number(entry.discount_amount) || 0;
+        if (extra > 0) bonuses[workerId] = (bonuses[workerId] || 0) + extra;
+        if (discount > 0) discounts[workerId] = (discounts[workerId] || 0) + discount;
+      }
     });
-    return { owedTotalsByWorker: totals, owedBreakdownByWorker: breakdown };
+    return { owedTotalsByWorker: totals, owedBreakdownByWorker: breakdown, weeklyBonusByWorker: bonuses, weeklyDiscountByWorker: discounts };
   }, [allUnpaidAttendance, t]);
 
   const workerIdsForSelectedWorkshop = useMemo(() => {
@@ -179,7 +198,7 @@ export default function Workers() {
 
   // Total owed for the current selection/filter scope
   const selectedTotalOwed = useMemo(() => {
-    return selectedWorkersAttendance.reduce((total, entry) => total + Number(entry.daily_salary), 0);
+    return selectedWorkersAttendance.reduce((total, entry) => total + getEffectivePay(entry), 0);
   }, [selectedWorkersAttendance]);
 
   // Group selected workers' attendance by workshop for summary display
@@ -193,7 +212,7 @@ export default function Workers() {
       if (!result[workshopId]) {
         result[workshopId] = { name: workshopName, total: 0 };
       }
-      result[workshopId].total += Number(entry.daily_salary);
+      result[workshopId].total += getEffectivePay(entry);
     });
     return result;
   }, [selectedWorkersAttendance, t]);
@@ -297,6 +316,10 @@ export default function Workers() {
     mutationFn: async () => {
       const results: any[] = [];
       
+      // Build worker name map
+      const workerNames: Record<string, string> = {};
+      workers.forEach((w) => { workerNames[w.id] = w.name; });
+      
       // Group selected workers' attendance by work week
       const byWeek = groupByWorkWeek(selectedWorkersAttendance);
       
@@ -308,50 +331,32 @@ export default function Workers() {
             acc[workshopId] = { entries: [], total: 0 };
           }
           acc[workshopId].entries.push(entry);
-          acc[workshopId].total += Number(entry.daily_salary);
+          acc[workshopId].total += getEffectivePay(entry);
           return acc;
         }, {} as Record<string, { entries: any[]; total: number }>);
         
         for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
           const { entries, total } = workshopData;
           
-          const { data: existingPayment } = await supabase
+          // Build reason with worker names and days
+          const reason = buildWorkerPaymentReason(entries, workerNames);
+          
+          const { data: payment, error: paymentError } = await supabase
             .from('payments')
-            .select('*')
-            .eq('workshop_id', workshopId)
-            .eq('paid_to', 'Travailleur')
-            .eq('reason', weekLabel)
+            .insert([{
+              workshop_id: workshopId,
+              paid_to: 'Travailleur',
+              reason,
+              amount: total,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+              created_by: user?.id,
+              status: 'pending',
+            }])
+            .select()
             .single();
           
-          let paymentId: string;
-          
-          if (existingPayment) {
-            const newAmount = Number(existingPayment.amount) + total;
-            const { error: updateError } = await supabase
-              .from('payments')
-              .update({ amount: newAmount })
-              .eq('id', existingPayment.id);
-            
-            if (updateError) throw updateError;
-            paymentId = existingPayment.id;
-          } else {
-            const { data: payment, error: paymentError } = await supabase
-              .from('payments')
-              .insert([{
-                workshop_id: workshopId,
-                paid_to: 'Travailleur',
-                reason: weekLabel,
-                amount: total,
-                payment_date: format(new Date(), 'yyyy-MM-dd'),
-                created_by: user?.id,
-                status: 'pending',
-              }])
-              .select()
-              .single();
-            
-            if (paymentError) throw paymentError;
-            paymentId = payment.id;
-          }
+          if (paymentError) throw paymentError;
+          const paymentId = payment.id;
           
           const entryIds = entries.map((a: any) => a.id);
           
@@ -608,6 +613,8 @@ export default function Workers() {
                       })
                     )}
                     selectedWorkshopId={selectedWorkshopId}
+                    weeklyBonus={weeklyBonusByWorker[worker.id] || 0}
+                    weeklyDiscount={weeklyDiscountByWorker[worker.id] || 0}
                   />
                 ))}
               </div>
