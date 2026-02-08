@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -175,6 +175,35 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       return [...(directAttendance || []), ...(overtimeAttendance || [])];
     },
   });
+
+  // Fetch paid adjustments for this worker
+  const { data: paidAdjustments = [] } = useQuery({
+    queryKey: ['worker-paid-adjustments', worker.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('worker_adjustments')
+        .select('*, workshops:workshop_id(id, name)')
+        .eq('worker_id', worker.id)
+        .eq('is_paid', true)
+        .order('work_date', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Group paid adjustments by payment_id for quick lookup
+  const paidAdjByPaymentId = useMemo(() => {
+    const map: Record<string, typeof paidAdjustments> = {};
+    paidAdjustments.forEach((adj) => {
+      const pid = adj.payment_id;
+      if (pid) {
+        if (!map[pid]) map[pid] = [];
+        map[pid].push(adj);
+      }
+    });
+    return map;
+  }, [paidAdjustments]);
 
   // Fetch workshops
   const { data: workshops = [] } = useQuery({
@@ -440,6 +469,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setIsPayOpen(false);
@@ -509,6 +539,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setIsPayBonusOpen(false);
@@ -573,6 +604,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setIsPayPartialOpen(false);
@@ -848,6 +880,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     const hasDiscount = discountAmount > 0;
                     const extraReason = entry.extra_reason?.trim();
                     const discountReason = entry.discount_reason?.trim();
+                    // Get paid adjustments linked to the same payment
+                    const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
+                    // Only show adjustments once (on the first attendance entry with this payment_id)
+                    const isFirstForPayment = entry.payment_id ? paidAttendance.findIndex(e => e.payment_id === entry.payment_id) === paidAttendance.indexOf(entry) : false;
+                    const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
                     return (
                       <div key={entry.id} className="p-3 border-b last:border-0">
                         <div className="flex items-center justify-between gap-2">
@@ -893,6 +930,22 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 )}
                               </div>
                             )}
+                            {/* Show linked paid adjustments (bonus/discount) */}
+                            {showLinkedAdj && linkedAdj.map((adj) => (
+                              <div key={adj.id} className="flex items-center gap-1 mt-1">
+                                {adj.adjustment_type === 'bonus' ? (
+                                  <Sparkles className="w-3 h-3 text-success flex-shrink-0" />
+                                ) : (
+                                  <MinusCircle className="w-3 h-3 text-destructive flex-shrink-0" />
+                                )}
+                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
+                                  {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
+                                </span>
+                                {adj.reason && (
+                                  <span className="text-[10px] text-muted-foreground truncate">({adj.reason})</span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="text-right">
@@ -950,6 +1003,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         const extraReason = entry.extra_reason?.trim();
                         const discountReason = entry.discount_reason?.trim();
                         const description = entry.description?.trim();
+                        const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
+                        const isFirstForPayment = entry.payment_id ? paidAttendance.findIndex(e => e.payment_id === entry.payment_id) === paidAttendance.indexOf(entry) : false;
+                        const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
                         return (
                           <TableRow key={entry.id}>
                             <TableCell className="font-mono">
@@ -1009,6 +1065,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                       {discountReason}
                                     </p>
                                   )}
+                                </div>
+                              )}
+                              {showLinkedAdj && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {linkedAdj.map((adj) => (
+                                    <Badge key={adj.id} variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1">
+                                      {adj.adjustment_type === 'bonus' ? <Sparkles className="w-3 h-3" /> : <MinusCircle className="w-3 h-3" />}
+                                      {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
+                                      {adj.reason && <span className="text-[10px] opacity-70">({adj.reason})</span>}
+                                    </Badge>
+                                  ))}
                                 </div>
                               )}
                             </TableCell>
