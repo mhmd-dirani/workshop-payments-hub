@@ -111,11 +111,24 @@ export default function WorkerCard({
           {/* Owed amount */}
           {worker.is_active && (
             <div className="mt-2 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Wallet className={`w-3.5 h-3.5 ${owedAmount > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
-                <span className={`text-sm font-mono font-medium ${owedAmount > 0 ? 'text-warning' : 'text-muted-foreground'}`}>
-                  {owedAmount.toLocaleString('fr-FR')} CFA
-                </span>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Wallet className={`w-3.5 h-3.5 ${owedAmount > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
+                  <span className={`text-sm font-mono font-medium ${owedAmount > 0 ? 'text-warning' : 'text-muted-foreground'}`}>
+                    {owedAmount.toLocaleString('fr-FR')} CFA
+                  </span>
+                </div>
+                {(weeklyBonus > 0 || weeklyDiscount > 0) && (
+                  <p className="text-[10px] text-muted-foreground font-mono ml-5">
+                    {t('workers.includesAdjustments', { defaultValue: 'Includes' })}
+                    {weeklyBonus > 0 && (
+                      <span className="text-success"> +{weeklyBonus.toLocaleString('fr-FR')} {t('workers.bonus', { defaultValue: 'bonus' })}</span>
+                    )}
+                    {weeklyDiscount > 0 && (
+                      <span className="text-destructive"> -{weeklyDiscount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'disc.' })}</span>
+                    )}
+                  </p>
+                )}
               </div>
               
               <div className="flex items-center gap-1">

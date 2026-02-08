@@ -452,7 +452,9 @@
     "bonusPaymentCreatedDesc": "دفعة المكافآت/الخصومات في انتظار الموافقة",
     "partialPaymentCreated": "تم إنشاء الدفعة الجزئية",
     "partialPaymentCreatedDesc": "الدفعة الجزئية في انتظار الموافقة",
-    "noBonuses": "لا توجد مكافآت أو خصومات غير مدفوعة"
+    "noBonuses": "لا توجد مكافآت أو خصومات غير مدفوعة",
+    "includesAdjustments": "يشمل",
+    "bonus": "مكافأة"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

@@ -452,7 +452,9 @@
     "bonusPaymentCreatedDesc": "Le paiement des bonus/réductions est en attente d'approbation",
     "partialPaymentCreated": "Paiement partiel créé",
     "partialPaymentCreatedDesc": "Le paiement partiel du salaire est en attente d'approbation",
-    "noBonuses": "Aucun bonus ou réduction impayé"
+    "noBonuses": "Aucun bonus ou réduction impayé",
+    "includesAdjustments": "Inclut",
+    "bonus": "bonus"
   },
   "personalPayments": {
     "title": "Paiements personnels",

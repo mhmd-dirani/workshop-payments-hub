@@ -453,7 +453,9 @@
     "bonusPaymentCreatedDesc": "The bonus/discount payment is pending approval",
     "partialPaymentCreated": "Partial payment created",
     "partialPaymentCreatedDesc": "The partial salary payment is pending approval",
-    "noBonuses": "No unpaid bonuses or discounts"
+    "noBonuses": "No unpaid bonuses or discounts",
+    "includesAdjustments": "Includes",
+    "bonus": "bonus"
   },
   "personalPayments": {
     "title": "Personal Payments",
