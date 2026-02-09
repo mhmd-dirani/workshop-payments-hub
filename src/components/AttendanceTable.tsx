@@ -47,8 +47,8 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   const isSpecificDate = timeFilter === 'date';
   const weekOffset = (isAllTime || isSpecificDate) ? 0 : parseInt(timeFilter);
   const currentDate = subWeeks(new Date(), weekOffset);
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 6 }); // Saturday
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 6 });
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
 
   // Fetch workers for filter
   const { data: workers = [] } = useQuery({
