@@ -432,60 +432,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             .single();
           
           if (paymentError) throw paymentError;
-          const paymentId = payment.id;
-          
-          // Mark attendance entries as paid
-          const entryIds = (entries as any[]).map((a: any) => a.id);
-          if (entryIds.length > 0) {
-            const { error: updateError } = await supabase
-              .from('attendance')
-              .update({ is_paid: true, payment_id: paymentId })
-              .in('id', entryIds);
-            if (updateError) throw updateError;
-          }
-          
-          // Mark adjustments as paid
-          const adjIds = workshopAdj.map((a: any) => a.id);
-          if (adjIds.length > 0) {
-            const { error: adjError } = await supabase
-              .from('worker_adjustments')
-              .update({ is_paid: true, payment_id: paymentId })
-              .in('id', adjIds);
-            if (adjError) throw adjError;
-          }
-          
-          // Remove from adjByWorkshop so we don't double-count
-          delete adjByWorkshop[workshopId];
-          
-          results.push({ workshopId, weekLabel, paymentId, amount: finalTotal });
-        }
-      }
-      
-      // Handle adjustments for workshops with no attendance entries
-      for (const [workshopId, adjs] of Object.entries(adjByWorkshop)) {
-        const adjBonuses = adjs.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
-        const adjDiscounts = adjs.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
-        const adjTotal = adjBonuses - adjDiscounts;
-        if (adjTotal === 0) continue;
-        
-        const reason = buildWorkerPaymentReason([], workerNames, adjs);
-        
-        const { data: payment, error: paymentError } = await supabase
-          .from('payments')
-          .insert([{
-            workshop_id: workshopId,
-            paid_to: 'Travailleur',
-            reason,
-            amount: Math.max(adjTotal, 0),
-            payment_date: format(new Date(), 'yyyy-MM-dd'),
-            created_by: user?.id,
-            status: 'pending',
-          }])
-          .select()
-          .single();
-        if (paymentError) throw paymentError;
-        
-        const adjIds = adjs.map((a: any) => a.id);
         if (adjIds.length > 0) {
           await supabase
             .from('worker_adjustments')
@@ -585,14 +531,81 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  const applyPartialAttendanceSplit = async (
+    split: { entry: any; paidPortion: number; remainingPortion: number },
+    paymentId: string
+  ) => {
+    const { entry, paidPortion, remainingPortion } = split;
+    const totalPay = paidPortion + remainingPortion;
+    if (totalPay <= 0) return;
+
+    const formatAmount = (value: number) => value.toLocaleString('fr-FR');
+    const partialAppliedLabel = t('workers.partialPaymentAppliedNote', { amount: formatAmount(paidPortion) });
+    const partialRemainingLabel = t('workers.partialPaymentRemainingNote');
+
+    const extraAmount = Number(entry.extra_amount) || 0;
+    const discountAmount = Number(entry.discount_amount) || 0;
+
+    const paidExtra = Math.min(extraAmount, Math.round((extraAmount * paidPortion) / totalPay));
+    const remainingExtra = extraAmount - paidExtra;
+    const paidDiscount = Math.min(discountAmount, Math.round((discountAmount * paidPortion) / totalPay));
+    const remainingDiscount = discountAmount - paidDiscount;
+
+    const paidDescription = entry.description
+      ? `${entry.description} • ${partialAppliedLabel}`
+      : partialAppliedLabel;
+    const remainingDescription = entry.description
+      ? `${entry.description} • ${partialRemainingLabel}`
+      : partialRemainingLabel;
+
+    const { error: updateError } = await supabase
+      .from('attendance')
+      .update({
+        daily_salary: paidPortion,
+        is_paid: true,
+        payment_id: paymentId,
+        has_extra: paidExtra > 0,
+        extra_amount: paidExtra > 0 ? paidExtra : 0,
+        extra_reason: paidExtra > 0 ? entry.extra_reason : null,
+        discount_amount: paidDiscount > 0 ? paidDiscount : 0,
+        discount_reason: paidDiscount > 0 ? entry.discount_reason : null,
+        description: paidDescription,
+      })
+      .eq('id', entry.id);
+    if (updateError) throw updateError;
+
+    const leftoverPayload = {
+      worker_id: entry.worker_id,
+      workshop_id: entry.workshop_id,
+      work_date: entry.work_date,
+      hours_worked: entry.hours_worked,
+      hourly_rate: entry.hourly_rate,
+      daily_salary: remainingPortion,
+      has_extra: remainingExtra > 0,
+      extra_amount: remainingExtra > 0 ? remainingExtra : 0,
+      extra_reason: remainingExtra > 0 ? entry.extra_reason : null,
+      discount_amount: remainingDiscount > 0 ? remainingDiscount : 0,
+      discount_reason: remainingDiscount > 0 ? entry.discount_reason : null,
+      description: remainingDescription,
+      created_by: entry.created_by,
+      is_paid: false,
+      payment_id: null,
+    };
+
+    const { error: insertError } = await supabase
+      .from('attendance')
+      .insert([leftoverPayload]);
+    if (insertError) throw insertError;
+  };
+
   // Pay partial salary mutation
   const payPartial = useMutation({
     mutationFn: async () => {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
-      
+
       const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
-      
+
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .insert([{
@@ -607,30 +620,53 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .select()
         .single();
       if (paymentError) throw paymentError;
-      
-      // Mark attendance entries as paid starting from oldest, up to the amount
+
       let remaining = amount;
       const workshopAttendance = unpaidAttendance
         .filter(a => a.workshop_id === partialWorkshopId)
         .sort((a, b) => new Date(a.work_date).getTime() - new Date(b.work_date).getTime());
-      
-      const idsToMark: string[] = [];
+
+      if (workshopAttendance.length === 0) {
+        throw new Error(t('workers.partialPaymentNoAttendance'));
+      }
+
+      const fullyCoveredIds: string[] = [];
+      const partialSplits: Array<{ entry: any; paidPortion: number; remainingPortion: number }> = [];
+
       for (const entry of workshopAttendance) {
         if (remaining <= 0) break;
-        const pay = getEffectivePay(entry);
-        if (pay <= remaining) {
-          idsToMark.push(entry.id);
-          remaining -= pay;
+        const totalPay = getEffectivePay(entry);
+        if (totalPay <= 0) continue;
+
+        if (remaining >= totalPay) {
+          fullyCoveredIds.push(entry.id);
+          remaining -= totalPay;
+        } else {
+          partialSplits.push({
+            entry,
+            paidPortion: remaining,
+            remainingPortion: totalPay - remaining,
+          });
+          remaining = 0;
         }
       }
-      
-      if (idsToMark.length > 0) {
-        await supabase
+
+      if (fullyCoveredIds.length > 0) {
+        const { error: markError } = await supabase
           .from('attendance')
           .update({ is_paid: true, payment_id: payment.id })
-          .in('id', idsToMark);
+          .in('id', fullyCoveredIds);
+        if (markError) throw markError;
       }
-      
+
+      for (const split of partialSplits) {
+        await applyPartialAttendanceSplit(split, payment.id);
+      }
+
+      if (remaining > 0.01) {
+        throw new Error(t('workers.partialPaymentAllocationMismatch'));
+      }
+
       return payment;
     },
     onSuccess: () => {
@@ -671,6 +707,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       updateAttendance.mutate(editingAttendance);
     }
   };
+
 
   return (
     <div className="space-y-4">

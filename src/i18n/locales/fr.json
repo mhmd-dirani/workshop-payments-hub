@@ -452,6 +452,10 @@
     "bonusPaymentCreatedDesc": "Le paiement des bonus/réductions est en attente d'approbation",
     "partialPaymentCreated": "Paiement partiel créé",
     "partialPaymentCreatedDesc": "Le paiement partiel du salaire est en attente d'approbation",
+    "partialPaymentAppliedNote": "Paiement partiel appliqué ({{amount}} CFA)",
+    "partialPaymentRemainingNote": "Solde restant après paiement partiel",
+    "partialPaymentNoAttendance": "Aucune présence impayée trouvée pour cet atelier.",
+    "partialPaymentAllocationMismatch": "Impossible d'affecter le paiement partiel aux enregistrements de présence.",
     "noBonuses": "Aucun bonus ou réduction impayé",
     "includesAdjustments": "Inclut",
     "bonus": "bonus"

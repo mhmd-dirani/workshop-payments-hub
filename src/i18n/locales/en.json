@@ -453,6 +453,10 @@
     "bonusPaymentCreatedDesc": "The bonus/discount payment is pending approval",
     "partialPaymentCreated": "Partial payment created",
     "partialPaymentCreatedDesc": "The partial salary payment is pending approval",
+    "partialPaymentAppliedNote": "Partial payment applied ({{amount}} CFA)",
+    "partialPaymentRemainingNote": "Remaining balance after partial payment",
+    "partialPaymentNoAttendance": "No unpaid attendance found for this workshop.",
+    "partialPaymentAllocationMismatch": "Partial payment could not be allocated to attendance records.",
     "noBonuses": "No unpaid bonuses or discounts",
     "includesAdjustments": "Includes",
     "bonus": "bonus"

@@ -452,6 +452,10 @@
     "bonusPaymentCreatedDesc": "دفعة المكافآت/الخصومات في انتظار الموافقة",
     "partialPaymentCreated": "تم إنشاء الدفعة الجزئية",
     "partialPaymentCreatedDesc": "الدفعة الجزئية في انتظار الموافقة",
+    "partialPaymentAppliedNote": "تم تطبيق دفعة جزئية ({{amount}} CFA)",
+    "partialPaymentRemainingNote": "الرصيد المتبقي بعد الدفعة الجزئية",
+    "partialPaymentNoAttendance": "لا توجد سجلات حضور غير مدفوعة لهذه الورشة.",
+    "partialPaymentAllocationMismatch": "تعذر ربط الدفعة الجزئية بسجلات الحضور.",
     "noBonuses": "لا توجد مكافآت أو خصومات غير مدفوعة",
     "includesAdjustments": "يشمل",
     "bonus": "مكافأة"
