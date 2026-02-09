@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -34,7 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -48,8 +50,10 @@ import {
   Trash2,
   Sparkles,
   Clock,
-  MinusCircle
+  MinusCircle,
+  X
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Worker {
   id: string;
@@ -71,17 +75,17 @@ interface EditingAttendance {
   workshop_id: string;
 }
 
-// Helper function to get week range (Monday to Saturday) for a given date
-function getWeekRange(date: Date): { weekLabel: string; monday: Date } {
-  // Get the Monday of the week (week starts on Monday)
-  const monday = startOfWeek(date, { weekStartsOn: 1 });
-  // Saturday is 5 days after Monday
-  const saturday = new Date(monday);
-  saturday.setDate(monday.getDate() + 5);
+// Helper function to get week range (Sunday to Saturday) for a given date
+function getWeekRange(date: Date): { weekLabel: string; sunday: Date } {
+  // Get the Sunday of the week (week starts on Sunday)
+  const sunday = startOfWeek(date, { weekStartsOn: 0 });
+  // Saturday is 6 days after Sunday
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
   
-  const weekLabel = `${format(monday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
+  const weekLabel = `${format(sunday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
   
-  return { weekLabel, monday };
+  return { weekLabel, sunday };
 }
 
 // Group attendance entries by the week they were worked
@@ -108,8 +112,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [partialAmount, setPartialAmount] = useState('');
   const [partialWorkshopId, setPartialWorkshopId] = useState<string>('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
+  
+  // History filters
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('0'); // '0'=this week, '1'=last week, 'all', 'date'
+  const [historyWorkshopFilter, setHistoryWorkshopFilter] = useState('all');
+  const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
 
-  // Fetch unpaid attendance for this worker (direct + overtime where name appears in description)
   const { data: unpaidAttendance = [], isLoading: loadingUnpaid } = useQuery({
     queryKey: ['worker-unpaid-attendance', worker.id, worker.name],
     queryFn: async () => {
@@ -158,8 +166,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .select(`*, workshops:workshop_id(id, name), payments:payment_id(id, status, payment_date, reason)`)
         .eq('worker_id', worker.id)
         .eq('is_paid', true)
-        .order('work_date', { ascending: false })
-        .limit(50);
+        .order('work_date', { ascending: false });
       if (directError) throw directError;
 
       const { data: overtimeAttendance, error: overtimeError } = await supabase
@@ -168,8 +175,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .neq('worker_id', worker.id)
         .eq('is_paid', true)
         .ilike('description', `%${worker.name}%`)
-        .order('work_date', { ascending: false })
-        .limit(50);
+        .order('work_date', { ascending: false });
       if (overtimeError) throw overtimeError;
 
       return [...(directAttendance || []), ...(overtimeAttendance || [])];
@@ -185,8 +191,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .select('*, workshops:workshop_id(id, name)')
         .eq('worker_id', worker.id)
         .eq('is_paid', true)
-        .order('work_date', { ascending: false })
-        .limit(50);
+        .order('work_date', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -205,7 +210,34 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     return map;
   }, [paidAdjustments]);
 
-  // Fetch workshops
+  // Filter paid attendance based on history filters
+  const filteredPaidAttendance = useMemo(() => {
+    let filtered = paidAttendance;
+    
+    // Workshop filter
+    if (historyWorkshopFilter !== 'all') {
+      filtered = filtered.filter(e => e.workshop_id === historyWorkshopFilter);
+    }
+    
+    // Date filter
+    if (historyTimeFilter === 'date' && historySelectedDate) {
+      const dateStr = format(historySelectedDate, 'yyyy-MM-dd');
+      filtered = filtered.filter(e => e.work_date === dateStr);
+    } else if (historyTimeFilter !== 'all') {
+      const weekOffset = parseInt(historyTimeFilter);
+      if (!isNaN(weekOffset)) {
+        const refDate = subWeeks(new Date(), weekOffset);
+        const wStart = startOfWeek(refDate, { weekStartsOn: 0 });
+        const wEnd = endOfWeek(refDate, { weekStartsOn: 0 });
+        const startStr = format(wStart, 'yyyy-MM-dd');
+        const endStr = format(wEnd, 'yyyy-MM-dd');
+        filtered = filtered.filter(e => e.work_date >= startStr && e.work_date <= endStr);
+      }
+    }
+    
+    return filtered;
+  }, [paidAttendance, historyTimeFilter, historyWorkshopFilter, historySelectedDate]);
+
   const { data: workshops = [] } = useQuery({
     queryKey: ['workshops'],
     queryFn: async () => {
@@ -862,139 +894,85 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : paidAttendance.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <p>{t('workers.noPaymentHistory')}</p>
-              </CardContent>
-            </Card>
           ) : (
-            <Card className="shadow-card">
-              <CardContent className="p-0">
-                <div className="md:hidden">
-                  {paidAttendance.map((entry) => {
-                    const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
-                    const extraAmount = Number(entry.extra_amount) || 0;
-                    const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                    const discountAmount = Number(entry.discount_amount) || 0;
-                    const hasDiscount = discountAmount > 0;
-                    const extraReason = entry.extra_reason?.trim();
-                    const discountReason = entry.discount_reason?.trim();
-                    // Get paid adjustments linked to the same payment
-                    const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                    // Only show adjustments once (on the first attendance entry with this payment_id)
-                    const isFirstForPayment = entry.payment_id ? paidAttendance.findIndex(e => e.payment_id === entry.payment_id) === paidAttendance.indexOf(entry) : false;
-                    const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
-                    return (
-                      <div key={entry.id} className="p-3 border-b last:border-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-mono text-xs">
-                              {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
-                            </p>
-                            <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
-                              <span className="truncate">{(entry.workshops as any)?.name}</span>
-                            </Badge>
-                            {entry.description && (
-                              <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-                                {entry.description}
-                              </p>
-                            )}
-                            {hasExtra && !isOvertime && (
-                              <div className="flex flex-col gap-0.5 mt-1">
-                                <div className="flex items-center gap-1">
-                                  <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
-                                  <span className="text-[10px] text-warning">
-                                    +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                  </span>
-                                </div>
-                                {extraReason && (
-                                  <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                    {extraReason}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {hasDiscount && (
-                              <div className="flex flex-col gap-0.5 mt-1">
-                                <div className="flex items-center gap-1">
-                                  <MinusCircle className="w-3 h-3 text-destructive" />
-                                  <span className="text-[10px] text-destructive">
-                                    -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                  </span>
-                                </div>
-                                {discountReason && (
-                                  <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                    {discountReason}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {/* Show linked paid adjustments (bonus/discount) */}
-                            {showLinkedAdj && linkedAdj.map((adj) => (
-                              <div key={adj.id} className="flex items-center gap-1 mt-1">
-                                {adj.adjustment_type === 'bonus' ? (
-                                  <Sparkles className="w-3 h-3 text-success flex-shrink-0" />
-                                ) : (
-                                  <MinusCircle className="w-3 h-3 text-destructive flex-shrink-0" />
-                                )}
-                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
-                                  {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                </span>
-                                {adj.reason && (
-                                  <span className="text-[10px] text-muted-foreground truncate">({adj.reason})</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="text-right">
-                              <p className="font-mono font-medium text-muted-foreground">
-                                {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                              </p>
-                              {isOvertime && (
-                                <Badge variant="secondary" className="text-[10px] mt-1 gap-1">
-                                  <Clock className="w-2.5 h-2.5" />
-                                  {t('attendance.overtimeShort')}
-                                </Badge>
-                              )}
-                              {!isOvertime && (
-                                <Badge 
-                                  variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                                  className="text-[10px] mt-1"
-                                >
-                                  {(entry.payments as any)?.status || 'paid'}
-                                </Badge>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deletePaidAttendance.mutate(entry)}
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="hidden md:block">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('common.date')}</TableHead>
-                        <TableHead>{t('common.workshop')}</TableHead>
-                        <TableHead>{t('attendance.dailySalary')}</TableHead>
-                        <TableHead>{t('common.description')}</TableHead>
-                        <TableHead>{t('common.status')}</TableHead>
-                        <TableHead className="text-right">{t('common.actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paidAttendance.map((entry) => {
+            <div className="space-y-3">
+              {/* History Filters */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <Select value={historyTimeFilter} onValueChange={(v) => {
+                  setHistoryTimeFilter(v);
+                  if (v !== 'date') setHistorySelectedDate(undefined);
+                }}>
+                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
+                    <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
+                    <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
+                    <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
+                    <SelectItem value="date">{t('attendance.specificDate')}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {historyTimeFilter === 'date' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "h-8 text-xs justify-start text-left font-normal",
+                          !historySelectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-1.5 h-3 w-3" />
+                        {historySelectedDate ? format(historySelectedDate, 'dd/MM/yyyy') : t('attendance.pickDate')}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={historySelectedDate}
+                        onSelect={setHistorySelectedDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                {historySelectedDate && historyTimeFilter === 'date' && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setHistorySelectedDate(undefined)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+
+                <Select value={historyWorkshopFilter} onValueChange={setHistoryWorkshopFilter}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                    <SelectValue placeholder={t('attendance.allWorkshops')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('attendance.allWorkshops')}</SelectItem>
+                    {workshops.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredPaidAttendance.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <p>{t('workers.noPaymentHistory')}</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="shadow-card">
+                  <CardContent className="p-0">
+                    <div className="md:hidden">
+                      {filteredPaidAttendance.map((entry) => {
                         const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
                         const extraAmount = Number(entry.extra_amount) || 0;
                         const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
@@ -1002,108 +980,229 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         const hasDiscount = discountAmount > 0;
                         const extraReason = entry.extra_reason?.trim();
                         const discountReason = entry.discount_reason?.trim();
-                        const description = entry.description?.trim();
                         const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                        const isFirstForPayment = entry.payment_id ? paidAttendance.findIndex(e => e.payment_id === entry.payment_id) === paidAttendance.indexOf(entry) : false;
+                        const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
                         const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
                         return (
-                          <TableRow key={entry.id}>
-                            <TableCell className="font-mono">
-                              {format(new Date(entry.work_date), 'MMM d, yyyy')}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
-                            </TableCell>
-                            <TableCell className="font-mono">
-                              {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                            </TableCell>
-                            <TableCell className="max-w-[200px]">
-                              {isOvertime ? (
-                                <div className="flex items-center gap-1">
-                                  <Badge variant="secondary" className="gap-1 flex-shrink-0">
-                                    <Clock className="w-3 h-3" />
-                                    {t('attendance.overtimeShort')}
-                                  </Badge>
-                                  {description && (
-                                    <span className="text-xs text-muted-foreground truncate" title={description}>
-                                      {description}
+                          <div key={entry.id} className="p-3 border-b last:border-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-mono text-xs">
+                                  {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
+                                </p>
+                                <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
+                                  <span className="truncate">{(entry.workshops as any)?.name}</span>
+                                </Badge>
+                                {entry.description && (
+                                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
+                                    {entry.description}
+                                  </p>
+                                )}
+                                {hasExtra && !isOvertime && (
+                                  <div className="flex flex-col gap-0.5 mt-1">
+                                    <div className="flex items-center gap-1">
+                                      <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
+                                      <span className="text-[10px] text-warning">
+                                        +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+                                      </span>
+                                    </div>
+                                    {extraReason && (
+                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                        {extraReason}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {hasDiscount && (
+                                  <div className="flex flex-col gap-0.5 mt-1">
+                                    <div className="flex items-center gap-1">
+                                      <MinusCircle className="w-3 h-3 text-destructive" />
+                                      <span className="text-[10px] text-destructive">
+                                        -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+                                      </span>
+                                    </div>
+                                    {discountReason && (
+                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                        {discountReason}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {showLinkedAdj && linkedAdj.map((adj) => (
+                                  <div key={adj.id} className="flex items-center gap-1 mt-1">
+                                    {adj.adjustment_type === 'bonus' ? (
+                                      <Sparkles className="w-3 h-3 text-success flex-shrink-0" />
+                                    ) : (
+                                      <MinusCircle className="w-3 h-3 text-destructive flex-shrink-0" />
+                                    )}
+                                    <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
+                                      {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
                                     </span>
+                                    {adj.reason && (
+                                      <span className="text-[10px] text-muted-foreground truncate">({adj.reason})</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="text-right">
+                                  <p className="font-mono font-medium text-muted-foreground">
+                                    {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                                  </p>
+                                  {isOvertime && (
+                                    <Badge variant="secondary" className="text-[10px] mt-1 gap-1">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      {t('attendance.overtimeShort')}
+                                    </Badge>
+                                  )}
+                                  {!isOvertime && (
+                                    <Badge 
+                                      variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
+                                      className="text-[10px] mt-1"
+                                    >
+                                      {(entry.payments as any)?.status || 'paid'}
+                                    </Badge>
                                   )}
                                 </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  {hasExtra || hasDiscount ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {hasExtra && (
-                                        <Badge variant="secondary" className="gap-1">
-                                          <Sparkles className="w-3 h-3" />
-                                          +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                        </Badge>
-                                      )}
-                                      {hasDiscount && (
-                                        <Badge variant="destructive" className="gap-1">
-                                          <MinusCircle className="w-3 h-3" />
-                                          -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                        </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deletePaidAttendance.mutate(entry)}
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="hidden md:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t('common.date')}</TableHead>
+                            <TableHead>{t('common.workshop')}</TableHead>
+                            <TableHead>{t('attendance.dailySalary')}</TableHead>
+                            <TableHead>{t('common.description')}</TableHead>
+                            <TableHead>{t('common.status')}</TableHead>
+                            <TableHead className="text-right">{t('common.actions')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredPaidAttendance.map((entry) => {
+                            const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                            const extraAmount = Number(entry.extra_amount) || 0;
+                            const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+                            const discountAmount = Number(entry.discount_amount) || 0;
+                            const hasDiscount = discountAmount > 0;
+                            const extraReason = entry.extra_reason?.trim();
+                            const discountReason = entry.discount_reason?.trim();
+                            const description = entry.description?.trim();
+                            const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
+                            const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
+                            const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
+                            return (
+                              <TableRow key={entry.id}>
+                                <TableCell className="font-mono">
+                                  {format(new Date(entry.work_date), 'MMM d, yyyy')}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
+                                </TableCell>
+                                <TableCell className="font-mono">
+                                  {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
+                                </TableCell>
+                                <TableCell className="max-w-[200px]">
+                                  {isOvertime ? (
+                                    <div className="flex items-center gap-1">
+                                      <Badge variant="secondary" className="gap-1 flex-shrink-0">
+                                        <Clock className="w-3 h-3" />
+                                        {t('attendance.overtimeShort')}
+                                      </Badge>
+                                      {description && (
+                                        <span className="text-xs text-muted-foreground truncate" title={description}>
+                                          {description}
+                                        </span>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-muted-foreground">-</span>
+                                    <div className="space-y-1">
+                                      {hasExtra || hasDiscount ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {hasExtra && (
+                                            <Badge variant="secondary" className="gap-1">
+                                              <Sparkles className="w-3 h-3" />
+                                              +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+                                            </Badge>
+                                          )}
+                                          {hasDiscount && (
+                                            <Badge variant="destructive" className="gap-1">
+                                              <MinusCircle className="w-3 h-3" />
+                                              -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                      {description && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2" title={description}>
+                                          {description}
+                                        </p>
+                                      )}
+                                      {extraReason && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                          {extraReason}
+                                        </p>
+                                      )}
+                                      {discountReason && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                          {discountReason}
+                                        </p>
+                                      )}
+                                    </div>
                                   )}
-                                  {description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2" title={description}>
-                                      {description}
-                                    </p>
+                                  {showLinkedAdj && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {linkedAdj.map((adj) => (
+                                        <Badge key={adj.id} variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1">
+                                          {adj.adjustment_type === 'bonus' ? <Sparkles className="w-3 h-3" /> : <MinusCircle className="w-3 h-3" />}
+                                          {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
+                                          {adj.reason && <span className="text-[10px] opacity-70">({adj.reason})</span>}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   )}
-                                  {extraReason && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {extraReason}
-                                    </p>
-                                  )}
-                                  {discountReason && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {discountReason}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              {showLinkedAdj && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {linkedAdj.map((adj) => (
-                                    <Badge key={adj.id} variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1">
-                                      {adj.adjustment_type === 'bonus' ? <Sparkles className="w-3 h-3" /> : <MinusCircle className="w-3 h-3" />}
-                                      {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                      {adj.reason && <span className="text-[10px] opacity-70">({adj.reason})</span>}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                              >
-                                {(entry.payments as any)?.status || 'paid'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deletePaidAttendance.mutate(entry)}
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
+                                  >
+                                    {(entry.payments as any)?.status || 'paid'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => deletePaidAttendance.mutate(entry)}
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </TabsContent>
       </Tabs>

@@ -54,13 +54,13 @@ interface Worker {
 
 const WORKER_CATEGORIES = ['coffreur', 'ferrailleur', 'travailleur', 'macon'] as const;
 
-// Helper function to get week range (Monday to Saturday) for a given date
-function getWeekRange(date: Date): { weekLabel: string; monday: Date } {
-  const monday = startOfWeek(date, { weekStartsOn: 1 });
-  const saturday = new Date(monday);
-  saturday.setDate(monday.getDate() + 5);
-  const weekLabel = `${format(monday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
-  return { weekLabel, monday };
+// Helper function to get week range (Sunday to Saturday) for a given date
+function getWeekRange(date: Date): { weekLabel: string; sunday: Date } {
+  const sunday = startOfWeek(date, { weekStartsOn: 0 });
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  const weekLabel = `${format(sunday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
+  return { weekLabel, sunday };
 }
 
 // Group attendance entries by the week they were worked
@@ -146,11 +146,11 @@ export default function Workers() {
     const bonuses: Record<string, number> = {};
     const discounts: Record<string, number> = {};
     
-    // Get current week boundaries
+    // Get current week boundaries (Sunday to Saturday)
     const now = new Date();
-    const monday = startOfWeek(now, { weekStartsOn: 1 });
-    const saturday = new Date(monday);
-    saturday.setDate(monday.getDate() + 6);
+    const sunday = startOfWeek(now, { weekStartsOn: 0 });
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
     
     allUnpaidAttendance.forEach((entry) => {
       const workerId = entry.worker_id;
