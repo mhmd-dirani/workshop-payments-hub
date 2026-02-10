@@ -617,36 +617,26 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      // Fetch fresh attendance data from DB to avoid stale client cache issues
+      const { data: freshAttendance, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('worker_id', worker.id)
+        .eq('workshop_id', partialWorkshopId)
+        .eq('is_paid', false)
+        .order('work_date', { ascending: true });
+      if (fetchError) throw fetchError;
 
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          workshop_id: partialWorkshopId,
-          paid_to: 'Travailleur',
-          reason,
-          amount,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          created_by: user?.id,
-          status: 'pending',
-        }])
-        .select()
-        .single();
-      if (paymentError) throw paymentError;
-
-      let remaining = amount;
-      const workshopAttendance = unpaidAttendance
-        .filter(a => a.workshop_id === partialWorkshopId)
-        .sort((a, b) => new Date(a.work_date).getTime() - new Date(b.work_date).getTime());
-
-      if (workshopAttendance.length === 0) {
+      if (!freshAttendance || freshAttendance.length === 0) {
         throw new Error(t('workers.partialPaymentNoAttendance'));
       }
 
+      // Calculate FIFO splits BEFORE creating the payment
+      let remaining = amount;
       const fullyCoveredIds: string[] = [];
       const partialSplits: Array<{ entry: any; paidPortion: number; remainingPortion: number }> = [];
 
-      for (const entry of workshopAttendance) {
+      for (const entry of freshAttendance) {
         if (remaining <= 0) break;
         const totalPay = getEffectivePay(entry);
         if (totalPay <= 0) continue;
@@ -664,20 +654,40 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         }
       }
 
-      if (fullyCoveredIds.length > 0) {
-        const { error: markError } = await supabase
-          .from('attendance')
-          .update({ is_paid: true, payment_id: payment.id })
-          .in('id', fullyCoveredIds);
-        if (markError) throw markError;
-      }
+      const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
 
-      for (const split of partialSplits) {
-        await applyPartialAttendanceSplit(split, payment.id);
-      }
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          workshop_id: partialWorkshopId,
+          paid_to: categoryLabel,
+          reason,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          created_by: user?.id,
+          status: 'pending',
+        }])
+        .select()
+        .single();
+      if (paymentError) throw paymentError;
 
-      if (remaining > 0.01) {
-        throw new Error(t('workers.partialPaymentAllocationMismatch'));
+      try {
+        if (fullyCoveredIds.length > 0) {
+          const { error: markError } = await supabase
+            .from('attendance')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', fullyCoveredIds);
+          if (markError) throw markError;
+        }
+
+        for (const split of partialSplits) {
+          await applyPartialAttendanceSplit(split, payment.id);
+        }
+      } catch (attendanceError) {
+        // Rollback: delete the payment if attendance updates fail
+        await supabase.from('payments').delete().eq('id', payment.id);
+        throw attendanceError;
       }
 
       return payment;
