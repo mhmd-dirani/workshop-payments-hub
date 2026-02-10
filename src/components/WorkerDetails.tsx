@@ -432,14 +432,27 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             .single();
           
           if (paymentError) throw paymentError;
-        if (adjIds.length > 0) {
-          await supabase
-            .from('worker_adjustments')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', adjIds);
+
+          // Mark attendance as paid
+          const entryIds = entries.map((e: any) => e.id);
+          if (entryIds.length > 0) {
+            await supabase
+              .from('attendance')
+              .update({ is_paid: true, payment_id: payment.id })
+              .in('id', entryIds);
+          }
+
+          // Mark adjustments as paid
+          const workshopAdjIds = workshopAdj.map((a: any) => a.id);
+          if (workshopAdjIds.length > 0) {
+            await supabase
+              .from('worker_adjustments')
+              .update({ is_paid: true, payment_id: payment.id })
+              .in('id', workshopAdjIds);
+          }
+          
+          results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
         }
-        
-        results.push({ workshopId, paymentId: payment.id, amount: adjTotal });
       }
       
       return results;
