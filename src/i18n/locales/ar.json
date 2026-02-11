@@ -458,7 +458,14 @@
     "partialPaymentAllocationMismatch": "تعذر ربط الدفعة الجزئية بسجلات الحضور.",
     "noBonuses": "لا توجد مكافآت أو خصومات غير مدفوعة",
     "includesAdjustments": "يشمل",
-    "bonus": "مكافأة"
+    "bonus": "مكافأة",
+    "payFullSalary": "دفع الراتب الكامل",
+    "payAdvance": "دفعة مقدمة",
+    "payAdvanceDesc": "دفع أكثر من المستحق، مما يخلق رصيداً سالباً",
+    "advancePaymentReason": "دفعة مقدمة",
+    "advancePaymentNote": "دفعة مقدمة (+{{amount}} CFA)",
+    "advancePaymentCreated": "تم إنشاء الدفعة المقدمة",
+    "advancePaymentCreatedDesc": "الدفعة المقدمة في انتظار الموافقة"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

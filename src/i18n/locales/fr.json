@@ -458,7 +458,14 @@
     "partialPaymentAllocationMismatch": "Impossible d'affecter le paiement partiel aux enregistrements de présence.",
     "noBonuses": "Aucun bonus ou réduction impayé",
     "includesAdjustments": "Inclut",
-    "bonus": "bonus"
+    "bonus": "bonus",
+    "payFullSalary": "Payer le salaire complet",
+    "payAdvance": "Paiement d'avance",
+    "payAdvanceDesc": "Payer plus que le montant dû, créant un solde négatif",
+    "advancePaymentReason": "Paiement d'avance",
+    "advancePaymentNote": "Paiement d'avance (+{{amount}} CFA)",
+    "advancePaymentCreated": "Paiement d'avance créé",
+    "advancePaymentCreatedDesc": "Le paiement d'avance est en attente d'approbation"
   },
   "personalPayments": {
     "title": "Paiements personnels",
