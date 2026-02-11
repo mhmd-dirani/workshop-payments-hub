@@ -459,7 +459,14 @@
     "partialPaymentAllocationMismatch": "Partial payment could not be allocated to attendance records.",
     "noBonuses": "No unpaid bonuses or discounts",
     "includesAdjustments": "Includes",
-    "bonus": "bonus"
+    "bonus": "bonus",
+    "payFullSalary": "Pay Full Salary",
+    "payAdvance": "Advance Payment",
+    "payAdvanceDesc": "Pay more than owed, creating a negative balance",
+    "advancePaymentReason": "Advance payment",
+    "advancePaymentNote": "Advance payment (+{{amount}} CFA)",
+    "advancePaymentCreated": "Advance payment created",
+    "advancePaymentCreatedDesc": "The advance payment is pending approval"
   },
   "personalPayments": {
     "title": "Personal Payments",

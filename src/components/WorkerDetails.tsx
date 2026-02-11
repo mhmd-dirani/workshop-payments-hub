@@ -51,7 +51,9 @@ import {
   Sparkles,
   Clock,
   MinusCircle,
-  X
+  X,
+  CreditCard,
+  ArrowUpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -77,14 +79,10 @@ interface EditingAttendance {
 
 // Helper function to get week range (Sunday to Saturday) for a given date
 function getWeekRange(date: Date): { weekLabel: string; sunday: Date } {
-  // Get the Sunday of the week (week starts on Sunday)
   const sunday = startOfWeek(date, { weekStartsOn: 0 });
-  // Saturday is 6 days after Sunday
   const saturday = new Date(sunday);
   saturday.setDate(sunday.getDate() + 6);
-  
   const weekLabel = `${format(sunday, 'dd/MM')} - ${format(saturday, 'dd/MM')}`;
-  
   return { weekLabel, sunday };
 }
 
@@ -106,15 +104,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isPayOpen, setIsPayOpen] = useState(false);
-  const [isPayBonusOpen, setIsPayBonusOpen] = useState(false);
-  const [isPayPartialOpen, setIsPayPartialOpen] = useState(false);
+  
+  // Pay dialog states
+  const [isPayChoiceOpen, setIsPayChoiceOpen] = useState(false);
+  const [payMode, setPayMode] = useState<'full' | 'partial' | 'advance' | null>(null);
   const [partialAmount, setPartialAmount] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
   const [partialWorkshopId, setPartialWorkshopId] = useState<string>('');
+  const [advanceWorkshopId, setAdvanceWorkshopId] = useState<string>('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   
-  // History filters
-  const [historyTimeFilter, setHistoryTimeFilter] = useState('0'); // '0'=this week, '1'=last week, 'all', 'date'
+  // History filters - default to 'all' so partial payments always show
+  const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
   const [historyWorkshopFilter, setHistoryWorkshopFilter] = useState('all');
   const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
 
@@ -250,8 +251,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-
-
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
   const bonusTotal = unpaidAdjustments
@@ -294,11 +293,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     mutationFn: async ({ id, work_date, hourly_rate, workshop_id }: EditingAttendance) => {
       const { error } = await supabase
         .from('attendance')
-        .update({ 
-          work_date, 
-          hourly_rate, 
-          workshop_id,
-        })
+        .update({ work_date, hourly_rate, workshop_id })
         .eq('id', id);
       if (error) throw error;
     },
@@ -313,7 +308,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Delete attendance mutation (for unpaid entries only - this is on the unpaid tab)
+  // Delete attendance mutation (for unpaid entries only)
   const deleteAttendance = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('attendance').delete().eq('id', id);
@@ -337,7 +332,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const entryAmount = Number(entry.daily_salary);
       
       if (paymentId) {
-        // Get the parent payment
         const { data: payment } = await supabase
           .from('payments')
           .select('*')
@@ -346,12 +340,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         
         if (payment) {
           const newAmount = Number(payment.amount) - entryAmount;
-          
           if (newAmount <= 0) {
-            // Delete the payment if amount would be 0 or negative
             await supabase.from('payments').delete().eq('id', paymentId);
           } else {
-            // Update the payment with reduced amount
             await supabase
               .from('payments')
               .update({ amount: newAmount })
@@ -360,7 +351,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         }
       }
       
-      // Delete the attendance record
       const { error } = await supabase.from('attendance').delete().eq('id', entry.id);
       if (error) throw error;
     },
@@ -375,25 +365,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Create payment mutation - pays ALL unpaid work across ALL workshops
+  // Create FULL payment mutation - pays ALL unpaid work across ALL workshops
   const createPayment = useMutation({
     mutationFn: async () => {
       const results: any[] = [];
-      
-      // Build worker name map
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
       
-      // First, group all unpaid attendance by work week
       const byWeek = groupByWorkWeek(unpaidAttendance);
       
-      // Group adjustments by workshop
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
         if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
         adjByWorkshop[adj.workshop_id].push(adj);
       });
       
-      // Process each week separately
       for (const [weekLabel, weekEntries] of Object.entries(byWeek)) {
         const byWorkshop = (weekEntries as any[]).reduce((acc, entry) => {
           const workshopId = entry.workshop_id;
@@ -408,20 +393,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
           const { entries, total } = workshopData;
           
-          // Get adjustments for this workshop
           const workshopAdj = adjByWorkshop[workshopId] || [];
           const adjBonuses = workshopAdj.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
           const adjDiscounts = workshopAdj.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
           const finalTotal = total + adjBonuses - adjDiscounts;
           
-          // Build reason with worker names, days, and adjustments
           const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
           
+          const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+
           const { data: payment, error: paymentError } = await supabase
             .from('payments')
             .insert([{
               workshop_id: workshopId,
-              paid_to: 'Travailleur',
+              paid_to: categoryLabel,
               reason,
               amount: Math.max(finalTotal, 0),
               payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -433,7 +418,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           
           if (paymentError) throw paymentError;
 
-          // Mark attendance as paid
           const entryIds = entries.map((e: any) => e.id);
           if (entryIds.length > 0) {
             await supabase
@@ -442,7 +426,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               .in('id', entryIds);
           }
 
-          // Mark adjustments as paid
           const workshopAdjIds = workshopAdj.map((a: any) => a.id);
           if (workshopAdjIds.length > 0) {
             await supabase
@@ -451,6 +434,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               .in('id', workshopAdjIds);
           }
           
+          // Remove processed adjustments so they're not double-counted
+          delete adjByWorkshop[workshopId];
+          
           results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
         }
       }
@@ -458,86 +444,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       return results;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      setIsPayOpen(false);
-      toast({ 
-        title: t('workers.paymentCreated'), 
-        description: t('workers.paymentCreatedDesc') 
-      });
-    },
-    onError: (error: Error) => {
-      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
-    },
-  });
-
-  const handlePay = () => {
-    if (totalOwed > 0) {
-      createPayment.mutate();
-    }
-  };
-
-  // Pay bonus/discount only mutation
-  const payBonusOnly = useMutation({
-    mutationFn: async () => {
-      const workerNames: Record<string, string> = { [worker.id]: worker.name };
-      
-      // Group adjustments by workshop
-      const adjByWorkshop: Record<string, any[]> = {};
-      unpaidAdjustments.forEach((adj) => {
-        if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
-        adjByWorkshop[adj.workshop_id].push(adj);
-      });
-      
-      const results: any[] = [];
-      for (const [workshopId, adjs] of Object.entries(adjByWorkshop)) {
-        const adjBonuses = adjs.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
-        const adjDiscounts = adjs.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
-        const adjTotal = adjBonuses - adjDiscounts;
-        if (adjTotal === 0) continue;
-        
-        const reason = buildWorkerPaymentReason([], workerNames, adjs);
-        
-        const { data: payment, error: paymentError } = await supabase
-          .from('payments')
-          .insert([{
-            workshop_id: workshopId,
-            paid_to: 'Travailleur',
-            reason,
-            amount: Math.max(adjTotal, 0),
-            payment_date: format(new Date(), 'yyyy-MM-dd'),
-            created_by: user?.id,
-            status: 'pending',
-          }])
-          .select()
-          .single();
-        if (paymentError) throw paymentError;
-        
-        const adjIds = adjs.map((a: any) => a.id);
-        if (adjIds.length > 0) {
-          await supabase
-            .from('worker_adjustments')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', adjIds);
-        }
-        results.push({ workshopId, paymentId: payment.id, amount: adjTotal });
-      }
-      return results;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      setIsPayBonusOpen(false);
-      toast({ 
-        title: t('workers.bonusPaymentCreated'), 
-        description: t('workers.bonusPaymentCreatedDesc') 
-      });
+      invalidateAll();
+      setIsPayChoiceOpen(false);
+      setPayMode(null);
+      toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
@@ -617,7 +527,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
-      // Fetch fresh attendance data from DB to avoid stale client cache issues
       const { data: freshAttendance, error: fetchError } = await supabase
         .from('attendance')
         .select('*')
@@ -631,7 +540,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         throw new Error(t('workers.partialPaymentNoAttendance'));
       }
 
-      // Calculate FIFO splits BEFORE creating the payment
+      // Calculate FIFO splits
       let remaining = amount;
       const fullyCoveredIds: string[] = [];
       const partialSplits: Array<{ entry: any; paidPortion: number; remainingPortion: number }> = [];
@@ -685,7 +594,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           await applyPartialAttendanceSplit(split, payment.id);
         }
       } catch (attendanceError) {
-        // Rollback: delete the payment if attendance updates fail
         await supabase.from('payments').delete().eq('id', payment.id);
         throw attendanceError;
       }
@@ -693,26 +601,124 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       return payment;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      setIsPayPartialOpen(false);
+      invalidateAll();
+      setIsPayChoiceOpen(false);
+      setPayMode(null);
       setPartialAmount('');
       setPartialWorkshopId('');
-      toast({ 
-        title: t('workers.partialPaymentCreated'), 
-        description: t('workers.partialPaymentCreatedDesc') 
-      });
+      toast({ title: t('workers.partialPaymentCreated'), description: t('workers.partialPaymentCreatedDesc') });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
-  const openPayDialog = () => {
-    setIsPayOpen(true);
+  // Pay advance mutation - pays more than owed
+  const payAdvance = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(advanceAmount);
+      if (!amount || amount <= 0 || !advanceWorkshopId) throw new Error('Invalid amount or workshop');
+
+      // First, pay all unpaid attendance in this workshop
+      const { data: freshAttendance, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('worker_id', worker.id)
+        .eq('workshop_id', advanceWorkshopId)
+        .eq('is_paid', false)
+        .order('work_date', { ascending: true });
+      if (fetchError) throw fetchError;
+
+      const reason = `${worker.name} - ${t('workers.advancePaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          workshop_id: advanceWorkshopId,
+          paid_to: categoryLabel,
+          reason,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          created_by: user?.id,
+          status: 'pending',
+        }])
+        .select()
+        .single();
+      if (paymentError) throw paymentError;
+
+      try {
+        // Mark all unpaid attendance in this workshop as paid
+        if (freshAttendance && freshAttendance.length > 0) {
+          const allIds = freshAttendance.map((e: any) => e.id);
+          await supabase
+            .from('attendance')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', allIds);
+        }
+
+        // Mark all unpaid adjustments in this workshop as paid
+        const { data: workshopAdj } = await supabase
+          .from('worker_adjustments')
+          .select('id')
+          .eq('worker_id', worker.id)
+          .eq('workshop_id', advanceWorkshopId)
+          .eq('is_paid', false);
+        
+        if (workshopAdj && workshopAdj.length > 0) {
+          const adjIds = workshopAdj.map((a: any) => a.id);
+          await supabase
+            .from('worker_adjustments')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', adjIds);
+        }
+
+        // Calculate the advance portion (amount beyond what was owed)
+        const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
+        const advancePortion = amount - workshopOwed;
+
+        // Create a negative attendance entry to track the advance
+        if (advancePortion > 0) {
+          await supabase.from('attendance').insert([{
+            worker_id: worker.id,
+            workshop_id: advanceWorkshopId,
+            work_date: format(new Date(), 'yyyy-MM-dd'),
+            hours_worked: 0,
+            hourly_rate: 0,
+            daily_salary: advancePortion,
+            is_paid: true,
+            payment_id: payment.id,
+            created_by: user?.id,
+            description: t('workers.advancePaymentNote', { amount: advancePortion.toLocaleString('fr-FR') }),
+          }]);
+        }
+      } catch (err) {
+        await supabase.from('payments').delete().eq('id', payment.id);
+        throw err;
+      }
+
+      return payment;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      setIsPayChoiceOpen(false);
+      setPayMode(null);
+      setAdvanceAmount('');
+      setAdvanceWorkshopId('');
+      toast({ title: t('workers.advancePaymentCreated'), description: t('workers.advancePaymentCreatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
+    queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
   };
 
   const handleEditAttendance = (entry: any) => {
@@ -731,6 +737,15 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     }
   };
 
+  const openPayChoiceDialog = () => {
+    setPayMode(null);
+    setPartialAmount('');
+    setAdvanceAmount('');
+    const firstWorkshopId = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+    setPartialWorkshopId(firstWorkshopId);
+    setAdvanceWorkshopId(firstWorkshopId);
+    setIsPayChoiceOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -770,54 +785,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             </p>
           </CardContent>
         </Card>
-
       </div>
 
-      {/* Payment Action Buttons */}
-      {totalOwed > 0 && (
-        <div className="space-y-2">
-          <Button 
-            onClick={() => openPayDialog()} 
-            className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
-          >
-            <Wallet className="w-4 h-4" />
-            {t('workers.payWorker')} ({totalOwed.toLocaleString('fr-FR')} CFA)
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Pay Bonus Only */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPayBonusOpen(true)}
-              disabled={unpaidAdjustments.length === 0}
-              className="gap-1.5 text-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {t('workers.payBonusOnly')}
-              {bonusTotal - discountTotal !== 0 && (
-                <span className="font-mono">({(bonusTotal - discountTotal).toLocaleString('fr-FR')})</span>
-              )}
-            </Button>
-            {/* Pay Partial Salary */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Pre-select the first workshop with unpaid work
-                const firstWorkshopId = Object.keys(unpaidByWorkshop)[0] || '';
-                setPartialWorkshopId(firstWorkshopId);
-                setPartialAmount('');
-                setIsPayPartialOpen(true);
-              }}
-              disabled={attendanceTotal <= 0}
-              className="gap-1.5 text-xs"
-            >
-              <DollarSign className="w-3.5 h-3.5" />
-              {t('workers.payPartial')}
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Single Pay Button */}
+      <Button 
+        onClick={openPayChoiceDialog} 
+        className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
+      >
+        <Wallet className="w-4 h-4" />
+        {t('workers.payWorker')} ({totalOwed.toLocaleString('fr-FR')} CFA)
+      </Button>
 
       {/* Tabs for unpaid/history */}
       <Tabs defaultValue="unpaid" className="space-y-4">
@@ -966,12 +943,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
                     <SelectItem value="0">{t('attendance.thisWeek')}</SelectItem>
                     <SelectItem value="1">{t('attendance.lastWeek')}</SelectItem>
                     <SelectItem value="2">2 {t('attendance.weeksAgo')}</SelectItem>
                     <SelectItem value="3">3 {t('attendance.weeksAgo')}</SelectItem>
                     <SelectItem value="4">4 {t('attendance.weeksAgo')}</SelectItem>
-                    <SelectItem value="all">{t('attendance.allTime')}</SelectItem>
                     <SelectItem value="date">{t('attendance.specificDate')}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1267,52 +1244,218 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Pay Dialog - Simple confirmation */}
-      <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
-        <DialogContent className="sm:max-w-sm">
+      {/* Pay Choice Dialog */}
+      <Dialog open={isPayChoiceOpen} onOpenChange={(open) => { setIsPayChoiceOpen(open); if (!open) setPayMode(null); }}>
+        <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('workers.payWorker')}</DialogTitle>
             <DialogDescription>
-              {t('workers.payAllDescription', { name: worker.name })}
+              {t('workers.payDescription', { name: worker.name })}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {/* Summary of what will be paid */}
+
+          {/* Payment option selection */}
+          {!payMode && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">{t('workers.paymentSummary')}:</p>
-              {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
-                <div key={workshopId} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
-                  <span className="flex items-center gap-2">
-                    <Building2 className="w-3.5 h-3.5" />
-                    {name}
-                  </span>
-                  <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
-                <span>{t('common.total')}</span>
-                <span className="font-mono text-success">{totalOwed.toLocaleString('fr-FR')} CFA</span>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground">
-              {t('workers.weeklyPaymentNote')}
-            </p>
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsPayOpen(false)}>
-                {t('common.cancel')}
-              </Button>
+              {/* Full Salary */}
               <Button
-                onClick={handlePay}
-                disabled={createPayment.isPending}
-                className="bg-success text-success-foreground hover:bg-success/90"
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => setPayMode('full')}
+                disabled={totalOwed <= 0}
               >
-                {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {t('workers.confirmPayment')}
+                <Wallet className="w-5 h-5 text-success flex-shrink-0" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">{t('workers.payFullSalary')}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{totalOwed.toLocaleString('fr-FR')} CFA</p>
+                </div>
               </Button>
-            </DialogFooter>
-          </div>
+
+              {/* Partial Payment */}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => setPayMode('partial')}
+                disabled={attendanceTotal <= 0}
+              >
+                <CreditCard className="w-5 h-5 text-primary flex-shrink-0" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">{t('workers.payPartial')}</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payPartialDesc', { name: worker.name })}</p>
+                </div>
+              </Button>
+
+              {/* Advance Payment */}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => setPayMode('advance')}
+              >
+                <ArrowUpCircle className="w-5 h-5 text-warning flex-shrink-0" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">{t('workers.payAdvance')}</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payAdvanceDesc')}</p>
+                </div>
+              </Button>
+            </div>
+          )}
+
+          {/* Full Salary Confirmation */}
+          {payMode === 'full' && (
+            <div className="space-y-4">
+              <Button variant="ghost" size="sm" onClick={() => setPayMode(null)} className="gap-1 text-xs -mt-2">
+                <ArrowLeft className="w-3 h-3" /> {t('common.back')}
+              </Button>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t('workers.paymentSummary')}:</p>
+                {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
+                  <div key={workshopId} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
+                    <span className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5" />
+                      {name}
+                    </span>
+                    <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
+                  <span>{t('common.total')}</span>
+                  <span className="font-mono text-success">{totalOwed.toLocaleString('fr-FR')} CFA</span>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  onClick={() => createPayment.mutate()}
+                  disabled={createPayment.isPending}
+                  className="bg-success text-success-foreground hover:bg-success/90"
+                >
+                  {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {t('workers.confirmPayment')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Partial Payment Form */}
+          {payMode === 'partial' && (
+            <div className="space-y-4">
+              <Button variant="ghost" size="sm" onClick={() => setPayMode(null)} className="gap-1 text-xs -mt-2">
+                <ArrowLeft className="w-3 h-3" /> {t('common.back')}
+              </Button>
+              <div className="space-y-2">
+                <Label>{t('workers.selectWorkshop')}</Label>
+                <Select value={partialWorkshopId} onValueChange={setPartialWorkshopId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('workers.selectWorkshop')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
+                      <SelectItem key={workshopId} value={workshopId}>
+                        {name} ({total.toLocaleString('fr-FR')} CFA)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('workers.partialAmount')} (CFA)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal}
+                  value={partialAmount}
+                  onChange={(e) => setPartialAmount(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('workers.partialAmountHint', { max: (partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal).toLocaleString('fr-FR') })}
+                </p>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  onClick={() => payPartial.mutate()}
+                  disabled={payPartial.isPending || !partialAmount || parseFloat(partialAmount) <= 0 || !partialWorkshopId}
+                  className="bg-success text-success-foreground hover:bg-success/90"
+                >
+                  {payPartial.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {t('workers.confirmPayment')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Advance Payment Form */}
+          {payMode === 'advance' && (
+            <div className="space-y-4">
+              <Button variant="ghost" size="sm" onClick={() => setPayMode(null)} className="gap-1 text-xs -mt-2">
+                <ArrowLeft className="w-3 h-3" /> {t('common.back')}
+              </Button>
+              <div className="space-y-2">
+                <Label>{t('workers.selectWorkshop')}</Label>
+                <Select value={advanceWorkshopId} onValueChange={setAdvanceWorkshopId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('workers.selectWorkshop')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workshops.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('common.amount')} (CFA)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={advanceAmount}
+                  onChange={(e) => setAdvanceAmount(e.target.value)}
+                  placeholder="0"
+                />
+                {advanceWorkshopId && (() => {
+                  const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
+                  const advAmt = parseFloat(advanceAmount) || 0;
+                  const newBalance = workshopOwed - advAmt;
+                  return (
+                    <div className="text-xs space-y-1 p-2 rounded-lg bg-muted">
+                      <div className="flex justify-between">
+                        <span>{t('workers.totalOwed')}:</span>
+                        <span className="font-mono">{workshopOwed.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{t('workers.payAdvance')}:</span>
+                        <span className="font-mono">{advAmt.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t pt-1">
+                        <span>{t('userBalance.balance')}:</span>
+                        <span className={`font-mono ${newBalance < 0 ? 'text-destructive' : 'text-success'}`}>
+                          {newBalance.toLocaleString('fr-FR')} CFA
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  onClick={() => payAdvance.mutate()}
+                  disabled={payAdvance.isPending || !advanceAmount || parseFloat(advanceAmount) <= 0 || !advanceWorkshopId}
+                  className="bg-success text-success-foreground hover:bg-success/90"
+                >
+                  {payAdvance.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {t('workers.confirmPayment')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1377,119 +1520,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               </Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pay Bonus Only Dialog */}
-      <Dialog open={isPayBonusOpen} onOpenChange={setIsPayBonusOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('workers.payBonusOnly')}</DialogTitle>
-            <DialogDescription>
-              {t('workers.payBonusOnlyDesc', { name: worker.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {unpaidAdjustments.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">{t('workers.noBonuses')}</p>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  {unpaidAdjustments.map((adj) => (
-                    <div key={adj.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted">
-                      <div className="flex items-center gap-2">
-                        {adj.adjustment_type === 'bonus' ? (
-                          <Sparkles className="w-3.5 h-3.5 text-success" />
-                        ) : (
-                          <MinusCircle className="w-3.5 h-3.5 text-destructive" />
-                        )}
-                        <div>
-                          <span className="text-xs">{format(new Date(adj.work_date), 'dd/MM')}</span>
-                          {adj.reason && <p className="text-[10px] text-muted-foreground">{adj.reason}</p>}
-                        </div>
-                      </div>
-                      <span className={`font-mono font-medium ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
-                        {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} CFA
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
-                    <span>{t('common.total')}</span>
-                    <span className="font-mono text-success">{(bonusTotal - discountTotal).toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsPayBonusOpen(false)}>
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    onClick={() => payBonusOnly.mutate()}
-                    disabled={payBonusOnly.isPending || (bonusTotal - discountTotal) <= 0}
-                    className="bg-success text-success-foreground hover:bg-success/90"
-                  >
-                    {payBonusOnly.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {t('workers.confirmPayment')}
-                  </Button>
-                </DialogFooter>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pay Partial Salary Dialog */}
-      <Dialog open={isPayPartialOpen} onOpenChange={setIsPayPartialOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('workers.payPartial')}</DialogTitle>
-            <DialogDescription>
-              {t('workers.payPartialDesc', { name: worker.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('workers.selectWorkshop')}</Label>
-              <Select value={partialWorkshopId} onValueChange={setPartialWorkshopId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('workers.selectWorkshop')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(unpaidByWorkshop).map(([workshopId, { name, total }]) => (
-                    <SelectItem key={workshopId} value={workshopId}>
-                      {name} ({total.toLocaleString('fr-FR')} CFA)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('workers.partialAmount')} (CFA)</Label>
-              <Input
-                type="number"
-                min="1"
-                max={partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal}
-                value={partialAmount}
-                onChange={(e) => setPartialAmount(e.target.value)}
-                placeholder="0"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('workers.partialAmountHint', { max: (partialWorkshopId ? (unpaidByWorkshop[partialWorkshopId]?.total || 0) : attendanceTotal).toLocaleString('fr-FR') })}
-              </p>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsPayPartialOpen(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                onClick={() => payPartial.mutate()}
-                disabled={payPartial.isPending || !partialAmount || parseFloat(partialAmount) <= 0 || !partialWorkshopId}
-                className="bg-success text-success-foreground hover:bg-success/90"
-              >
-                {payPartial.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {t('workers.confirmPayment')}
-              </Button>
-            </DialogFooter>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
