@@ -445,6 +445,7 @@
     "payBonusOnlyDesc": "Pay only the unpaid bonuses/discounts for {{name}}",
     "payPartial": "Partial Pay",
     "payPartialDesc": "Pay a custom amount from {{name}}'s owed salary",
+    "paymentCreditReason": "{{mode}} credit: {{amount}} CFA applied to balance.",
     "partialAmount": "Amount to Pay",
     "partialAmountHint": "Enter the amount you want to pay (max: {{max}} CFA)",
     "selectWorkshop": "Select Workshop",
