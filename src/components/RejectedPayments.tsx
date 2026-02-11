@@ -67,16 +67,54 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
 
   const deletePayment = useMutation({
     mutationFn: async (paymentId: string) => {
-      const { error } = await supabase
-        .from('payments')
-        .delete()
-        .eq('id', paymentId);
+      // Revert linked worker work/adjustments before deleting the payment
+      const { data: linkedAttendance, error: linkedAttendanceError } = await supabase
+        .from('attendance')
+        .select('id, description')
+        .eq('payment_id', paymentId);
+      if (linkedAttendanceError) throw linkedAttendanceError;
+
+      if (linkedAttendance && linkedAttendance.length > 0) {
+        const creditIds = linkedAttendance
+          .filter((a) => (a.description || '').includes('[ADVANCE_CREDIT]'))
+          .map((a) => a.id);
+
+        const normalIds = linkedAttendance
+          .filter((a) => !(a.description || '').includes('[ADVANCE_CREDIT]'))
+          .map((a) => a.id);
+
+        if (creditIds.length > 0) {
+          const { error: creditDeleteError } = await supabase.from('attendance').delete().in('id', creditIds);
+          if (creditDeleteError) throw creditDeleteError;
+        }
+
+        if (normalIds.length > 0) {
+          const { error: attendanceRevertError } = await supabase
+            .from('attendance')
+            .update({ is_paid: false, payment_id: null })
+            .in('id', normalIds);
+          if (attendanceRevertError) throw attendanceRevertError;
+        }
+      }
+
+      const { error: adjustmentsRevertError } = await supabase
+        .from('worker_adjustments')
+        .update({ is_paid: false, payment_id: null })
+        .eq('payment_id', paymentId);
+      if (adjustmentsRevertError) throw adjustmentsRevertError;
+
+      const { error } = await supabase.from('payments').delete().eq('id', paymentId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rejected-payments', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['payment-stats', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
       toast({
         title: 'Payment deleted',
         description: 'The rejected payment has been removed',

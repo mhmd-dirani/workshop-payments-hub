@@ -108,7 +108,44 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
-      // If this is a "Travailleur Overtime" payment, delete linked attendance records
+      // Revert any worker attendance/adjustments linked to this payment
+      // (Otherwise deleting the payment leaves work marked as paid forever)
+      const { data: linkedAttendance, error: linkedAttendanceError } = await supabase
+        .from('attendance')
+        .select('id, description')
+        .eq('payment_id', payment.id);
+      if (linkedAttendanceError) throw linkedAttendanceError;
+
+      if (linkedAttendance && linkedAttendance.length > 0) {
+        const creditIds = linkedAttendance
+          .filter((a) => (a.description || '').includes('[ADVANCE_CREDIT]'))
+          .map((a) => a.id);
+
+        const normalIds = linkedAttendance
+          .filter((a) => !(a.description || '').includes('[ADVANCE_CREDIT]'))
+          .map((a) => a.id);
+
+        if (creditIds.length > 0) {
+          const { error: creditDeleteError } = await supabase.from('attendance').delete().in('id', creditIds);
+          if (creditDeleteError) throw creditDeleteError;
+        }
+
+        if (normalIds.length > 0) {
+          const { error: attendanceRevertError } = await supabase
+            .from('attendance')
+            .update({ is_paid: false, payment_id: null })
+            .in('id', normalIds);
+          if (attendanceRevertError) throw attendanceRevertError;
+        }
+      }
+
+      const { error: adjustmentsRevertError } = await supabase
+        .from('worker_adjustments')
+        .update({ is_paid: false, payment_id: null })
+        .eq('payment_id', payment.id);
+      if (adjustmentsRevertError) throw adjustmentsRevertError;
+
+      // If this is a "Travailleur Overtime" payment, delete linked overtime attendance records
       if (payment.paid_to === 'Travailleur Overtime') {
         const { error: attendanceDeleteError } = await supabase
           .from('attendance')
@@ -143,6 +180,8 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['worker-paid-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       toast({
         title: t('payments.paymentDeleted'),
