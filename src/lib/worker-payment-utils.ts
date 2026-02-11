@@ -7,12 +7,19 @@ const SHORT_DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
  * Now that bonuses/discounts are in a separate table, this just returns the daily salary or hourly rate.
  */
 export function getEffectivePay(entry: {
-  daily_salary: number | null;
+  daily_salary?: number | null;
   hourly_rate: number;
+  hours_worked?: number;
+  extra_amount?: number | null;
 }): number {
+  // daily_salary is a generated column: hours_worked * hourly_rate + COALESCE(extra_amount, 0)
   const salary = Number(entry.daily_salary) || 0;
   if (salary > 0) return salary;
-  return Number(entry.hourly_rate) || 0;
+  // Fallback calculation
+  const hours = Number(entry.hours_worked) || 1;
+  const rate = Number(entry.hourly_rate) || 0;
+  const extra = Number(entry.extra_amount) || 0;
+  return hours * rate + extra;
 }
 
 /**

@@ -481,10 +481,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       ? `${entry.description} • ${partialRemainingLabel}`
       : partialRemainingLabel;
 
+    // daily_salary is a GENERATED column (hours_worked * hourly_rate + extra_amount)
+    // So we set hourly_rate to the desired amount, hours_worked=1, extra_amount=0
     const { error: updateError } = await supabase
       .from('attendance')
       .update({
-        daily_salary: paidPortion,
+        hours_worked: 1,
+        hourly_rate: paidPortion - (paidExtra > 0 ? paidExtra : 0),
         is_paid: true,
         payment_id: paymentId,
         has_extra: paidExtra > 0,
@@ -497,13 +500,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       .eq('id', entry.id);
     if (updateError) throw updateError;
 
+    const remainingRate = remainingPortion - (remainingExtra > 0 ? remainingExtra : 0);
     const leftoverPayload = {
       worker_id: entry.worker_id,
       workshop_id: entry.workshop_id,
       work_date: entry.work_date,
-      hours_worked: entry.hours_worked,
-      hourly_rate: entry.hourly_rate,
-      daily_salary: remainingPortion,
+      hours_worked: 1,
+      hourly_rate: remainingRate,
       has_extra: remainingExtra > 0,
       extra_amount: remainingExtra > 0 ? remainingExtra : 0,
       extra_reason: remainingExtra > 0 ? entry.extra_reason : null,
@@ -677,15 +680,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
         const advancePortion = amount - workshopOwed;
 
-        // Create a negative attendance entry to track the advance
+        // Create an attendance entry to track the advance portion
+        // daily_salary is GENERATED (hours_worked * hourly_rate + extra_amount)
+        // So set hourly_rate = advancePortion, hours_worked = 1, extra_amount = 0
         if (advancePortion > 0) {
           await supabase.from('attendance').insert([{
             worker_id: worker.id,
             workshop_id: advanceWorkshopId,
             work_date: format(new Date(), 'yyyy-MM-dd'),
-            hours_worked: 0,
-            hourly_rate: 0,
-            daily_salary: advancePortion,
+            hours_worked: 1,
+            hourly_rate: advancePortion,
             is_paid: true,
             payment_id: payment.id,
             created_by: user?.id,
@@ -999,13 +1003,57 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </Select>
               </div>
 
-              {filteredPaidAttendance.length === 0 ? (
+              {/* Paid Adjustments (Bonuses/Discounts) Section */}
+              {paidAdjustments.length > 0 && (
+                <Card className="shadow-card">
+                  <CardHeader className="pb-2 px-3 pt-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-warning" />
+                      {t('workers.paidAdjustments', { defaultValue: 'Paid Bonuses & Discounts' })}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3">
+                    <div className="space-y-1">
+                      {paidAdjustments.map((adj) => (
+                        <div key={adj.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs">
+                              {format(new Date(adj.work_date), 'EEE, dd/MM')}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] mt-1 w-fit">
+                              {(adj.workshops as any)?.name}
+                            </Badge>
+                            {adj.reason && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{adj.reason}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {adj.adjustment_type === 'bonus' ? (
+                              <Badge variant="secondary" className="gap-1 font-mono">
+                                <Sparkles className="w-3 h-3" />
+                                +{Number(adj.amount).toLocaleString('fr-FR')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="gap-1 font-mono">
+                                <MinusCircle className="w-3 h-3" />
+                                -{Number(adj.amount).toLocaleString('fr-FR')}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {filteredPaidAttendance.length === 0 && paidAdjustments.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <p>{t('workers.noPaymentHistory')}</p>
                   </CardContent>
                 </Card>
-              ) : (
+              ) : filteredPaidAttendance.length > 0 ? (
                 <Card className="shadow-card">
                   <CardContent className="p-0">
                     <div className="md:hidden">
@@ -1238,7 +1286,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     </div>
                   </CardContent>
                 </Card>
-              )}
+              ) : null}
             </div>
           )}
         </TabsContent>
