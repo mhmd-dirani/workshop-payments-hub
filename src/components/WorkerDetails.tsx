@@ -254,13 +254,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
   const bonusTotal = unpaidAdjustments
-    .filter(a => a.adjustment_type === 'bonus')
+    .filter((a) => a.adjustment_type === 'bonus')
     .reduce((sum, a) => sum + Number(a.amount), 0);
   const discountTotal = unpaidAdjustments
-    .filter(a => a.adjustment_type === 'discount')
+    .filter((a) => a.adjustment_type === 'discount')
     .reduce((sum, a) => sum + Number(a.amount), 0);
   const totalOwed = attendanceTotal + bonusTotal - discountTotal;
-  const totalDays = unpaidAttendance.length;
+
+  // "Work Days" should reflect worked days, not remaining unpaid rows.
+  // Count unique work dates across paid + unpaid attendance that are visible in this view.
+  const totalDays = useMemo(() => {
+    const all = [...unpaidAttendance, ...paidAttendance];
+    const dates = new Set<string>();
+    all.forEach((e: any) => {
+      if (e?.work_date) dates.add(String(e.work_date));
+    });
+    return dates.size;
+  }, [unpaidAttendance, paidAttendance]);
 
   // Group unpaid by workshop for display (attendance + adjustments)
   const unpaidByWorkshop = unpaidAttendance.reduce((acc, entry) => {
@@ -454,74 +464,37 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  const applyPartialAttendanceSplit = async (
-    split: { entry: any; paidPortion: number; remainingPortion: number },
-    paymentId: string
-  ) => {
-    const { entry, paidPortion, remainingPortion } = split;
-    const totalPay = paidPortion + remainingPortion;
-    if (totalPay <= 0) return;
+  const PAYMENT_CREDIT_TAG = '[PAYMENT_CREDIT]';
 
-    const formatAmount = (value: number) => value.toLocaleString('fr-FR');
-    const partialAppliedLabel = t('workers.partialPaymentAppliedNote', { amount: formatAmount(paidPortion) });
-    const partialRemainingLabel = t('workers.partialPaymentRemainingNote');
+  const createPaymentCreditAdjustment = async (params: {
+    paymentId: string;
+    workshopId: string;
+    amount: number;
+    mode: 'partial' | 'advance';
+  }) => {
+    const { paymentId, workshopId, amount, mode } = params;
 
-    const extraAmount = Number(entry.extra_amount) || 0;
-    const discountAmount = Number(entry.discount_amount) || 0;
+    // We do NOT modify attendance rows for partial/advance payments.
+    // Instead, we create an "unpaid" discount adjustment that represents a credit already given.
+    // This reduces the owed balance (and can make it negative).
+    const reason = `${t('workers.paymentCreditReason', {
+      mode: t(mode === 'partial' ? 'workers.payPartial' : 'workers.payAdvance'),
+      amount: amount.toLocaleString('fr-FR'),
+    })} ${PAYMENT_CREDIT_TAG}`;
 
-    const paidExtra = Math.min(extraAmount, Math.round((extraAmount * paidPortion) / totalPay));
-    const remainingExtra = extraAmount - paidExtra;
-    const paidDiscount = Math.min(discountAmount, Math.round((discountAmount * paidPortion) / totalPay));
-    const remainingDiscount = discountAmount - paidDiscount;
-
-    const paidDescription = entry.description
-      ? `${entry.description} • ${partialAppliedLabel}`
-      : partialAppliedLabel;
-    const remainingDescription = entry.description
-      ? `${entry.description} • ${partialRemainingLabel}`
-      : partialRemainingLabel;
-
-    // daily_salary is a GENERATED column (hours_worked * hourly_rate + extra_amount)
-    // So we set hourly_rate to the desired amount, hours_worked=1, extra_amount=0
-    const { error: updateError } = await supabase
-      .from('attendance')
-      .update({
-        hours_worked: 1,
-        hourly_rate: paidPortion - (paidExtra > 0 ? paidExtra : 0),
-        is_paid: true,
-        payment_id: paymentId,
-        has_extra: paidExtra > 0,
-        extra_amount: paidExtra > 0 ? paidExtra : 0,
-        extra_reason: paidExtra > 0 ? entry.extra_reason : null,
-        discount_amount: paidDiscount > 0 ? paidDiscount : 0,
-        discount_reason: paidDiscount > 0 ? entry.discount_reason : null,
-        description: paidDescription,
-      })
-      .eq('id', entry.id);
-    if (updateError) throw updateError;
-
-    const remainingRate = remainingPortion - (remainingExtra > 0 ? remainingExtra : 0);
-    const leftoverPayload = {
-      worker_id: entry.worker_id,
-      workshop_id: entry.workshop_id,
-      work_date: entry.work_date,
-      hours_worked: 1,
-      hourly_rate: remainingRate,
-      has_extra: remainingExtra > 0,
-      extra_amount: remainingExtra > 0 ? remainingExtra : 0,
-      extra_reason: remainingExtra > 0 ? entry.extra_reason : null,
-      discount_amount: remainingDiscount > 0 ? remainingDiscount : 0,
-      discount_reason: remainingDiscount > 0 ? entry.discount_reason : null,
-      description: remainingDescription,
-      created_by: entry.created_by,
+    const { error } = await supabase.from('worker_adjustments').insert({
+      worker_id: worker.id,
+      workshop_id: workshopId,
+      work_date: format(new Date(), 'yyyy-MM-dd'),
+      adjustment_type: 'discount',
+      amount,
+      reason,
+      // Keep it "unpaid" so it affects the outstanding balance.
       is_paid: false,
-      payment_id: null,
-    };
-
-    const { error: insertError } = await supabase
-      .from('attendance')
-      .insert([leftoverPayload]);
-    if (insertError) throw insertError;
+      payment_id: paymentId,
+      created_by: user?.id,
+    });
+    if (error) throw error;
   };
 
   // Pay partial salary mutation
@@ -530,75 +503,36 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const { data: freshAttendance, error: fetchError } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('worker_id', worker.id)
-        .eq('workshop_id', partialWorkshopId)
-        .eq('is_paid', false)
-        .order('work_date', { ascending: true });
-      if (fetchError) throw fetchError;
-
-      if (!freshAttendance || freshAttendance.length === 0) {
-        throw new Error(t('workers.partialPaymentNoAttendance'));
-      }
-
-      // Calculate FIFO splits
-      let remaining = amount;
-      const fullyCoveredIds: string[] = [];
-      const partialSplits: Array<{ entry: any; paidPortion: number; remainingPortion: number }> = [];
-
-      for (const entry of freshAttendance) {
-        if (remaining <= 0) break;
-        const totalPay = getEffectivePay(entry);
-        if (totalPay <= 0) continue;
-
-        if (remaining >= totalPay) {
-          fullyCoveredIds.push(entry.id);
-          remaining -= totalPay;
-        } else {
-          partialSplits.push({
-            entry,
-            paidPortion: remaining,
-            remainingPortion: totalPay - remaining,
-          });
-          remaining = 0;
-        }
-      }
-
       const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
       const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
-        .insert([{
-          workshop_id: partialWorkshopId,
-          paid_to: categoryLabel,
-          reason,
-          amount,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          created_by: user?.id,
-          status: 'pending',
-        }])
+        .insert([
+          {
+            workshop_id: partialWorkshopId,
+            paid_to: categoryLabel,
+            reason,
+            amount,
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: 'pending',
+          },
+        ])
         .select()
         .single();
       if (paymentError) throw paymentError;
 
       try {
-        if (fullyCoveredIds.length > 0) {
-          const { error: markError } = await supabase
-            .from('attendance')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', fullyCoveredIds);
-          if (markError) throw markError;
-        }
-
-        for (const split of partialSplits) {
-          await applyPartialAttendanceSplit(split, payment.id);
-        }
-      } catch (attendanceError) {
+        await createPaymentCreditAdjustment({
+          paymentId: payment.id,
+          workshopId: partialWorkshopId,
+          amount,
+          mode: 'partial',
+        });
+      } catch (err) {
         await supabase.from('payments').delete().eq('id', payment.id);
-        throw attendanceError;
+        throw err;
       }
 
       return payment;
@@ -622,18 +556,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(advanceAmount);
       if (!amount || amount <= 0 || !advanceWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const workshopOwedTotal = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
-
-      // Fetch unpaid attendance for FIFO allocation
-      const { data: freshAttendance, error: fetchError } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('worker_id', worker.id)
-        .eq('workshop_id', advanceWorkshopId)
-        .eq('is_paid', false)
-        .order('work_date', { ascending: true });
-      if (fetchError) throw fetchError;
-
       const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
       const reason = `${worker.name} - ${t('workers.advancePaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
 
@@ -655,102 +577,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (paymentError) throw paymentError;
 
       try {
-        // Case 1: amount is BELOW owed => behave like a partial payment (FIFO) on attendance only
-        if (amount < workshopOwedTotal) {
-          if (!freshAttendance || freshAttendance.length === 0) {
-            throw new Error(t('workers.partialPaymentNoAttendance'));
-          }
-
-          let remaining = amount;
-          const fullyCoveredIds: string[] = [];
-          const partialSplits: Array<{ entry: any; paidPortion: number; remainingPortion: number }> = [];
-
-          for (const entry of freshAttendance) {
-            if (remaining <= 0) break;
-            const totalPay = getEffectivePay(entry);
-            if (totalPay <= 0) continue;
-
-            if (remaining >= totalPay) {
-              fullyCoveredIds.push(entry.id);
-              remaining -= totalPay;
-            } else {
-              partialSplits.push({ entry, paidPortion: remaining, remainingPortion: totalPay - remaining });
-              remaining = 0;
-            }
-          }
-
-          if (fullyCoveredIds.length > 0) {
-            const { error: markError } = await supabase
-              .from('attendance')
-              .update({ is_paid: true, payment_id: payment.id })
-              .in('id', fullyCoveredIds);
-            if (markError) throw markError;
-          }
-
-          for (const split of partialSplits) {
-            await applyPartialAttendanceSplit(split, payment.id);
-          }
-
-          // Do NOT mark adjustments as paid in this case (since workshop total includes them)
-          return payment;
-        }
-
-        // Case 2: amount covers ALL owed => mark all unpaid attendance + adjustments as paid
-        if (freshAttendance && freshAttendance.length > 0) {
-          const allIds = freshAttendance.map((e: any) => e.id);
-          const { error: markAllError } = await supabase
-            .from('attendance')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', allIds);
-          if (markAllError) throw markAllError;
-        }
-
-        const { data: workshopAdj, error: adjFetchError } = await supabase
-          .from('worker_adjustments')
-          .select('id')
-          .eq('worker_id', worker.id)
-          .eq('workshop_id', advanceWorkshopId)
-          .eq('is_paid', false);
-        if (adjFetchError) throw adjFetchError;
-
-        if (workshopAdj && workshopAdj.length > 0) {
-          const adjIds = workshopAdj.map((a: any) => a.id);
-          const { error: adjMarkError } = await supabase
-            .from('worker_adjustments')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', adjIds);
-          if (adjMarkError) throw adjMarkError;
-        }
-
-        // Track the ADVANCE portion (excess beyond what was owed)
-        const advancePortion = amount - workshopOwedTotal;
-        if (advancePortion > 0) {
-          // Use an internal tag so we can safely delete/revert this row if the payment is deleted
-          const taggedDescription = `${t('workers.advancePaymentNote', {
-            amount: advancePortion.toLocaleString('fr-FR'),
-          })} [ADVANCE_CREDIT]`;
-
-          const { error: creditInsertError } = await supabase.from('attendance').insert([
-            {
-              worker_id: worker.id,
-              workshop_id: advanceWorkshopId,
-              work_date: format(new Date(), 'yyyy-MM-dd'),
-              hours_worked: 1,
-              hourly_rate: advancePortion,
-              is_paid: true,
-              payment_id: payment.id,
-              created_by: user?.id,
-              description: taggedDescription,
-            },
-          ]);
-          if (creditInsertError) throw creditInsertError;
-        }
-
-        return payment;
+        await createPaymentCreditAdjustment({
+          paymentId: payment.id,
+          workshopId: advanceWorkshopId,
+          amount,
+          mode: 'advance',
+        });
       } catch (err) {
         await supabase.from('payments').delete().eq('id', payment.id);
         throw err;
       }
+
+      return payment;
     },
     onSuccess: () => {
       invalidateAll();

@@ -444,6 +444,7 @@
     "payBonusOnlyDesc": "Payer uniquement les bonus/réductions impayés de {{name}}",
     "payPartial": "Paiement partiel",
     "payPartialDesc": "Payer un montant personnalisé du salaire dû de {{name}}",
+    "paymentCreditReason": "Crédit {{mode}} : {{amount}} CFA appliqué au solde.",
     "partialAmount": "Montant à payer",
     "partialAmountHint": "Entrez le montant que vous voulez payer (max: {{max}} CFA)",
     "selectWorkshop": "Sélectionner l'atelier",

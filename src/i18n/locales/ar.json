@@ -444,6 +444,7 @@
     "payBonusOnlyDesc": "دفع المكافآت/الخصومات غير المدفوعة فقط لـ {{name}}",
     "payPartial": "دفع جزئي",
     "payPartialDesc": "دفع مبلغ مخصص من الراتب المستحق لـ {{name}}",
+    "paymentCreditReason": "رصيد {{mode}}: تم تطبيق {{amount}} CFA على الرصيد.",
     "partialAmount": "المبلغ المطلوب دفعه",
     "partialAmountHint": "أدخل المبلغ الذي تريد دفعه (الحد الأقصى: {{max}} CFA)",
     "selectWorkshop": "اختر الورشة",

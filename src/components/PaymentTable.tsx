@@ -139,11 +139,32 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         }
       }
 
-      const { error: adjustmentsRevertError } = await supabase
+      // Revert linked adjustments, but DELETE payment-credit adjustments (otherwise they keep affecting balance)
+      const { data: linkedAdjustments, error: linkedAdjustmentsError } = await supabase
         .from('worker_adjustments')
-        .update({ is_paid: false, payment_id: null })
+        .select('id, reason')
         .eq('payment_id', payment.id);
-      if (adjustmentsRevertError) throw adjustmentsRevertError;
+      if (linkedAdjustmentsError) throw linkedAdjustmentsError;
+
+      const creditAdjIds = (linkedAdjustments || [])
+        .filter((a) => (a.reason || '').includes('[PAYMENT_CREDIT]'))
+        .map((a) => a.id);
+      const normalAdjIds = (linkedAdjustments || [])
+        .filter((a) => !(a.reason || '').includes('[PAYMENT_CREDIT]'))
+        .map((a) => a.id);
+
+      if (creditAdjIds.length > 0) {
+        const { error: creditAdjDeleteError } = await supabase.from('worker_adjustments').delete().in('id', creditAdjIds);
+        if (creditAdjDeleteError) throw creditAdjDeleteError;
+      }
+
+      if (normalAdjIds.length > 0) {
+        const { error: adjustmentsRevertError } = await supabase
+          .from('worker_adjustments')
+          .update({ is_paid: false, payment_id: null })
+          .in('id', normalAdjIds);
+        if (adjustmentsRevertError) throw adjustmentsRevertError;
+      }
 
       // If this is a "Travailleur Overtime" payment, delete linked overtime attendance records
       if (payment.paid_to === 'Travailleur Overtime') {
