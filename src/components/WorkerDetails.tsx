@@ -52,7 +52,6 @@ import {
   Clock,
   MinusCircle,
   X,
-  CreditCard,
   ArrowUpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
