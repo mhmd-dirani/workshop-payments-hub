@@ -467,7 +467,13 @@
     "advancePaymentReason": "Advance payment",
     "advancePaymentNote": "Advance payment (+{{amount}} CFA)",
     "advancePaymentCreated": "Advance payment created",
-    "advancePaymentCreatedDesc": "The advance payment is pending approval"
+    "advancePaymentCreatedDesc": "The advance payment is pending approval",
+    "payOvertime": "Pay Overtime",
+    "overtimePaymentReason": "Overtime payment",
+    "overtimePaymentCreated": "Overtime payment created",
+    "overtimePaymentCreatedDesc": "The overtime payment is pending approval",
+    "bonusPaymentReason": "Bonus/Discount payment",
+    "entries": "Entries"
   },
   "personalPayments": {
     "title": "Personal Payments",
