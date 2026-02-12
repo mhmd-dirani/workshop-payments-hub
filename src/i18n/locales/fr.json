@@ -466,7 +466,13 @@
     "advancePaymentReason": "Paiement d'avance",
     "advancePaymentNote": "Paiement d'avance (+{{amount}} CFA)",
     "advancePaymentCreated": "Paiement d'avance créé",
-    "advancePaymentCreatedDesc": "Le paiement d'avance est en attente d'approbation"
+    "advancePaymentCreatedDesc": "Le paiement d'avance est en attente d'approbation",
+    "payOvertime": "Payer heures sup",
+    "overtimePaymentReason": "Paiement heures supplémentaires",
+    "overtimePaymentCreated": "Paiement heures sup créé",
+    "overtimePaymentCreatedDesc": "Le paiement des heures sup est en attente d'approbation",
+    "bonusPaymentReason": "Paiement bonus/réduction",
+    "entries": "Entrées"
   },
   "personalPayments": {
     "title": "Paiements personnels",
