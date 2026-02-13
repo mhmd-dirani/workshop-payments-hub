@@ -934,6 +934,36 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           </div>
                         );
                       })}
+                      {/* Show unpaid adjustments for this workshop */}
+                      {unpaidAdjustments
+                        .filter((adj) => adj.workshop_id === workshopId)
+                        .map((adj) => (
+                          <div key={adj.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
+                            <div className="flex flex-col">
+                              <span className="font-mono text-xs">
+                                {format(new Date(adj.work_date), 'EEE, dd/MM')}
+                              </span>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {adj.adjustment_type === 'bonus' ? (
+                                  <Sparkles className="w-3 h-3 text-success" />
+                                ) : (
+                                  <MinusCircle className="w-3 h-3 text-destructive" />
+                                )}
+                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
+                                  {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
+                                </span>
+                              </div>
+                              {adj.reason && (
+                                <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{adj.reason}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1 font-mono text-xs">
+                                {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </CardContent>
                 </Card>
