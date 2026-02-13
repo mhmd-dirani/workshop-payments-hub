@@ -438,7 +438,8 @@
       "coffreur": "Coffreur",
       "ferrailleur": "Ferrailleur",
       "travailleur": "Travailleur",
-      "macon": "Maçon"
+      "macon": "Maçon",
+      "carreleur": "Carreleur"
     },
     "payBonusOnly": "Payer bonus",
     "payBonusOnlyDesc": "Payer uniquement les bonus/réductions impayés de {{name}}",
