@@ -439,7 +439,8 @@
       "coffreur": "Formwork Carpenter",
       "ferrailleur": "Iron Worker",
       "travailleur": "Worker",
-      "macon": "Builder"
+      "macon": "Builder",
+      "carreleur": "Tiler"
     },
     "payBonusOnly": "Pay Bonus",
     "payBonusOnlyDesc": "Pay only the unpaid bonuses/discounts for {{name}}",

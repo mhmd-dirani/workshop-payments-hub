@@ -46,7 +46,7 @@ interface Worker {
   category: string;
 }
 
-const WORKER_CATEGORIES = ["coffreur", "ferrailleur", "travailleur", "macon", "Carreleur"] as const;
+const WORKER_CATEGORIES = ["coffreur", "ferrailleur", "travailleur", "macon", "carreleur"] as const;
 
 // Helper function to get week range (Sunday to Saturday) for a given date
 function getWeekRange(date: Date): { weekLabel: string; sunday: Date } {

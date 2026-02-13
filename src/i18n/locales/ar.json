@@ -438,7 +438,8 @@
       "coffreur": "نجار القوالب",
       "ferrailleur": "حداد",
       "travailleur": "عامل",
-      "macon": "بنّاء"
+      "macon": "بنّاء",
+      "carreleur": "بلّاط"
     },
     "payBonusOnly": "دفع المكافأة",
     "payBonusOnlyDesc": "دفع المكافآت/الخصومات غير المدفوعة فقط لـ {{name}}",
