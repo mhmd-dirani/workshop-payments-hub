@@ -38,7 +38,9 @@ export function buildWorkerPaymentReason(
     if (!byWorker[name]) {
       byWorker[name] = new Set();
     }
-    const dayIndex = getDay(new Date(entry.work_date));
+    // Parse as local date to avoid UTC timezone shift (which skips days like Tuesday)
+    const [y, m, d] = entry.work_date.split('-').map(Number);
+    const dayIndex = getDay(new Date(y, m - 1, d));
     byWorker[name].add(SHORT_DAYS[dayIndex]);
   });
 

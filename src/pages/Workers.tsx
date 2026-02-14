@@ -389,7 +389,12 @@ export default function Workers() {
             .insert([
               {
                 workshop_id: workshopId,
-                paid_to: "Travailleur",
+                paid_to: (() => {
+                  // Get category from the first selected worker in this workshop's entries
+                  const firstEntry = entries[0];
+                  const w = workers.find(w => w.id === firstEntry?.worker_id);
+                  return w?.category ? t(`workers.categories.${w.category}`) : t('workers.categories.travailleur');
+                })(),
                 reason,
                 amount: Math.max(finalTotal, 0),
                 payment_date: format(new Date(), "yyyy-MM-dd"),
