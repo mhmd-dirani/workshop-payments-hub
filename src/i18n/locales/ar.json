@@ -106,6 +106,8 @@
     "paidTo": "المدفوع له",
     "paymentDate": "التاريخ",
     "addedBy": "أضافه",
+    "changeCreator": "تغيير من دفع",
+    "selectUser": "اختر مستخدم...",
     "pending": "معلق",
     "approved": "موافق عليه",
     "rejected": "مرفوض",
