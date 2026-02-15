@@ -106,6 +106,8 @@
     "paidTo": "Payé à",
     "paymentDate": "Date",
     "addedBy": "Ajouté par",
+    "changeCreator": "Changer qui a payé",
+    "selectUser": "Sélectionner un utilisateur...",
     "pending": "En attente",
     "approved": "Approuvé",
     "rejected": "Refusé",

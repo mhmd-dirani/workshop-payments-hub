@@ -52,6 +52,7 @@ interface Payment {
   amount: number;
   payment_date: string;
   status?: string;
+  created_by?: string;
 }
 
 interface ExistingFile {
@@ -74,6 +75,8 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [paidToOpen, setPaidToOpen] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
@@ -95,6 +98,20 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
       if (error) throw error;
       return data?.map((p: { paid_to: string }) => p.paid_to) || [];
     },
+  });
+
+  // Fetch all users (profiles) for admin creator reassignment
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: role === 'admin',
   });
 
   useEffect(() => {
@@ -126,6 +143,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         amount: payment.amount,
         payment_date: payment.payment_date,
       });
+      setSelectedCreatorId(payment.created_by || null);
     } else {
       setFormData({
         paid_to: '',
@@ -133,6 +151,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
         amount: 0,
         payment_date: new Date().toISOString().split('T')[0],
       });
+      setSelectedCreatorId(null);
     }
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -229,6 +248,9 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
       setIsUploading(true);
       
       if (payment?.id) {
+        const originalCreatorId = payment.created_by;
+        const newCreatorId = selectedCreatorId && role === 'admin' ? selectedCreatorId : originalCreatorId;
+        
         const { error } = await supabase
           .from('payments')
           .update({
@@ -236,10 +258,19 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
+            ...(role === 'admin' && newCreatorId ? { created_by: newCreatorId } : {}),
             ...(role !== 'admin' && { status: 'pending' }),
           })
           .eq('id', payment.id);
         if (error) throw error;
+        
+        // If admin changed the creator, update linked user_transfers
+        if (role === 'admin' && newCreatorId && originalCreatorId && newCreatorId !== originalCreatorId) {
+          await supabase
+            .from('user_transfers')
+            .update({ user_id: newCreatorId })
+            .eq('payment_id', payment.id);
+        }
         
         if (selectedFile) {
           await uploadFile(payment.id);
@@ -273,6 +304,9 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-files', workshopId] });
+      queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['user-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['global-wealth-stats'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
@@ -371,6 +405,56 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Creator selector - admin only, edit mode only */}
+          {role === 'admin' && payment?.id && (
+            <div className="space-y-2">
+              <Label>{t('payments.changeCreator')}</Label>
+              <Popover open={creatorOpen} onOpenChange={setCreatorOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={creatorOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedCreatorId
+                      ? allProfiles.find(p => p.user_id === selectedCreatorId)?.full_name || t('payments.selectUser')
+                      : t('payments.selectUser')}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter={true}>
+                    <CommandInput placeholder={t('common.search')} />
+                    <CommandList className="max-h-[200px] overflow-y-auto overscroll-contain touch-pan-y">
+                      <CommandEmpty>{t('common.none')}</CommandEmpty>
+                      <CommandGroup>
+                        {allProfiles.map((profile) => (
+                          <CommandItem
+                            key={profile.user_id}
+                            value={profile.full_name || profile.user_id}
+                            onSelect={() => {
+                              setSelectedCreatorId(profile.user_id);
+                              setCreatorOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedCreatorId === profile.user_id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {profile.full_name || profile.user_id}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
