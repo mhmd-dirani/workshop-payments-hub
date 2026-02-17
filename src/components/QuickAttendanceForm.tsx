@@ -60,17 +60,16 @@ export default function QuickAttendanceForm() {
   const { data: existingAttendance = [] } = useQuery({
     queryKey: ['existing-attendance', selectedDate, selectedWorkshop],
     queryFn: async () => {
-      let query = supabase
+      if (!selectedWorkshop) return [];
+      const { data, error } = await supabase
         .from('attendance')
-        .select('worker_id, hours_worked, workshop_id, workshops:workshop_id(name)')
-        .eq('work_date', selectedDate);
-      if (selectedWorkshop) {
-        query = query.eq('workshop_id', selectedWorkshop);
-      }
-      const { data, error } = await query;
+        .select('worker_id, hours_worked')
+        .eq('work_date', selectedDate)
+        .eq('workshop_id', selectedWorkshop);
       if (error) throw error;
       return data || [];
     },
+    enabled: !!selectedWorkshop,
   });
 
   const attendedWorkerIds = new Set(existingAttendance.map(a => a.worker_id));
@@ -204,7 +203,11 @@ export default function QuickAttendanceForm() {
           </div>
         </div>
 
-        {workers.length === 0 ? (
+        {!selectedWorkshop ? (
+          <p className="text-center text-muted-foreground py-6 text-sm">
+            {t('attendance.selectWorkshopFirst')}
+          </p>
+        ) : workers.length === 0 ? (
           <p className="text-center text-muted-foreground py-6 text-sm">
             {t('workers.noWorkers')}
           </p>
@@ -214,9 +217,6 @@ export default function QuickAttendanceForm() {
               const isAttended = attendedWorkerIds.has(worker.id);
               const isSaved = savedWorkers.has(worker.id);
               const isPending = saveAttendance.isPending || removeAttendance.isPending;
-              const workshopName = !selectedWorkshop && isAttended
-                ? (existingAttendance.find(a => a.worker_id === worker.id) as any)?.workshops?.name
-                : undefined;
 
               return (
                 <WorkerAttendanceCard
@@ -224,9 +224,8 @@ export default function QuickAttendanceForm() {
                   worker={worker}
                   isAttended={isAttended}
                   isSaved={isSaved}
-                  isPending={isPending || !selectedWorkshop}
+                  isPending={isPending}
                   onToggleAttendance={handleToggleAttendance}
-                  workshopName={workshopName}
                 />
               );
             })}
