@@ -57,6 +57,7 @@ export default function QuickAttendanceForm() {
     },
   });
 
+  // Current workshop attendance
   const { data: existingAttendance = [] } = useQuery({
     queryKey: ['existing-attendance', selectedDate, selectedWorkshop],
     queryFn: async () => {
@@ -72,10 +73,33 @@ export default function QuickAttendanceForm() {
     enabled: !!selectedWorkshop,
   });
 
-  const attendedWorkerIds = new Set(existingAttendance.map(a => a.worker_id));
+  // All workshops attendance for the date (to detect cross-workshop conflicts)
+  const { data: allDateAttendance = [] } = useQuery({
+    queryKey: ['all-date-attendance', selectedDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('worker_id, workshop_id, hours_worked')
+        .eq('work_date', selectedDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const attendanceMap = new Map(existingAttendance.map(a => [a.worker_id, a]));
+
+  // Map: worker_id -> workshop_id where they're already attending (other workshops only)
+  const otherWorkshopMap = new Map<string, string>();
+  allDateAttendance.forEach(a => {
+    if (a.workshop_id !== selectedWorkshop) {
+      otherWorkshopMap.set(a.worker_id, a.workshop_id);
+    }
+  });
+
+  const workshopNameMap = new Map(workshops.map(w => [w.id, w.name]));
 
   const saveAttendance = useMutation({
-    mutationFn: async (workerId: string) => {
+    mutationFn: async ({ workerId, halfDay }: { workerId: string; halfDay: boolean }) => {
       const worker = workers.find(w => w.id === workerId);
       if (!worker) throw new Error('Worker not found');
 
@@ -89,13 +113,15 @@ export default function QuickAttendanceForm() {
 
       if (existing) return;
 
+      const hoursWorked = halfDay ? 0.5 : 1;
+
       const { error } = await supabase
         .from('attendance')
         .insert([{
           worker_id: workerId,
           workshop_id: selectedWorkshop,
           work_date: selectedDate,
-          hours_worked: 1,
+          hours_worked: hoursWorked,
           hourly_rate: worker.hourly_rate,
           has_extra: false,
           extra_amount: 0,
@@ -103,9 +129,10 @@ export default function QuickAttendanceForm() {
         }]);
       if (error) throw error;
     },
-    onSuccess: (_, workerId) => {
+    onSuccess: (_, { workerId }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-date-attendance'] });
       setSavedWorkers(prev => new Set([...prev, workerId]));
       setTimeout(() => {
         setSavedWorkers(prev => {
@@ -133,17 +160,18 @@ export default function QuickAttendanceForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-date-attendance'] });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
-  const handleToggleAttendance = (workerId: string) => {
-    if (attendedWorkerIds.has(workerId)) {
+  const handleToggleAttendance = (workerId: string, halfDay?: boolean) => {
+    if (attendanceMap.has(workerId)) {
       removeAttendance.mutate(workerId);
     } else {
-      saveAttendance.mutate(workerId);
+      saveAttendance.mutate({ workerId, halfDay: halfDay ?? false });
     }
   };
 
@@ -214,17 +242,25 @@ export default function QuickAttendanceForm() {
         ) : (
           <div className="space-y-2">
             {workers.map((worker) => {
-              const isAttended = attendedWorkerIds.has(worker.id);
+              const currentAttendance = attendanceMap.get(worker.id);
+              const isAttended = !!currentAttendance;
+              const isHalfDay = isAttended && Number(currentAttendance.hours_worked) === 0.5;
               const isSaved = savedWorkers.has(worker.id);
               const isPending = saveAttendance.isPending || removeAttendance.isPending;
+              
+              // Check if worker is in another workshop on this date
+              const otherWsId = otherWorkshopMap.get(worker.id);
+              const otherWorkshopName = otherWsId && !isAttended ? workshopNameMap.get(otherWsId) : undefined;
 
               return (
                 <WorkerAttendanceCard
                   key={worker.id}
                   worker={worker}
                   isAttended={isAttended}
+                  isHalfDay={isHalfDay}
                   isSaved={isSaved}
                   isPending={isPending}
+                  otherWorkshopName={otherWorkshopName}
                   onToggleAttendance={handleToggleAttendance}
                 />
               );

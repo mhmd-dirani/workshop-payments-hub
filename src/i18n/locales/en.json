@@ -344,6 +344,8 @@
     "savedAllDesc": "Attendance for all workers has been recorded",
     "saveAll": "Save All Entries",
     "attended": "Attended",
+    "fullDay": "Full Day",
+    "halfDay": "½ Day",
     "perDay": "day",
     "day": "day",
     "allTime": "All Time",
