@@ -16,6 +16,7 @@ interface WorkerAttendanceCardProps {
   isSaved: boolean;
   isPending: boolean;
   onToggleAttendance: (workerId: string) => void;
+  workshopName?: string;
 }
 
 export default function WorkerAttendanceCard({
@@ -24,6 +25,7 @@ export default function WorkerAttendanceCard({
   isSaved,
   isPending,
   onToggleAttendance,
+  workshopName,
 }: WorkerAttendanceCardProps) {
   const { t } = useTranslation();
 
@@ -52,9 +54,16 @@ export default function WorkerAttendanceCard({
               </Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground font-mono">
-            {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.perDay')}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground font-mono">
+              {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.perDay')}
+            </span>
+            {workshopName && (
+              <Badge variant="outline" className="text-[10px]">
+                {workshopName}
+              </Badge>
+            )}
+          </div>
         </div>
         
         <Button
