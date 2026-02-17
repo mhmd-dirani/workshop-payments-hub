@@ -276,6 +276,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
           await uploadFile(payment.id);
         }
       } else {
+        const creatorId = (role === 'admin' && selectedCreatorId) ? selectedCreatorId : user?.id;
         const { data: newPayment, error: paymentError } = await supabase
           .from('payments')
           .insert([{
@@ -284,7 +285,7 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
-            created_by: user?.id,
+            created_by: creatorId,
             status: role === 'admin' ? 'approved' : 'pending',
           }])
           .select('id')
@@ -406,8 +407,8 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
             </Popover>
           </div>
 
-          {/* Creator selector - admin only, edit mode only */}
-          {role === 'admin' && payment?.id && (
+          {/* Creator selector - admin only */}
+          {role === 'admin' && (
             <div className="space-y-2">
               <Label>{t('payments.changeCreator')}</Label>
               <Popover open={creatorOpen} onOpenChange={setCreatorOpen}>
