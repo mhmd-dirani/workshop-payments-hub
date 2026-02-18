@@ -27,21 +27,22 @@ export function getEffectivePay(entry: {
  * Format: "Melfi (mon tue fri) [+500 bonus] [-200 discount]\nPaull (wed sat)"
  */
 export function buildWorkerPaymentReason(
-  entries: Array<{ worker_id: string; work_date: string }>,
+  entries: Array<{ worker_id: string; work_date: string; hours_worked?: number }>,
   workerNames: Record<string, string>,
   adjustments?: Array<{ worker_id: string; adjustment_type: string; amount: number; reason?: string | null }>
 ): string {
-  // Group entries by worker
+  // Group entries by worker, tracking half-day markers
   const byWorker: Record<string, Set<string>> = {};
   entries.forEach((entry) => {
     const name = workerNames[entry.worker_id] || 'Unknown';
     if (!byWorker[name]) {
       byWorker[name] = new Set();
     }
-    // Parse as local date to avoid UTC timezone shift (which skips days like Tuesday)
     const [y, m, d] = entry.work_date.split('-').map(Number);
     const dayIndex = getDay(new Date(y, m - 1, d));
-    byWorker[name].add(SHORT_DAYS[dayIndex]);
+    const dayLabel = SHORT_DAYS[dayIndex];
+    const isHalf = Number(entry.hours_worked) === 0.5;
+    byWorker[name].add(isHalf ? `½${dayLabel}` : dayLabel);
   });
 
   // Group adjustments by worker

@@ -867,9 +867,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         return (
                           <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
                             <div className="flex flex-col">
-                              <span className="font-mono text-xs">
-                                {format(new Date(entry.work_date), 'EEE, dd/MM')}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs">
+                                  {format(new Date(entry.work_date), 'EEE, dd/MM')}
+                                </span>
+                                {Number(entry.hours_worked) === 0.5 && (
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
+                                    ½ {t('attendance.halfDay', { defaultValue: '½ Day' })}
+                                  </Badge>
+                                )}
+                              </div>
                               {hasExtra && (
                                 <div className="flex flex-col gap-0.5 mt-0.5">
                                   <div className="flex items-center gap-1">
@@ -1114,9 +1121,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           <div key={entry.id} className="p-3 border-b last:border-0">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <p className="font-mono text-xs">
-                                  {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
-                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-mono text-xs">
+                                    {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
+                                  </p>
+                                  {Number(entry.hours_worked) === 0.5 && (
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
+                                      ½ {t('attendance.halfDay', { defaultValue: '½ Day' })}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
                                   <span className="truncate">{(entry.workshops as any)?.name}</span>
                                 </Badge>
@@ -1233,7 +1247,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                             return (
                               <TableRow key={entry.id}>
                                 <TableCell className="font-mono">
-                                  {format(new Date(entry.work_date), 'MMM d, yyyy')}
+                                  <div className="flex items-center gap-1.5">
+                                    {format(new Date(entry.work_date), 'MMM d, yyyy')}
+                                    {Number(entry.hours_worked) === 0.5 && (
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
+                                        ½
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
