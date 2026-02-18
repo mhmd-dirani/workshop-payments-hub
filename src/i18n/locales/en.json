@@ -346,6 +346,8 @@
     "attended": "Attended",
     "fullDay": "Full Day",
     "halfDay": "½ Day",
+    "alreadyFullDay": "Worker already has a full day in another workshop",
+    "onlyHalfDayAllowed": "Worker already has ½ day elsewhere. Only ½ day allowed here.",
     "perDay": "day",
     "day": "day",
     "allTime": "All Time",

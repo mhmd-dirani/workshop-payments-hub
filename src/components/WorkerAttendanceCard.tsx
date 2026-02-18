@@ -17,6 +17,7 @@ interface WorkerAttendanceCardProps {
   isSaved: boolean;
   isPending: boolean;
   otherWorkshopName?: string;
+  isBlocked?: boolean;
   onToggleAttendance: (workerId: string, halfDay?: boolean) => void;
 }
 
@@ -27,6 +28,7 @@ export default function WorkerAttendanceCard({
   isSaved,
   isPending,
   otherWorkshopName,
+  isBlocked = false,
   onToggleAttendance,
 }: WorkerAttendanceCardProps) {
   const { t } = useTranslation();
@@ -103,8 +105,13 @@ export default function WorkerAttendanceCard({
                 </>
               )}
             </Button>
+          ) : isBlocked && otherWorkshopName ? (
+            // Worker already has full day elsewhere — completely blocked
+            <Badge variant="outline" className="text-[10px] px-2 py-1 border-destructive text-destructive">
+              {t('attendance.fullDay')} @ {otherWorkshopName}
+            </Badge>
           ) : otherWorkshopName ? (
-            // Worker is in another workshop — only half day allowed
+            // Worker has half day in another workshop — only half day allowed
             <Button
               size="sm"
               variant="outline"
