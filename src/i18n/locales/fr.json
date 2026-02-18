@@ -345,6 +345,8 @@
     "attended": "Présent",
     "fullDay": "Journée",
     "halfDay": "½ Jour",
+    "alreadyFullDay": "Le travailleur a déjà une journée complète dans un autre atelier",
+    "onlyHalfDayAllowed": "Le travailleur a déjà ½ jour ailleurs. Seul ½ jour est autorisé ici.",
     "perDay": "jour",
     "day": "jour",
     "allTime": "Tout",

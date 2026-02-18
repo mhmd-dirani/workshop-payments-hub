@@ -88,12 +88,15 @@ export default function QuickAttendanceForm() {
 
   const attendanceMap = new Map(existingAttendance.map(a => [a.worker_id, a]));
 
-  // Map: worker_id -> workshop_id where they're already attending (other workshops only)
-  const otherWorkshopMap = new Map<string, string>();
+  // Build conflict info: worker_id -> { workshopIds, totalHours }
+  const workerConflictMap = new Map<string, { workshops: Map<string, number>; totalHours: number }>();
   allDateAttendance.forEach(a => {
-    if (a.workshop_id !== selectedWorkshop) {
-      otherWorkshopMap.set(a.worker_id, a.workshop_id);
+    if (!workerConflictMap.has(a.worker_id)) {
+      workerConflictMap.set(a.worker_id, { workshops: new Map(), totalHours: 0 });
     }
+    const info = workerConflictMap.get(a.worker_id)!;
+    info.workshops.set(a.workshop_id, Number(a.hours_worked));
+    info.totalHours += Number(a.hours_worked);
   });
 
   const workshopNameMap = new Map(workshops.map(w => [w.id, w.name]));
@@ -103,15 +106,33 @@ export default function QuickAttendanceForm() {
       const worker = workers.find(w => w.id === workerId);
       if (!worker) throw new Error('Worker not found');
 
-      const { data: existing } = await supabase
+      // Fresh DB check for cross-workshop conflicts
+      const { data: freshAttendance } = await supabase
         .from('attendance')
-        .select('id')
+        .select('worker_id, workshop_id, hours_worked')
         .eq('worker_id', workerId)
-        .eq('workshop_id', selectedWorkshop)
-        .eq('work_date', selectedDate)
-        .single();
+        .eq('work_date', selectedDate);
 
-      if (existing) return;
+      const otherEntries = (freshAttendance || []).filter(a => a.workshop_id !== selectedWorkshop);
+      const currentEntry = (freshAttendance || []).find(a => a.workshop_id === selectedWorkshop);
+      
+      // Already exists in this workshop
+      if (currentEntry) return;
+
+      const otherTotalHours = otherEntries.reduce((sum, a) => sum + Number(a.hours_worked), 0);
+
+      // If worker already has full day (1 hour) elsewhere, block entirely
+      if (otherTotalHours >= 1) {
+        throw new Error(t('attendance.alreadyFullDay', { defaultValue: 'Worker already has a full day in another workshop' }));
+      }
+
+      // If worker has half day elsewhere, only allow half day here
+      if (otherTotalHours === 0.5 && !halfDay) {
+        throw new Error(t('attendance.onlyHalfDayAllowed', { defaultValue: 'Worker already has ½ day elsewhere. Only ½ day allowed here.' }));
+      }
+
+      // If worker already has half day elsewhere and trying another half day — that's the max (0.5 + 0.5 = 1)
+      // This is allowed — two half days = one full day across two workshops
 
       const hoursWorked = halfDay ? 0.5 : 1;
 
@@ -248,9 +269,25 @@ export default function QuickAttendanceForm() {
               const isSaved = savedWorkers.has(worker.id);
               const isPending = saveAttendance.isPending || removeAttendance.isPending;
               
-              // Check if worker is in another workshop on this date
-              const otherWsId = otherWorkshopMap.get(worker.id);
-              const otherWorkshopName = otherWsId && !isAttended ? workshopNameMap.get(otherWsId) : undefined;
+              // Check conflict state from allDateAttendance
+              const conflict = workerConflictMap.get(worker.id);
+              const otherEntries = conflict 
+                ? Array.from(conflict.workshops.entries()).filter(([wsId]) => wsId !== selectedWorkshop)
+                : [];
+              const otherTotalHours = otherEntries.reduce((sum, [, h]) => sum + h, 0);
+              
+              // Determine what to show
+              let otherWorkshopName: string | undefined;
+              let isBlocked = false;
+              
+              if (!isAttended && otherEntries.length > 0) {
+                const firstOtherWsId = otherEntries[0][0];
+                otherWorkshopName = workshopNameMap.get(firstOtherWsId);
+                // If already full day (>=1) elsewhere, block entirely
+                if (otherTotalHours >= 1) {
+                  isBlocked = true;
+                }
+              }
 
               return (
                 <WorkerAttendanceCard
@@ -261,6 +298,7 @@ export default function QuickAttendanceForm() {
                   isSaved={isSaved}
                   isPending={isPending}
                   otherWorkshopName={otherWorkshopName}
+                  isBlocked={isBlocked}
                   onToggleAttendance={handleToggleAttendance}
                 />
               );
