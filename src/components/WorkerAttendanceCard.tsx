@@ -79,7 +79,7 @@ export default function WorkerAttendanceCard({
             <span className="text-xs text-muted-foreground font-mono">
               {displayRate.toLocaleString('fr-FR')} CFA/{t('attendance.perDay')}
             </span>
-            {otherWorkshopName && !isAttended && (
+            {otherWorkshopName && !isAttended && !isBlocked && (
               <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning text-warning">
                 {otherWorkshopName}
               </Badge>
