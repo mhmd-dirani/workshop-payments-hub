@@ -873,7 +873,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 </span>
                                 {Number(entry.hours_worked) === 0.5 && (
                                   <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                    ½ {t('attendance.halfDay', { defaultValue: '½ Day' })}
+                                     {t('attendance.halfDay', { defaultValue: '½ Day' })}
                                   </Badge>
                                 )}
                               </div>
@@ -1127,7 +1127,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                   </p>
                                   {Number(entry.hours_worked) === 0.5 && (
                                     <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                      ½ {t('attendance.halfDay', { defaultValue: '½ Day' })}
+                                      {t('attendance.halfDay', { defaultValue: '½ Day' })}
                                     </Badge>
                                   )}
                                 </div>
