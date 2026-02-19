@@ -108,7 +108,7 @@ export default function WorkerAttendanceCard({
           ) : isBlocked && otherWorkshopName ? (
             // Worker already maxed out elsewhere — completely blocked
             <Badge variant="outline" className="text-[10px] px-2 py-1 border-destructive text-destructive">
-              ½ @ {otherWorkshopName}
+              {otherWorkshopName}
             </Badge>
           ) : otherWorkshopName ? (
             // Worker has half day in another workshop — only half day allowed
