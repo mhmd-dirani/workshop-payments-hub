@@ -281,9 +281,10 @@ export default function QuickAttendanceForm() {
               let isBlocked = false;
               
               if (!isAttended && otherEntries.length > 0) {
-                const firstOtherWsId = otherEntries[0][0];
-                otherWorkshopName = workshopNameMap.get(firstOtherWsId);
-                // If already full day (>=1) elsewhere, block entirely
+                // Build a combined name of all other workshops
+                const otherNames = otherEntries.map(([wsId]) => workshopNameMap.get(wsId) || '?').join(' + ');
+                otherWorkshopName = otherNames;
+                // If total hours across other workshops >= 1, block entirely
                 if (otherTotalHours >= 1) {
                   isBlocked = true;
                 }
