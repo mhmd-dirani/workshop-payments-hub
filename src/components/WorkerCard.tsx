@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, UserX, UserCheck, Trash2, ChevronRight, Wallet, Sparkles, MinusCircle } from 'lucide-react';
+import { Edit, UserX, UserCheck, Trash2, ChevronRight, Wallet, Sparkles, MinusCircle, Car } from 'lucide-react';
 
 interface Worker {
   id: string;
@@ -25,6 +25,7 @@ interface WorkerCardProps {
   selectedWorkshopId?: string | null;
   weeklyBonus?: number;
   weeklyDiscount?: number;
+  weeklyTaxi?: number;
 }
 
 export default function WorkerCard({
@@ -40,6 +41,7 @@ export default function WorkerCard({
   selectedWorkshopId = null,
   weeklyBonus = 0,
   weeklyDiscount = 0,
+  weeklyTaxi = 0,
 }: WorkerCardProps) {
   const { t } = useTranslation();
   const otherWorkshopBreakdown = selectedWorkshopId
@@ -98,6 +100,12 @@ export default function WorkerCard({
                       -{weeklyDiscount.toLocaleString('fr-FR')}
                     </Badge>
                   )}
+                  {weeklyTaxi > 0 && (
+                    <Badge variant="secondary" className="text-[10px] gap-0.5 px-1 py-0 bg-blue-600/15 text-blue-600">
+                      <Car className="w-2.5 h-2.5" />
+                      +{weeklyTaxi.toLocaleString('fr-FR')}
+                    </Badge>
+                  )}
                 </div>
               </div>
               {!worker.is_active && (
@@ -118,11 +126,14 @@ export default function WorkerCard({
                     {owedAmount.toLocaleString('fr-FR')} CFA
                   </span>
                 </div>
-                {(weeklyBonus > 0 || weeklyDiscount > 0) && (
+                {(weeklyBonus > 0 || weeklyDiscount > 0 || weeklyTaxi > 0) && (
                   <p className="text-[10px] text-muted-foreground font-mono ml-5">
                     {t('workers.includesAdjustments', { defaultValue: 'Includes' })}
                     {weeklyBonus > 0 && (
                       <span className="text-success"> +{weeklyBonus.toLocaleString('fr-FR')} {t('workers.bonus', { defaultValue: 'bonus' })}</span>
+                    )}
+                    {weeklyTaxi > 0 && (
+                      <span className="text-blue-600"> +{weeklyTaxi.toLocaleString('fr-FR')} {t('adjustments.taxi', { defaultValue: 'taxi' })}</span>
                     )}
                     {weeklyDiscount > 0 && (
                       <span className="text-destructive"> -{weeklyDiscount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'disc.' })}</span>

@@ -573,10 +573,11 @@
     "title": "Bonuses & Discounts",
     "tabLabel": "Bonus/Discount",
     "tabLabelShort": "B/D",
-    "description": "Add bonuses or discounts to workers during the day",
+    "description": "Add bonuses, taxi or discounts to workers during the day",
     "type": "Type",
     "bonus": "Bonus",
     "discount": "Discount",
+    "taxi": "Taxi",
     "addAdjustment": "Add",
     "editAdjustment": "Edit Adjustment",
     "reasonPlaceholder": "Why this bonus/discount?",
@@ -589,6 +590,7 @@
     "deletedDesc": "The adjustment has been removed",
     "paid": "Paid",
     "bonusTotal": "Bonuses",
-    "discountTotal": "Discounts"
+    "discountTotal": "Discounts",
+    "taxiTotal": "Taxi"
   }
 }

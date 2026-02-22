@@ -46,15 +46,17 @@ export function buildWorkerPaymentReason(
   });
 
   // Group adjustments by worker
-  const adjByWorker: Record<string, { bonuses: number; discounts: number }> = {};
+  const adjByWorker: Record<string, { bonuses: number; discounts: number; taxi: number }> = {};
   if (adjustments) {
     adjustments.forEach((adj) => {
       const name = workerNames[adj.worker_id] || 'Unknown';
       if (!adjByWorker[name]) {
-        adjByWorker[name] = { bonuses: 0, discounts: 0 };
+        adjByWorker[name] = { bonuses: 0, discounts: 0, taxi: 0 };
       }
       if (adj.adjustment_type === 'bonus') {
         adjByWorker[name].bonuses += Number(adj.amount);
+      } else if (adj.adjustment_type === 'taxi') {
+        adjByWorker[name].taxi += Number(adj.amount);
       } else {
         adjByWorker[name].discounts += Number(adj.amount);
       }
@@ -81,6 +83,7 @@ export function buildWorkerPaymentReason(
       }
       if (adj) {
         if (adj.bonuses > 0) line += ` [+${adj.bonuses}]`;
+        if (adj.taxi > 0) line += ` [🚕${adj.taxi}]`;
         if (adj.discounts > 0) line += ` [-${adj.discounts}]`;
       }
       return line;

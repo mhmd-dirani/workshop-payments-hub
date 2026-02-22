@@ -131,11 +131,12 @@ export default function Workers() {
   });
 
   // Calculate owed amounts and weekly bonus/discount totals per worker
-  const { owedTotalsByWorker, owedBreakdownByWorker, weeklyBonusByWorker, weeklyDiscountByWorker } = useMemo(() => {
+  const { owedTotalsByWorker, owedBreakdownByWorker, weeklyBonusByWorker, weeklyDiscountByWorker, weeklyTaxiByWorker } = useMemo(() => {
     const totals: Record<string, number> = {};
     const breakdown: Record<string, Record<string, { amount: number; name: string }>> = {};
     const bonuses: Record<string, number> = {};
     const discounts: Record<string, number> = {};
+    const taxis: Record<string, number> = {};
 
     // Get current week boundaries (Sunday to Saturday)
     const now = new Date();
@@ -169,6 +170,9 @@ export default function Workers() {
       if (adj.adjustment_type === "bonus") {
         totals[workerId] = (totals[workerId] || 0) + adjAmount;
         bonuses[workerId] = (bonuses[workerId] || 0) + adjAmount;
+      } else if (adj.adjustment_type === "taxi") {
+        totals[workerId] = (totals[workerId] || 0) + adjAmount;
+        taxis[workerId] = (taxis[workerId] || 0) + adjAmount;
       } else {
         totals[workerId] = (totals[workerId] || 0) - adjAmount;
         discounts[workerId] = (discounts[workerId] || 0) + adjAmount;
@@ -180,6 +184,7 @@ export default function Workers() {
       owedBreakdownByWorker: breakdown,
       weeklyBonusByWorker: bonuses,
       weeklyDiscountByWorker: discounts,
+      weeklyTaxiByWorker: taxis,
     };
   }, [allUnpaidAttendance, allUnpaidAdjustments, t]);
 
@@ -378,7 +383,7 @@ export default function Workers() {
         ][]) {
           const { entries, total } = workshopData;
           const wAdj = adjByWorkshop[workshopId] || [];
-          const adjB = wAdj.filter((a) => a.adjustment_type === "bonus").reduce((s, a) => s + Number(a.amount), 0);
+          const adjB = wAdj.filter((a) => a.adjustment_type === "bonus" || a.adjustment_type === "taxi").reduce((s, a) => s + Number(a.amount), 0);
           const adjD = wAdj.filter((a) => a.adjustment_type === "discount").reduce((s, a) => s + Number(a.amount), 0);
           const finalTotal = total + adjB - adjD;
 
@@ -663,6 +668,7 @@ export default function Workers() {
                     selectedWorkshopId={selectedWorkshopId}
                     weeklyBonus={weeklyBonusByWorker[worker.id] || 0}
                     weeklyDiscount={weeklyDiscountByWorker[worker.id] || 0}
+                    weeklyTaxi={weeklyTaxiByWorker[worker.id] || 0}
                   />
                 ))}
               </div>

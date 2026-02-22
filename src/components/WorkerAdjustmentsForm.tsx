@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Plus, Minus, Sparkles, MinusCircle, Edit, Trash2, Check, ChevronsUpDown, Calendar, Building2 } from 'lucide-react';
+import { Loader2, Plus, Minus, Sparkles, MinusCircle, Edit, Trash2, Check, ChevronsUpDown, Calendar, Building2, Car } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Adjustment {
@@ -63,7 +63,7 @@ export default function WorkerAdjustmentsForm() {
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
   const [selectedWorker, setSelectedWorker] = useState('');
   const [workerOpen, setWorkerOpen] = useState(false);
-  const [adjustmentType, setAdjustmentType] = useState<'bonus' | 'discount'>('bonus');
+  const [adjustmentType, setAdjustmentType] = useState<'bonus' | 'discount' | 'taxi'>('bonus');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [editingAdjustment, setEditingAdjustment] = useState<Adjustment | null>(null);
@@ -196,6 +196,9 @@ export default function WorkerAdjustmentsForm() {
   const totalBonuses = todayAdjustments
     .filter(a => a.adjustment_type === 'bonus')
     .reduce((sum, a) => sum + Number(a.amount), 0);
+  const totalTaxi = todayAdjustments
+    .filter(a => a.adjustment_type === 'taxi')
+    .reduce((sum, a) => sum + Number(a.amount), 0);
   const totalDiscounts = todayAdjustments
     .filter(a => a.adjustment_type === 'discount')
     .reduce((sum, a) => sum + Number(a.amount), 0);
@@ -296,8 +299,8 @@ export default function WorkerAdjustmentsForm() {
                 </div>
 
                 {/* Type + Amount + Reason */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">{t('adjustments.type')}</Label>
                     <div className="flex gap-1">
                       <Button
@@ -309,6 +312,16 @@ export default function WorkerAdjustmentsForm() {
                       >
                         <Plus className="w-3 h-3" />
                         {t('adjustments.bonus')}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={adjustmentType === 'taxi' ? 'default' : 'outline'}
+                        onClick={() => setAdjustmentType('taxi')}
+                        className={cn("flex-1 h-8 text-xs gap-1", adjustmentType === 'taxi' && "bg-blue-600 text-white hover:bg-blue-700")}
+                      >
+                        <Car className="w-3 h-3" />
+                        {t('adjustments.taxi')}
                       </Button>
                       <Button
                         type="button"
@@ -354,6 +367,8 @@ export default function WorkerAdjustmentsForm() {
                     "w-full gap-1.5",
                     adjustmentType === 'bonus'
                       ? "bg-success text-success-foreground hover:bg-success/90"
+                      : adjustmentType === 'taxi'
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   )}
                 >
@@ -361,6 +376,8 @@ export default function WorkerAdjustmentsForm() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : adjustmentType === 'bonus' ? (
                     <Plus className="w-3.5 h-3.5" />
+                  ) : adjustmentType === 'taxi' ? (
+                    <Car className="w-3.5 h-3.5" />
                   ) : (
                     <Minus className="w-3.5 h-3.5" />
                   )}
@@ -376,11 +393,17 @@ export default function WorkerAdjustmentsForm() {
               ) : todayAdjustments.length > 0 ? (
                 <div className="space-y-2">
                   {/* Summary */}
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-3 text-xs flex-wrap">
                     {totalBonuses > 0 && (
                       <Badge variant="secondary" className="gap-1 bg-success/15 text-success">
                         <Sparkles className="w-3 h-3" />
                         +{totalBonuses.toLocaleString('fr-FR')} CFA
+                      </Badge>
+                    )}
+                    {totalTaxi > 0 && (
+                      <Badge variant="secondary" className="gap-1 bg-blue-600/15 text-blue-600">
+                        <Car className="w-3 h-3" />
+                        +{totalTaxi.toLocaleString('fr-FR')} CFA
                       </Badge>
                     )}
                     {totalDiscounts > 0 && (
@@ -397,7 +420,9 @@ export default function WorkerAdjustmentsForm() {
                       key={adj.id}
                       className={cn(
                         "flex items-center justify-between p-2.5 border rounded-lg",
-                        adj.adjustment_type === 'bonus' ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5",
+                        adj.adjustment_type === 'bonus' ? "border-success/30 bg-success/5" 
+                          : adj.adjustment_type === 'taxi' ? "border-blue-600/30 bg-blue-600/5"
+                          : "border-destructive/30 bg-destructive/5",
                         adj.is_paid && "opacity-60"
                       )}
                     >
@@ -405,6 +430,8 @@ export default function WorkerAdjustmentsForm() {
                         <div className="flex items-center gap-1.5">
                           {adj.adjustment_type === 'bonus' ? (
                             <Sparkles className="w-3 h-3 text-success shrink-0" />
+                          ) : adj.adjustment_type === 'taxi' ? (
+                            <Car className="w-3 h-3 text-blue-600 shrink-0" />
                           ) : (
                             <MinusCircle className="w-3 h-3 text-destructive shrink-0" />
                           )}
@@ -424,9 +451,9 @@ export default function WorkerAdjustmentsForm() {
                       <div className="flex items-center gap-1 shrink-0 ml-2">
                         <span className={cn(
                           "text-sm font-mono font-medium",
-                          adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'
+                          adj.adjustment_type === 'discount' ? 'text-destructive' : adj.adjustment_type === 'taxi' ? 'text-blue-600' : 'text-success'
                         )}>
-                          {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')}
+                          {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')}
                         </span>
                         {!adj.is_paid && (
                           <>

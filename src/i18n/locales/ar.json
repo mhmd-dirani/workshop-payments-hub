@@ -572,10 +572,11 @@
     "title": "المكافآت والخصومات",
     "tabLabel": "مكافأة/خصم",
     "tabLabelShort": "م/خ",
-    "description": "إضافة مكافآت أو خصومات للعمال خلال اليوم",
+    "description": "إضافة مكافآت أو تاكسي أو خصومات للعمال خلال اليوم",
     "type": "النوع",
     "bonus": "مكافأة",
     "discount": "خصم",
+    "taxi": "تاكسي",
     "addAdjustment": "إضافة",
     "editAdjustment": "تعديل",
     "reasonPlaceholder": "لماذا هذه المكافأة/الخصم؟",
@@ -588,6 +589,7 @@
     "deletedDesc": "تم إزالة التعديل",
     "paid": "مدفوع",
     "bonusTotal": "المكافآت",
-    "discountTotal": "الخصومات"
+    "discountTotal": "الخصومات",
+    "taxiTotal": "تاكسي"
   }
 }

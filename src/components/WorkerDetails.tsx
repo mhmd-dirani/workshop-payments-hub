@@ -253,7 +253,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
   const bonusTotal = unpaidAdjustments
-    .filter((a) => a.adjustment_type === 'bonus')
+    .filter((a) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi')
     .reduce((sum, a) => sum + Number(a.amount), 0);
   const discountTotal = unpaidAdjustments
     .filter((a) => a.adjustment_type === 'discount')
@@ -274,7 +274,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const wid = adj.workshop_id;
       const wname = (adj.workshops as any)?.name || 'Unknown';
       if (!map[wid]) map[wid] = { name: wname, bonuses: 0, discounts: 0, items: [] };
-      if (adj.adjustment_type === 'bonus') map[wid].bonuses += Number(adj.amount);
+      if (adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi') map[wid].bonuses += Number(adj.amount);
       else map[wid].discounts += Number(adj.amount);
       map[wid].items.push(adj);
     });
@@ -324,7 +324,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     if (!unpaidByWorkshop[workshopId]) {
       unpaidByWorkshop[workshopId] = { name: workshopName, total: 0, entries: [] };
     }
-    if (adj.adjustment_type === 'bonus') {
+    if (adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi') {
       unpaidByWorkshop[workshopId].total += Number(adj.amount);
     } else {
       unpaidByWorkshop[workshopId].total -= Number(adj.amount);
@@ -437,13 +437,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           const { entries, total } = workshopData;
           
           const workshopAdj = adjByWorkshop[workshopId] || [];
-          const adjBonuses = workshopAdj.filter(a => a.adjustment_type === 'bonus').reduce((s, a) => s + Number(a.amount), 0);
+          const adjBonuses = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi').reduce((s, a) => s + Number(a.amount), 0);
           const adjDiscounts = workshopAdj.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
           const finalTotal = total + adjBonuses - adjDiscounts;
           
           const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
           
-          const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+          const categoryLabel = t('workers.categories.travailleur');
 
           const { data: payment, error: paymentError } = await supabase
             .from('payments')
@@ -953,11 +953,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                               <div className="flex items-center gap-1 mt-0.5">
                                 {adj.adjustment_type === 'bonus' ? (
                                   <Sparkles className="w-3 h-3 text-success" />
+                                ) : adj.adjustment_type === 'taxi' ? (
+                                  <Clock className="w-3 h-3 text-blue-600" />
                                 ) : (
                                   <MinusCircle className="w-3 h-3 text-destructive" />
                                 )}
-                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
-                                  {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
+                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : adj.adjustment_type === 'taxi' ? 'text-blue-600' : 'text-destructive'}`}>
+                                  {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : adj.adjustment_type === 'taxi' ? t('adjustments.taxi', { defaultValue: 'Taxi' }) : t('attendance.discount', { defaultValue: 'Discount' })}
                                 </span>
                               </div>
                               {adj.reason && (
@@ -965,8 +967,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1 font-mono text-xs">
-                                {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')}
+                              <Badge variant={adj.adjustment_type === 'discount' ? 'destructive' : 'secondary'} className="gap-1 font-mono text-xs">
+                                {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')}
                               </Badge>
                             </div>
                           </div>
