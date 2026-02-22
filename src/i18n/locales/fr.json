@@ -572,10 +572,11 @@
     "title": "Bonus & Réductions",
     "tabLabel": "Bonus/Réduction",
     "tabLabelShort": "B/R",
-    "description": "Ajouter des bonus ou réductions aux travailleurs pendant la journée",
+    "description": "Ajouter des bonus, taxi ou réductions aux travailleurs pendant la journée",
     "type": "Type",
     "bonus": "Bonus",
     "discount": "Réduction",
+    "taxi": "Taxi",
     "addAdjustment": "Ajouter",
     "editAdjustment": "Modifier l'ajustement",
     "reasonPlaceholder": "Pourquoi ce bonus/réduction ?",
@@ -588,6 +589,7 @@
     "deletedDesc": "L'ajustement a été supprimé",
     "paid": "Payé",
     "bonusTotal": "Bonus",
-    "discountTotal": "Réductions"
+    "discountTotal": "Réductions",
+    "taxiTotal": "Taxi"
   }
 }
