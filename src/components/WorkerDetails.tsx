@@ -437,8 +437,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           const { entries, total } = workshopData;
           
           const workshopAdj = adjByWorkshop[workshopId] || [];
-          const adjBonuses = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi').reduce((s, a) => s + Number(a.amount), 0);
-          const adjDiscounts = workshopAdj.filter(a => a.adjustment_type === 'discount').reduce((s, a) => s + Number(a.amount), 0);
+          const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
+          const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
+          const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
+          const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
           const finalTotal = total + adjBonuses - adjDiscounts;
           
           const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
@@ -469,12 +471,22 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               .in('id', entryIds);
           }
 
-          const workshopAdjIds = workshopAdj.map((a: any) => a.id);
-          if (workshopAdjIds.length > 0) {
+          // Mark bonus/taxi adjustments with payment_id
+          const bonusIds = bonusAdj.map((a: any) => a.id);
+          if (bonusIds.length > 0) {
             await supabase
               .from('worker_adjustments')
               .update({ is_paid: true, payment_id: payment.id })
-              .in('id', workshopAdjIds);
+              .in('id', bonusIds);
+          }
+          
+          // Mark discount adjustments as paid without payment record
+          const discountIds = discountAdj.map((a: any) => a.id);
+          if (discountIds.length > 0) {
+            await supabase
+              .from('worker_adjustments')
+              .update({ is_paid: true })
+              .in('id', discountIds);
           }
           
           // Remove processed adjustments so they're not double-counted
@@ -537,7 +549,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
       const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
-      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+      const categoryLabel = t('workers.categories.travailleur');
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -589,7 +601,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(advanceAmount);
       if (!amount || amount <= 0 || !advanceWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+      const categoryLabel = t('workers.categories.travailleur');
       const reason = `${worker.name} - ${t('workers.advancePaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
 
       const { data: payment, error: paymentError } = await supabase
@@ -642,11 +654,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!bonusWorkshopId) throw new Error('No workshop selected');
       const workshopAdj = unpaidAdjByWorkshop[bonusWorkshopId];
       if (!workshopAdj || workshopAdj.items.length === 0) throw new Error('No adjustments');
-      const net = workshopAdj.bonuses - workshopAdj.discounts;
-      if (net === 0) throw new Error('Net adjustment is zero');
+      if (workshopAdj.bonuses <= 0) throw new Error('No bonus/taxi to pay');
 
-      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
-      const reason = `${worker.name} - ${t('workers.bonusPaymentReason', { defaultValue: 'Bonus/Discount payment' })}`;
+      const categoryLabel = t('workers.categories.travailleur');
+      
+      // Only pay bonuses + taxi, NOT discounts
+      const bonusItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
+      const discountItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'discount');
+      const payableAmount = workshopAdj.bonuses; // only bonuses + taxi
+      
+      if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
+      
+      const reason = `${worker.name} - ${t('workers.bonusPaymentReason', { defaultValue: 'Bonus/Taxi payment' })}`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -654,7 +673,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           workshop_id: bonusWorkshopId,
           paid_to: categoryLabel,
           reason,
-          amount: Math.abs(net),
+          amount: payableAmount,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
           status: 'pending',
@@ -663,11 +682,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .single();
       if (paymentError) throw paymentError;
 
-      const adjIds = workshopAdj.items.map((a: any) => a.id);
-      await supabase
-        .from('worker_adjustments')
-        .update({ is_paid: true, payment_id: payment.id })
-        .in('id', adjIds);
+      // Mark bonus/taxi adjustments as paid with payment_id
+      const bonusIds = bonusItems.map((a: any) => a.id);
+      if (bonusIds.length > 0) {
+        await supabase
+          .from('worker_adjustments')
+          .update({ is_paid: true, payment_id: payment.id })
+          .in('id', bonusIds);
+      }
+      
+      // Mark discount adjustments as paid (no payment record - they just reduce balance)
+      const discountIds = discountItems.map((a: any) => a.id);
+      if (discountIds.length > 0) {
+        await supabase
+          .from('worker_adjustments')
+          .update({ is_paid: true })
+          .in('id', discountIds);
+      }
 
       return payment;
     },
@@ -690,7 +721,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const workshopOt = unpaidOvertimeByWorkshop[overtimeWorkshopId];
       if (!workshopOt || workshopOt.entries.length === 0) throw new Error('No overtime entries');
 
-      const categoryLabel = worker.category ? t(`workers.categories.${worker.category}`) : 'Travailleur';
+      const categoryLabel = t('workers.categories.travailleur');
       const reason = `${worker.name} - ${t('workers.overtimePaymentReason', { defaultValue: 'Overtime payment' })}`;
 
       const { data: payment, error: paymentError } = await supabase

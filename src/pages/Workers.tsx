@@ -383,8 +383,10 @@ export default function Workers() {
         ][]) {
           const { entries, total } = workshopData;
           const wAdj = adjByWorkshop[workshopId] || [];
-          const adjB = wAdj.filter((a) => a.adjustment_type === "bonus" || a.adjustment_type === "taxi").reduce((s, a) => s + Number(a.amount), 0);
-          const adjD = wAdj.filter((a) => a.adjustment_type === "discount").reduce((s, a) => s + Number(a.amount), 0);
+          const bonusAdj = wAdj.filter((a) => a.adjustment_type === "bonus" || a.adjustment_type === "taxi");
+          const discountAdj = wAdj.filter((a) => a.adjustment_type === "discount");
+          const adjB = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
+          const adjD = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
           const finalTotal = total + adjB - adjD;
 
           const reason = buildWorkerPaymentReason(entries, workerNames, wAdj);
@@ -410,12 +412,21 @@ export default function Workers() {
           if (entryIds.length > 0) {
             await supabase.from("attendance").update({ is_paid: true, payment_id: payment.id }).in("id", entryIds);
           }
-          const adjIds = wAdj.map((a: any) => a.id);
-          if (adjIds.length > 0) {
+          // Mark bonus/taxi adjustments with payment_id
+          const bonusIds = bonusAdj.map((a: any) => a.id);
+          if (bonusIds.length > 0) {
             await supabase
               .from("worker_adjustments")
               .update({ is_paid: true, payment_id: payment.id })
-              .in("id", adjIds);
+              .in("id", bonusIds);
+          }
+          // Mark discount adjustments as paid without payment record
+          const discountIds = discountAdj.map((a: any) => a.id);
+          if (discountIds.length > 0) {
+            await supabase
+              .from("worker_adjustments")
+              .update({ is_paid: true })
+              .in("id", discountIds);
           }
           delete adjByWorkshop[workshopId];
           results.push({ workshopId, weekLabel, paymentId: payment.id, amount: finalTotal });
