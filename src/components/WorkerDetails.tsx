@@ -414,86 +414,78 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const results: any[] = [];
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
       
-      const byWeek = groupByWorkWeek(unpaidAttendance);
-      
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
         if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
         adjByWorkshop[adj.workshop_id].push(adj);
       });
+
+      // Group all attendance by workshop (not by week) - one payment per workshop
+      const byWorkshop = unpaidAttendance.reduce((acc, entry) => {
+        const workshopId = entry.workshop_id;
+        if (!acc[workshopId]) acc[workshopId] = { entries: [], total: 0 };
+        acc[workshopId].entries.push(entry);
+        acc[workshopId].total += getEffectivePay(entry);
+        return acc;
+      }, {} as Record<string, { entries: any[]; total: number }>);
       
-      for (const [weekLabel, weekEntries] of Object.entries(byWeek)) {
-        const byWorkshop = (weekEntries as any[]).reduce((acc, entry) => {
-          const workshopId = entry.workshop_id;
-          if (!acc[workshopId]) {
-            acc[workshopId] = { entries: [], total: 0 };
-          }
-          acc[workshopId].entries.push(entry);
-          acc[workshopId].total += getEffectivePay(entry);
-          return acc;
-        }, {} as Record<string, { entries: any[]; total: number }>);
+      for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
+        const { entries, total } = workshopData;
         
-        for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
-          const { entries, total } = workshopData;
-          
-          const workshopAdj = adjByWorkshop[workshopId] || [];
-          const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
-          const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
-          const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
-          const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
-          const finalTotal = total + adjBonuses - adjDiscounts;
-          
-          const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
-          
-          const categoryLabel = t('workers.categories.travailleur');
+        const workshopAdj = adjByWorkshop[workshopId] || [];
+        const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
+        const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
+        const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
+        const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
+        const finalTotal = total + adjBonuses - adjDiscounts;
+        
+        const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        
+        const categoryLabel = t('workers.categories.travailleur');
 
-          const { data: payment, error: paymentError } = await supabase
-            .from('payments')
-            .insert([{
-              workshop_id: workshopId,
-              paid_to: categoryLabel,
-              reason,
-              amount: Math.max(finalTotal, 0),
-              payment_date: format(new Date(), 'yyyy-MM-dd'),
-              created_by: user?.id,
-              status: 'pending',
-            }])
-            .select()
-            .single();
-          
-          if (paymentError) throw paymentError;
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: workshopId,
+            paid_to: categoryLabel,
+            reason,
+            amount: Math.max(finalTotal, 0),
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: 'pending',
+          }])
+          .select()
+          .single();
+        
+        if (paymentError) throw paymentError;
 
-          const entryIds = entries.map((e: any) => e.id);
-          if (entryIds.length > 0) {
-            await supabase
-              .from('attendance')
-              .update({ is_paid: true, payment_id: payment.id })
-              .in('id', entryIds);
-          }
-
-          // Mark bonus/taxi adjustments with payment_id
-          const bonusIds = bonusAdj.map((a: any) => a.id);
-          if (bonusIds.length > 0) {
-            await supabase
-              .from('worker_adjustments')
-              .update({ is_paid: true, payment_id: payment.id })
-              .in('id', bonusIds);
-          }
-          
-          // Mark discount adjustments as paid without payment record
-          const discountIds = discountAdj.map((a: any) => a.id);
-          if (discountIds.length > 0) {
-            await supabase
-              .from('worker_adjustments')
-              .update({ is_paid: true })
-              .in('id', discountIds);
-          }
-          
-          // Remove processed adjustments so they're not double-counted
-          delete adjByWorkshop[workshopId];
-          
-          results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
+        const entryIds = entries.map((e: any) => e.id);
+        if (entryIds.length > 0) {
+          await supabase
+            .from('attendance')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', entryIds);
         }
+
+        const bonusIds = bonusAdj.map((a: any) => a.id);
+        if (bonusIds.length > 0) {
+          await supabase
+            .from('worker_adjustments')
+            .update({ is_paid: true, payment_id: payment.id })
+            .in('id', bonusIds);
+        }
+        
+        const discountIds = discountAdj.map((a: any) => a.id);
+        if (discountIds.length > 0) {
+          await supabase
+            .from('worker_adjustments')
+            .update({ is_paid: true })
+            .in('id', discountIds);
+        }
+        
+        delete adjByWorkshop[workshopId];
+        
+        results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
       }
       
       return results;

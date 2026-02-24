@@ -114,7 +114,7 @@ export default function WorkerAdjustmentsForm() {
 
   const addAdjustment = useMutation({
     mutationFn: async () => {
-      if (!selectedWorker || !selectedWorkshop || !amount) return;
+      if (!selectedWorker || !selectedWorkshop || !amount || !user?.id) return;
       const { error } = await supabase
         .from('worker_adjustments')
         .insert({
@@ -124,7 +124,7 @@ export default function WorkerAdjustmentsForm() {
           amount: Number(amount),
           reason: reason.trim() || null,
           work_date: selectedDate,
-          created_by: user?.id,
+          created_by: user.id,
         });
       if (error) throw error;
     },
