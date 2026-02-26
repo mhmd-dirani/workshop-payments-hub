@@ -33,11 +33,12 @@ interface WorkshopFilesManagerProps {
   workshopName: string;
 }
 
-const categorizeFile = (filePath: string): 'map' | 'receipt' | 'payment' | 'income' => {
-  if (filePath.includes('/map/')) return 'map';
-  if (filePath.includes('/receipt/')) return 'receipt';
-  if (filePath.includes('/income/')) return 'income';
-  return 'payment';
+const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): 'map' | 'receipt' | 'income' => {
+  if (file.payment_id) return 'receipt';
+  if (file.income_id) return 'income';
+  if (file.file_path.includes('/receipt/')) return 'receipt';
+  if (file.file_path.includes('/income/')) return 'income';
+  return 'map';
 };
 
 export default function WorkshopFilesManager({ workshopId, workshopName: _workshopName }: WorkshopFilesManagerProps) {
