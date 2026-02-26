@@ -225,10 +225,22 @@ export default function Workers() {
     );
   }, [allUnpaidAttendance, selectedWorkerIds, selectedWorkshopId]);
 
-  // Total owed for the current selection/filter scope
+  // Get adjustments for selected workers (respecting workshop filter)
+  const selectedWorkersAdjustments = useMemo(() => {
+    return allUnpaidAdjustments.filter(
+      (a) => selectedWorkerIds.has(a.worker_id) && (!selectedWorkshopId || a.workshop_id === selectedWorkshopId),
+    );
+  }, [allUnpaidAdjustments, selectedWorkerIds, selectedWorkshopId]);
+
+  // Total owed for the current selection/filter scope (attendance + adjustments)
   const selectedTotalOwed = useMemo(() => {
-    return selectedWorkersAttendance.reduce((total, entry) => total + getEffectivePay(entry), 0);
-  }, [selectedWorkersAttendance]);
+    const attTotal = selectedWorkersAttendance.reduce((total, entry) => total + getEffectivePay(entry), 0);
+    const adjTotal = selectedWorkersAdjustments.reduce((total, adj) => {
+      if (adj.adjustment_type === 'discount') return total - Number(adj.amount);
+      return total + Number(adj.amount);
+    }, 0);
+    return attTotal + adjTotal;
+  }, [selectedWorkersAttendance, selectedWorkersAdjustments]);
 
   // Group selected workers' attendance by workshop for summary display
   const selectedByWorkshop = useMemo(() => {
@@ -242,8 +254,20 @@ export default function Workers() {
       }
       result[workshopId].total += getEffectivePay(entry);
     });
+    // Add adjustments to workshop totals
+    selectedWorkersAdjustments.forEach((adj) => {
+      const workshopId = adj.workshop_id;
+      if (!result[workshopId]) {
+        result[workshopId] = { name: t("workers.unknownWorkshop", { defaultValue: "Unknown workshop" }), total: 0 };
+      }
+      if (adj.adjustment_type === 'discount') {
+        result[workshopId].total -= Number(adj.amount);
+      } else {
+        result[workshopId].total += Number(adj.amount);
+      }
+    });
     return result;
-  }, [selectedWorkersAttendance, t]);
+  }, [selectedWorkersAttendance, selectedWorkersAdjustments, t]);
 
   const selectedWorkerIdsForDisplay = useMemo<Set<string>>(() => {
     if (!selectedWorkshopId) {
