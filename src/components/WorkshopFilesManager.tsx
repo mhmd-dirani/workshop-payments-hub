@@ -99,7 +99,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${workshopId}/${category}/${Date.now()}.${fileExt}`;
+      const fileName = `${workshopId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('workshop-files')

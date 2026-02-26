@@ -23,26 +23,27 @@ export function getEffectivePay(entry: {
 }
 
 /**
- * Build a payment reason string with worker names, their work days, and adjustments.
- * Format: "Melfi (mon tue fri) [+500 bonus] [-200 discount]\nPaull (wed sat)"
+ * Build a payment reason string with worker names, their work days, salary, adjustments and net total.
+ * Format: "Aanz (mon) 6000 [+200] [🚕100] 6300\nAbell (mon thu) 12000 [-200] 11800\n18100"
  */
 export function buildWorkerPaymentReason(
-  entries: Array<{ worker_id: string; work_date: string; hours_worked?: number }>,
+  entries: Array<{ worker_id: string; work_date: string; hours_worked?: number; daily_salary?: number | null; hourly_rate: number; extra_amount?: number | null }>,
   workerNames: Record<string, string>,
   adjustments?: Array<{ worker_id: string; adjustment_type: string; amount: number; reason?: string | null }>
 ): string {
-  // Group entries by worker, tracking half-day markers
-  const byWorker: Record<string, Set<string>> = {};
+  // Group entries by worker, tracking half-day markers and salary totals
+  const byWorker: Record<string, { days: Set<string>; salary: number }> = {};
   entries.forEach((entry) => {
     const name = workerNames[entry.worker_id] || 'Unknown';
     if (!byWorker[name]) {
-      byWorker[name] = new Set();
+      byWorker[name] = { days: new Set(), salary: 0 };
     }
     const [y, m, d] = entry.work_date.split('-').map(Number);
     const dayIndex = getDay(new Date(y, m - 1, d));
     const dayLabel = SHORT_DAYS[dayIndex];
     const isHalf = Number(entry.hours_worked) === 0.5;
-    byWorker[name].add(isHalf ? `½${dayLabel}` : dayLabel);
+    byWorker[name].days.add(isHalf ? `½${dayLabel}` : dayLabel);
+    byWorker[name].salary += getEffectivePay(entry);
   });
 
   // Group adjustments by worker
@@ -69,24 +70,44 @@ export function buildWorkerPaymentReason(
   // Collect all worker names (from attendance + adjustments)
   const allNames = new Set([...Object.keys(byWorker), ...Object.keys(adjByWorker)]);
   
-  return Array.from(allNames)
+  let grandTotal = 0;
+  const lines = Array.from(allNames)
     .map((name) => {
-      const days = byWorker[name];
+      const workerData = byWorker[name];
       const adj = adjByWorker[name];
+      const salary = workerData?.salary || 0;
       
       let line = name;
-      if (days && days.size > 0) {
-        const sortedDays = Array.from(days).sort(
-          (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
+      if (workerData && workerData.days.size > 0) {
+        const sortedDays = Array.from(workerData.days).sort(
+          (a, b) => dayOrder.indexOf(a.replace('½', '')) - dayOrder.indexOf(b.replace('½', ''))
         );
         line += ` (${sortedDays.join(' ')})`;
       }
+      
+      // Show base salary
+      if (salary > 0) line += ` ${salary.toLocaleString('fr-FR')}`;
+      
+      let netTotal = salary;
       if (adj) {
-        if (adj.bonuses > 0) line += ` [+${adj.bonuses}]`;
-        if (adj.taxi > 0) line += ` [🚕${adj.taxi}]`;
-        if (adj.discounts > 0) line += ` [-${adj.discounts}]`;
+        if (adj.bonuses > 0) { line += ` [+${adj.bonuses.toLocaleString('fr-FR')}]`; netTotal += adj.bonuses; }
+        if (adj.taxi > 0) { line += ` [🚕${adj.taxi.toLocaleString('fr-FR')}]`; netTotal += adj.taxi; }
+        if (adj.discounts > 0) { line += ` [-${adj.discounts.toLocaleString('fr-FR')}]`; netTotal -= adj.discounts; }
       }
+      
+      // Show net total if different from salary (i.e. there are adjustments)
+      if (adj && (adj.bonuses > 0 || adj.taxi > 0 || adj.discounts > 0)) {
+        line += ` ${netTotal.toLocaleString('fr-FR')}`;
+      }
+      
+      grandTotal += netTotal;
       return line;
-    })
-    .join('\n');
+    });
+
+  // Add grand total line if more than one worker
+  if (lines.length > 1) {
+    lines.push(grandTotal.toLocaleString('fr-FR'));
+  }
+  
+  return lines.join('\n');
 }
