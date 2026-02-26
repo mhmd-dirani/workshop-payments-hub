@@ -1,0 +1,2 @@
+ALTER TABLE public.worker_adjustments DROP CONSTRAINT worker_adjustments_adjustment_type_check;
+ALTER TABLE public.worker_adjustments ADD CONSTRAINT worker_adjustments_adjustment_type_check CHECK (adjustment_type = ANY (ARRAY['bonus'::text, 'discount'::text, 'taxi'::text]));
