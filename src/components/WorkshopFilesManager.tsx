@@ -33,11 +33,12 @@ interface WorkshopFilesManagerProps {
   workshopName: string;
 }
 
-const categorizeFile = (filePath: string): 'map' | 'receipt' | 'payment' | 'income' => {
-  if (filePath.includes('/map/')) return 'map';
-  if (filePath.includes('/receipt/')) return 'receipt';
-  if (filePath.includes('/income/')) return 'income';
-  return 'payment';
+const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): 'map' | 'receipt' | 'income' => {
+  if (file.payment_id) return 'receipt';
+  if (file.income_id) return 'income';
+  if (file.file_path.includes('/receipt/')) return 'receipt';
+  if (file.file_path.includes('/income/')) return 'income';
+  return 'map';
 };
 
 export default function WorkshopFilesManager({ workshopId, workshopName: _workshopName }: WorkshopFilesManagerProps) {
@@ -99,7 +100,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${workshopId}/${category}/${Date.now()}.${fileExt}`;
+      const fileName = `${workshopId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('workshop-files')
@@ -206,9 +207,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
   };
 
   // Categorize files
-  const maps = allFiles?.filter(f => categorizeFile(f.file_path) === 'map') || [];
-  const receipts = allFiles?.filter(f => f.payment_id || categorizeFile(f.file_path) === 'receipt') || [];
-  const incomeFiles = allFiles?.filter(f => categorizeFile(f.file_path) === 'income') || [];
+  const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
+  const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
+  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'income') || [];
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
