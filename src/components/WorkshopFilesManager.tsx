@@ -207,9 +207,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
   };
 
   // Categorize files
-  const maps = allFiles?.filter(f => categorizeFile(f.file_path) === 'map') || [];
-  const receipts = allFiles?.filter(f => f.payment_id || categorizeFile(f.file_path) === 'receipt') || [];
-  const incomeFiles = allFiles?.filter(f => categorizeFile(f.file_path) === 'income') || [];
+  const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
+  const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
+  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'income') || [];
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
