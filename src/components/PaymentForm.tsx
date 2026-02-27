@@ -222,7 +222,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     if (!selectedFile || !user?.id) return;
     
     const fileExt = selectedFile.name.split('.').pop();
-    const fileName = `${paymentId}/${Date.now()}.${fileExt}`;
+    const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+    const fileName = `${safeName}/receipts/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from('workshop-files')

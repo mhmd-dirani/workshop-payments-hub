@@ -115,7 +115,8 @@ export default function IncomeForm({ workshopId, workshopName, open, onOpenChang
     if (!selectedFile || !user?.id) return;
     
     const fileExt = selectedFile.name.split('.').pop();
-    const fileName = `${workshopId}/income/${Date.now()}.${fileExt}`;
+    const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+    const fileName = `${safeName}/checks/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from('workshop-files')
