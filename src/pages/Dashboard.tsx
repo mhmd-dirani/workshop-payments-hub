@@ -26,6 +26,17 @@ export default function Dashboard() {
   const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [wealthRevealed, setWealthRevealed] = useState(false);
+
+  // Fetch workshops to get selected workshop name
+  const { data: workshops } = useQuery({
+    queryKey: ['workshops', role],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workshops').select('id, name').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const selectedWorkshopName = workshops?.find(w => w.id === selectedWorkshop)?.name || '';
   // Fetch global wealth stats for admin (all workshops combined + debts)
   const { data: globalStats } = useQuery({
     queryKey: ['global-wealth-stats'],
