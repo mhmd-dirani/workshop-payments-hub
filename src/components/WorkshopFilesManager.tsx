@@ -273,10 +273,26 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     <>
       <Card className="shadow-card">
         <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-          <CardTitle className="text-base md:text-lg">{t('files.workshopFiles')}</CardTitle>
-          <CardDescription className="text-xs md:text-sm">
-            {t('files.mapsAndReceipts')}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base md:text-lg">{t('files.workshopFiles')}</CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                {t('files.mapsAndReceipts')}
+              </CardDescription>
+            </div>
+            {allFiles && allFiles.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadAllFiles}
+                disabled={downloadingAll}
+                className="gap-1.5"
+              >
+                {downloadingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{t('files.downloadAll')}</span>
+              </Button>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
