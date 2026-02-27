@@ -43,12 +43,13 @@ const categorizeFile = (file: { file_path: string; payment_id?: string | null; i
   return 'map';
 };
 
-export default function WorkshopFilesManager({ workshopId, workshopName: _workshopName }: WorkshopFilesManagerProps) {
+export default function WorkshopFilesManager({ workshopId, workshopName }: WorkshopFilesManagerProps) {
   const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
