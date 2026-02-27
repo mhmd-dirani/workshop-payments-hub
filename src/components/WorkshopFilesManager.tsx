@@ -103,7 +103,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${workshopId}/${Date.now()}.${fileExt}`;
+      const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+      const categoryFolder = category === 'receipt' ? 'receipts' : 'files';
+      const fileName = `${safeName}/${categoryFolder}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('workshop-files')
