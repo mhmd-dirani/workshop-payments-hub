@@ -35,11 +35,12 @@ const incomeSchema = z.object({
 
 interface IncomeFormProps {
   workshopId: string;
+  workshopName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFormProps) {
+export default function IncomeForm({ workshopId, workshopName, open, onOpenChange }: IncomeFormProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
