@@ -64,12 +64,13 @@ interface ExistingFile {
 
 interface PaymentFormProps {
   workshopId: string;
+  workshopName?: string;
   payment?: Payment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function PaymentForm({ workshopId, payment, open, onOpenChange }: PaymentFormProps) {
+export default function PaymentForm({ workshopId, workshopName, payment, open, onOpenChange }: PaymentFormProps) {
   const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
