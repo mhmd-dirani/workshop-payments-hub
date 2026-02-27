@@ -26,6 +26,17 @@ export default function Dashboard() {
   const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [wealthRevealed, setWealthRevealed] = useState(false);
+
+  // Fetch workshops to get selected workshop name
+  const { data: workshops } = useQuery({
+    queryKey: ['workshops', role],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workshops').select('id, name').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const selectedWorkshopName = workshops?.find(w => w.id === selectedWorkshop)?.name || '';
   // Fetch global wealth stats for admin (all workshops combined + debts)
   const { data: globalStats } = useQuery({
     queryKey: ['global-wealth-stats'],
@@ -347,7 +358,7 @@ export default function Dashboard() {
 
         {/* Workshop Files Manager (admin only) */}
         {selectedWorkshop && role === 'admin' && (
-          <WorkshopFilesManager workshopId={selectedWorkshop} workshopName="" />
+          <WorkshopFilesManager workshopId={selectedWorkshop} workshopName={selectedWorkshopName} />
         )}
 
         {/* User Income Table (transfers received - for non-admins, global) */}
@@ -374,6 +385,7 @@ export default function Dashboard() {
           <>
             <PaymentForm
               workshopId={selectedWorkshop}
+              workshopName={selectedWorkshopName}
               payment={editingPayment}
               open={isFormOpen}
               onOpenChange={handleFormClose}
@@ -381,6 +393,7 @@ export default function Dashboard() {
             {role === 'admin' && (
               <IncomeForm
                 workshopId={selectedWorkshop}
+                workshopName={selectedWorkshopName}
                 open={isIncomeFormOpen}
                 onOpenChange={setIsIncomeFormOpen}
               />

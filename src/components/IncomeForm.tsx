@@ -35,11 +35,12 @@ const incomeSchema = z.object({
 
 interface IncomeFormProps {
   workshopId: string;
+  workshopName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFormProps) {
+export default function IncomeForm({ workshopId, workshopName, open, onOpenChange }: IncomeFormProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -114,7 +115,8 @@ export default function IncomeForm({ workshopId, open, onOpenChange }: IncomeFor
     if (!selectedFile || !user?.id) return;
     
     const fileExt = selectedFile.name.split('.').pop();
-    const fileName = `${workshopId}/income/${Date.now()}.${fileExt}`;
+    const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+    const fileName = `${safeName}/checks/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from('workshop-files')

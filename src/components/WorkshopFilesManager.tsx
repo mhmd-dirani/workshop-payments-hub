@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import JSZip from 'jszip';
 import { 
   Loader2, 
   Upload, 
@@ -19,7 +20,8 @@ import {
   FileText,
   Camera,
   Eye,
-  Banknote
+  Banknote,
+  FolderDown
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,12 +43,13 @@ const categorizeFile = (file: { file_path: string; payment_id?: string | null; i
   return 'map';
 };
 
-export default function WorkshopFilesManager({ workshopId, workshopName: _workshopName }: WorkshopFilesManagerProps) {
+export default function WorkshopFilesManager({ workshopId, workshopName }: WorkshopFilesManagerProps) {
   const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -100,7 +103,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${workshopId}/${Date.now()}.${fileExt}`;
+      const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+      const categoryFolder = category === 'receipt' ? 'receipts' : 'files';
+      const fileName = `${safeName}/${categoryFolder}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('workshop-files')
@@ -206,6 +211,40 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
     e.target.value = '';
   };
 
+  const downloadAllFiles = async () => {
+    if (!allFiles || allFiles.length === 0) return;
+    setDownloadingAll(true);
+    try {
+      const zip = new JSZip();
+      const safeName = workshopName || 'workshop';
+
+      for (const file of allFiles) {
+        const category = categorizeFile(file);
+        const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
+        
+        const { data, error } = await supabase.storage
+          .from('workshop-files')
+          .download(file.file_path);
+
+        if (error || !data) continue;
+
+        zip.file(`${safeName}/${folderName}/${file.file_name}`, data);
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   // Categorize files
   const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
   const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
@@ -234,10 +273,26 @@ export default function WorkshopFilesManager({ workshopId, workshopName: _worksh
     <>
       <Card className="shadow-card">
         <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-          <CardTitle className="text-base md:text-lg">{t('files.workshopFiles')}</CardTitle>
-          <CardDescription className="text-xs md:text-sm">
-            {t('files.mapsAndReceipts')}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base md:text-lg">{t('files.workshopFiles')}</CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                {t('files.mapsAndReceipts')}
+              </CardDescription>
+            </div>
+            {allFiles && allFiles.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadAllFiles}
+                disabled={downloadingAll}
+                className="gap-1.5"
+              >
+                {downloadingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{t('files.downloadAll')}</span>
+              </Button>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="px-3 md:px-6 pb-3 md:pb-6">

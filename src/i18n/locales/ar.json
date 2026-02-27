@@ -513,7 +513,8 @@
     "uploadedDesc": "تم حفظ الملف",
     "deleted": "تم حذف الملف",
     "deletedDesc": "تم إزالة الملف",
-    "uploadedBy": "رفعه"
+    "uploadedBy": "رفعه",
+    "downloadAll": "تحميل الكل"
   },
   "transfers": {
     "title": "التحويلات",

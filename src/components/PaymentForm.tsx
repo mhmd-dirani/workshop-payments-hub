@@ -64,12 +64,13 @@ interface ExistingFile {
 
 interface PaymentFormProps {
   workshopId: string;
+  workshopName?: string;
   payment?: Payment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function PaymentForm({ workshopId, payment, open, onOpenChange }: PaymentFormProps) {
+export default function PaymentForm({ workshopId, workshopName, payment, open, onOpenChange }: PaymentFormProps) {
   const { t } = useTranslation();
   const { user, role } = useAuth();
   const { toast } = useToast();
@@ -221,7 +222,8 @@ export default function PaymentForm({ workshopId, payment, open, onOpenChange }:
     if (!selectedFile || !user?.id) return;
     
     const fileExt = selectedFile.name.split('.').pop();
-    const fileName = `${paymentId}/${Date.now()}.${fileExt}`;
+    const safeName = (workshopName || workshopId).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+    const fileName = `${safeName}/receipts/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from('workshop-files')

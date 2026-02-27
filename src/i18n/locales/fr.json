@@ -513,7 +513,8 @@
     "uploadedDesc": "Le fichier a été sauvegardé",
     "deleted": "Fichier supprimé",
     "deletedDesc": "Le fichier a été supprimé",
-    "uploadedBy": "Téléchargé par"
+    "uploadedBy": "Téléchargé par",
+    "downloadAll": "Tout télécharger"
   },
   "transfers": {
     "title": "Transferts",
