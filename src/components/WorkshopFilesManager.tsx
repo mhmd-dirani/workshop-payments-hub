@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import JSZip from 'jszip';
 import { 
   Loader2, 
   Upload, 
@@ -19,7 +20,8 @@ import {
   FileText,
   Camera,
   Eye,
-  Banknote
+  Banknote,
+  FolderDown
 } from 'lucide-react';
 import {
   Dialog,
