@@ -358,7 +358,7 @@ export default function Dashboard() {
 
         {/* Workshop Files Manager (admin only) */}
         {selectedWorkshop && role === 'admin' && (
-          <WorkshopFilesManager workshopId={selectedWorkshop} workshopName="" />
+          <WorkshopFilesManager workshopId={selectedWorkshop} workshopName={selectedWorkshopName} />
         )}
 
         {/* User Income Table (transfers received - for non-admins, global) */}
