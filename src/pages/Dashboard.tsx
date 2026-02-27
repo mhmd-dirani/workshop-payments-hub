@@ -385,6 +385,7 @@ export default function Dashboard() {
           <>
             <PaymentForm
               workshopId={selectedWorkshop}
+              workshopName={selectedWorkshopName}
               payment={editingPayment}
               open={isFormOpen}
               onOpenChange={handleFormClose}
@@ -392,6 +393,7 @@ export default function Dashboard() {
             {role === 'admin' && (
               <IncomeForm
                 workshopId={selectedWorkshop}
+                workshopName={selectedWorkshopName}
                 open={isIncomeFormOpen}
                 onOpenChange={setIsIncomeFormOpen}
               />
