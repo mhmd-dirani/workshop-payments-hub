@@ -211,6 +211,40 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     e.target.value = '';
   };
 
+  const downloadAllFiles = async () => {
+    if (!allFiles || allFiles.length === 0) return;
+    setDownloadingAll(true);
+    try {
+      const zip = new JSZip();
+      const safeName = workshopName || 'workshop';
+
+      for (const file of allFiles) {
+        const category = categorizeFile(file);
+        const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
+        
+        const { data, error } = await supabase.storage
+          .from('workshop-files')
+          .download(file.file_path);
+
+        if (error || !data) continue;
+
+        zip.file(`${safeName}/${folderName}/${file.file_name}`, data);
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   // Categorize files
   const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
   const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
