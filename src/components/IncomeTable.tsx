@@ -25,6 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Trash2, TrendingUp, Pencil, Loader2, Eye, Download, Paperclip } from 'lucide-react';
@@ -64,6 +74,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
   const [editDescription, setEditDescription] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<string>('');
+  const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
 
   const { data: incomeRecords, isLoading } = useQuery({
     queryKey: ['income', workshopId],
@@ -182,6 +193,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
       queryClient.invalidateQueries({ queryKey: ['income-files', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-files-all', workshopId] });
+      setIncomeToDelete(null);
       toast({
         title: t('income.incomeDeleted'),
         description: t('income.incomeDeletedDesc'),
@@ -283,7 +295,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteIncome.mutate(income.id)}
+                          onClick={() => setIncomeToDelete(income)}
                           className="h-7 w-7 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -362,7 +374,7 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => deleteIncome.mutate(income.id)}
+                              onClick={() => setIncomeToDelete(income)}
                               className="h-8 w-8 text-destructive hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -378,6 +390,27 @@ export default function IncomeTable({ workshopId }: IncomeTableProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Income Confirmation */}
+      <AlertDialog open={!!incomeToDelete} onOpenChange={(open) => !open && setIncomeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('confirmDelete.income', { amount: incomeToDelete ? Number(incomeToDelete.amount).toLocaleString('fr-FR') : '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => incomeToDelete && deleteIncome.mutate(incomeToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingIncome} onOpenChange={(open) => !open && setEditingIncome(null)}>

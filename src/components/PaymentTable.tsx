@@ -22,6 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Pencil, Trash2, Clock, CheckCircle, XCircle, Search, DollarSign, Paperclip, Eye, Download } from 'lucide-react';
@@ -39,6 +49,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const [searchTerm, setSearchTerm] = useState('');
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', workshopId],
@@ -58,7 +69,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
       
-      // Fetch files for all payments
       const paymentIds = paymentsData.map(p => p.id);
       const { data: filesData } = await supabase
         .from('workshop_files')
@@ -108,8 +118,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
-      // Revert any worker attendance/adjustments linked to this payment
-      // (Otherwise deleting the payment leaves work marked as paid forever)
       const { data: linkedAttendance, error: linkedAttendanceError } = await supabase
         .from('attendance')
         .select('id, description')
@@ -139,7 +147,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         }
       }
 
-      // Revert linked adjustments, but DELETE payment-credit adjustments (otherwise they keep affecting balance)
       const { data: linkedAdjustments, error: linkedAdjustmentsError } = await supabase
         .from('worker_adjustments')
         .select('id, reason')
@@ -166,7 +173,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         if (adjustmentsRevertError) throw adjustmentsRevertError;
       }
 
-      // If this is a "Travailleur Overtime" payment, delete linked overtime attendance records
       if (payment.paid_to === 'Travailleur Overtime') {
         const { error: attendanceDeleteError } = await supabase
           .from('attendance')
@@ -204,6 +210,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setPaymentToDelete(null);
       toast({
         title: t('payments.paymentDeleted'),
         description: t('payments.paymentDeletedDesc'),
@@ -395,7 +402,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                       </Button>
                     )}
                     {canDelete(payment) && (
-                      <Button variant="ghost" size="icon" onClick={() => deletePayment.mutate(payment)} className="h-7 w-7 text-destructive">
+                      <Button variant="ghost" size="icon" onClick={() => setPaymentToDelete(payment)} className="h-7 w-7 text-destructive">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
@@ -480,7 +487,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deletePayment.mutate(payment)}
+                          onClick={() => setPaymentToDelete(payment)}
                           className="h-8 w-8 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -494,6 +501,27 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
           </Table>
         </div>
       </div>
+
+      {/* Delete Payment Confirmation */}
+      <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('confirmDelete.payment', { amount: paymentToDelete ? Number(paymentToDelete.amount).toLocaleString('fr-FR') : '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => paymentToDelete && deletePayment.mutate(paymentToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* File Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
