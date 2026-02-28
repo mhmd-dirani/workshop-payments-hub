@@ -114,6 +114,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
+  const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
+  const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
   
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
