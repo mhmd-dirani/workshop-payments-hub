@@ -252,14 +252,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
+  const ADVANCE_CREDIT_TAG = '[ADVANCE_CREDIT]';
   const bonusTotal = unpaidAdjustments
     .filter((a) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi')
     .reduce((sum, a) => sum + Number(a.amount), 0);
   const discountTotal = unpaidAdjustments
     .filter((a) => a.adjustment_type === 'discount')
     .reduce((sum, a) => sum + Number(a.amount), 0);
+  // Non-credit discounts only (exclude advance/payment credits for bonus display)
+  const realDiscountTotal = unpaidAdjustments
+    .filter((a) => a.adjustment_type === 'discount' && !a.reason?.includes('[PAYMENT_CREDIT]') && !a.reason?.includes('[ADVANCE_CREDIT]'))
+    .reduce((sum, a) => sum + Number(a.amount), 0);
   const totalOwed = attendanceTotal + bonusTotal - discountTotal;
-  const adjustmentNet = bonusTotal - discountTotal;
+  // adjustmentNet should only reflect real bonuses/discounts, not payment credits
+  const adjustmentNet = bonusTotal - realDiscountTotal;
 
   // Unpaid overtime entries (description-based, not direct worker attendance)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
