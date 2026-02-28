@@ -966,7 +966,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => deleteAttendance.mutate(entry.id)}
+                                onClick={() => setAttendanceToDelete(entry.id)}
                                 className="h-6 w-6 text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="w-3 h-3" />
