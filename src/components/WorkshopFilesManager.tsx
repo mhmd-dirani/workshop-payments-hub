@@ -164,6 +164,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workshop-files-all', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-files', workshopId] });
+      setFileToDelete(null);
       toast({ title: t('files.deleted'), description: t('files.deletedDesc') });
     },
   });
