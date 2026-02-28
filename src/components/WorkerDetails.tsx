@@ -273,10 +273,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   );
   const overtimeTotal = unpaidOvertimeEntries.reduce((sum, a) => sum + getEffectivePay(a), 0);
 
-  // Group unpaid adjustments by workshop for bonus payment
+  // Group unpaid adjustments by workshop for bonus payment (exclude payment/advance credits)
   const unpaidAdjByWorkshop = useMemo(() => {
     const map: Record<string, { name: string; bonuses: number; discounts: number; items: typeof unpaidAdjustments }> = {};
     unpaidAdjustments.forEach((adj) => {
+      // Skip payment/advance credit discounts - they belong to salary, not bonus
+      const isCredit = adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]');
+      if (isCredit) return;
       const wid = adj.workshop_id;
       const wname = (adj.workshops as any)?.name || 'Unknown';
       if (!map[wid]) map[wid] = { name: wname, bonuses: 0, discounts: 0, items: [] };
