@@ -570,6 +570,16 @@
     "somethingWentWrong": "Something went wrong",
     "tryAgain": "Please try again"
   },
+  "confirmDelete": {
+    "title": "Are you sure?",
+    "payment": "This will permanently delete this payment of {{amount}} CFA. This action cannot be undone.",
+    "attendance": "This will permanently delete this attendance record. This action cannot be undone.",
+    "income": "This will permanently delete this income record of {{amount}} CFA. This action cannot be undone.",
+    "debt": "This will permanently delete this debt record. This action cannot be undone.",
+    "debtPayment": "This will permanently delete this repayment of {{amount}} CFA. This action cannot be undone.",
+    "file": "This will permanently delete this file. This action cannot be undone.",
+    "generic": "This action cannot be undone. Are you sure you want to proceed?"
+  },
   "adjustments": {
     "title": "Bonuses & Discounts",
     "tabLabel": "Bonus/Discount",

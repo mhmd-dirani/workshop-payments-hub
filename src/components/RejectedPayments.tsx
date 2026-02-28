@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   AccordionContent,
@@ -25,6 +27,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { XCircle, MessageSquare, Trash2 } from 'lucide-react';
 
@@ -35,7 +47,9 @@ interface RejectedPaymentsProps {
 export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) {
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
 
   const { data: rejectedPayments, isLoading } = useQuery({
     queryKey: ['rejected-payments', workshopId],
@@ -136,14 +150,15 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
       queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setPaymentToDelete(null);
       toast({
-        title: 'Payment deleted',
-        description: 'The rejected payment has been removed',
+        title: t('payments.paymentDeleted'),
+        description: t('payments.paymentDeletedDesc'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t('errors.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -164,6 +179,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
   }
 
   return (
+    <>
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value="rejected" className="border rounded-lg bg-card shadow-card">
         <AccordionTrigger className="px-3 md:px-6 hover:no-underline">
@@ -172,9 +188,9 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
               <XCircle className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
             </div>
             <div className="text-left">
-              <p className="font-semibold text-sm md:text-base">Rejected Payments</p>
+              <p className="font-semibold text-sm md:text-base">{t('rejectedPayments.title')}</p>
               <p className="text-xs md:text-sm text-muted-foreground font-normal">
-                {filteredPayments.length} rejected
+                {t('rejectedPayments.rejectedCount', { count: filteredPayments.length })}
               </p>
             </div>
           </div>
@@ -199,9 +215,9 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t">
                     <div className="text-[10px] text-muted-foreground">
-                      <span>By: {payment.creator_name}</span>
+                      <span>{t('rejectedPayments.by')}: {payment.creator_name}</span>
                       <span className="mx-1">•</span>
-                      <span>Rejected: {payment.rejector_name || 'Unknown'}</span>
+                      <span>{t('rejectedPayments.rejected')}: {payment.rejector_name || 'Unknown'}</span>
                       {payment.rejection_reason && (
                         <p className="mt-0.5 text-destructive/80 truncate max-w-[200px]">
                           "{payment.rejection_reason}"
@@ -211,7 +227,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deletePayment.mutate(payment.id)}
+                      onClick={() => setPaymentToDelete(payment)}
                       disabled={deletePayment.isPending}
                       className="h-7 w-7 text-destructive hover:text-destructive"
                     >
@@ -227,13 +243,13 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead>Date</TableHead>
-                    <TableHead>Paid To</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Rejected By</TableHead>
-                    <TableHead>Added By</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('common.date')}</TableHead>
+                    <TableHead>{t('payments.paidTo')}</TableHead>
+                    <TableHead>{t('common.reason')}</TableHead>
+                    <TableHead className="text-right">{t('common.amount')}</TableHead>
+                    <TableHead>{t('rejectedPayments.rejectedBy')}</TableHead>
+                    <TableHead>{t('payments.addedBy')}</TableHead>
+                    <TableHead className="text-right">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,7 +273,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                                   <MessageSquare className="w-4 h-4 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent className="max-w-xs">
-                                  <p className="font-medium text-xs mb-1">Rejection Reason:</p>
+                                  <p className="font-medium text-xs mb-1">{t('rejectedPayments.rejectionReason')}:</p>
                                   <p className="text-xs">{payment.rejection_reason}</p>
                                 </TooltipContent>
                               </Tooltip>
@@ -272,7 +288,7 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deletePayment.mutate(payment.id)}
+                          onClick={() => setPaymentToDelete(payment)}
                           disabled={deletePayment.isPending}
                           className="h-8 w-8 text-destructive hover:text-destructive"
                         >
@@ -288,5 +304,27 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
         </AccordionContent>
       </AccordionItem>
     </Accordion>
+
+    {/* Delete Confirmation */}
+    <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('confirmDelete.payment', { amount: paymentToDelete ? Number(paymentToDelete.amount).toLocaleString('fr-FR') : '' })}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => paymentToDelete && deletePayment.mutate(paymentToDelete.id)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {t('common.delete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -20,6 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
@@ -37,17 +47,17 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [timeFilter, setTimeFilter] = useState('0'); // '0' = this week, '1' = last week, etc., 'all' = all time, 'date' = specific date
+  const [timeFilter, setTimeFilter] = useState('0');
   const [filterWorkshopId, setFilterWorkshopId] = useState(workshopId || 'all');
   const [filterWorkerId, setFilterWorkerId] = useState(workerId || 'all');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
-  // Calculate date range based on filter
   const isAllTime = timeFilter === 'all';
   const isSpecificDate = timeFilter === 'date';
   const weekOffset = (isAllTime || isSpecificDate) ? 0 : parseInt(timeFilter);
   const currentDate = subWeeks(new Date(), weekOffset);
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
 
   // Fetch workers for filter
@@ -85,11 +95,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     queryFn: async () => {
       let query = supabase
         .from('attendance')
-        .select(`
-          *,
-          workers:worker_id(id, name),
-          workshops:workshop_id(id, name)
-        `)
+        .select(`*, workers:worker_id(id, name), workshops:workshop_id(id, name)`)
         .order('work_date', { ascending: false });
 
       // Apply date filters based on filter type
@@ -134,6 +140,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setEntryToDelete(null);
       toast({ title: t('attendance.deleted'), description: t('attendance.deletedDesc') });
     },
   });
@@ -159,6 +166,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   }
 
   return (
+    <>
     <Card className="shadow-card">
       <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <div className="flex flex-col gap-3">
@@ -300,12 +308,10 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
             {/* Mobile view */}
             <div className="md:hidden space-y-2">
               {data.map((entry) => {
-                // For overtime records (has_extra=true), show extra_amount, not daily_salary
                 const isOvertimeRecord = entry.has_extra && entry.extra_amount;
                 const discountAmt = Number(entry.discount_amount) || 0;
                 const baseAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
                 const displayAmount = isOvertimeRecord ? baseAmount : (baseAmount - discountAmt);
-                // Extract worker names from description for overtime
                 const displayName = isOvertimeRecord && entry.description 
                   ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
                   : (entry.workers as any)?.name;
@@ -318,9 +324,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                     <div className="flex items-start justify-between">
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">
-                            {displayName}
-                          </span>
+                          <span className="font-medium text-sm">{displayName}</span>
                           {isOvertimeRecord && (
                             <Badge variant="outline" className="text-[10px] border-warning text-warning">
                               {t('attendance.overtime')}
@@ -351,7 +355,6 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                             {Number(entry.hourly_rate).toLocaleString('fr-FR')} CFA
                           </p>
                         )}
-                        {/* Show bonus/discount reasons */}
                         {entry.extra_reason && (
                           <p className="text-xs text-success truncate">
                             <Plus className="w-2.5 h-2.5 inline mr-0.5" />{entry.extra_reason}
@@ -363,9 +366,7 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                           </p>
                         )}
                         {entry.description && !isOvertimeRecord && !entry.extra_reason && !entry.discount_reason && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {entry.description}
-                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
                         )}
                         {isOvertimeRecord && entry.description && (
                           <p className="text-xs text-muted-foreground truncate">
@@ -379,19 +380,14 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                         </p>
                         <div className="flex gap-1 mt-1 justify-end">
                           {onEdit && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onEdit(entry)}
-                              className="h-6 w-6"
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => onEdit(entry)} className="h-6 w-6">
                               <Edit className="w-3 h-3" />
                             </Button>
                           )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => deleteAttendance.mutate(entry.id)}
+                            onClick={() => setEntryToDelete(entry.id)}
                             className="h-6 w-6 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -419,12 +415,10 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                 </TableHeader>
                 <TableBody>
                   {data.map((entry) => {
-                    // For overtime records (has_extra=true), show extra_amount, not daily_salary
                     const isOvertimeRecord = entry.has_extra && entry.extra_amount && !entry.extra_reason;
                     const discountAmt = Number(entry.discount_amount) || 0;
                     const baseAmount = isOvertimeRecord ? Number(entry.extra_amount) : Number(entry.daily_salary);
                     const displayAmount = isOvertimeRecord ? baseAmount : (baseAmount - discountAmt);
-                    // Extract worker names from description for overtime
                     const displayName = isOvertimeRecord && entry.description 
                       ? entry.description.replace(`${t('attendance.overtime')}: `, '').split(' - ')[0]
                       : (entry.workers as any)?.name;
@@ -491,19 +485,14 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
                         <TableCell className="text-end">
                           <div className="flex justify-end gap-1">
                             {onEdit && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onEdit(entry)}
-                                className="h-8 w-8"
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => onEdit(entry)} className="h-8 w-8">
                                 <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => deleteAttendance.mutate(entry.id)}
+                              onClick={() => setEntryToDelete(entry.id)}
                               className="h-8 w-8 text-destructive hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -520,5 +509,27 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
         )}
       </CardContent>
     </Card>
+
+    {/* Delete Attendance Confirmation */}
+    <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('confirmDelete.attendance')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => entryToDelete && deleteAttendance.mutate(entryToDelete)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {t('common.delete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

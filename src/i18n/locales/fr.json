@@ -569,6 +569,16 @@
     "somethingWentWrong": "Une erreur s'est produite",
     "tryAgain": "Veuillez réessayer"
   },
+  "confirmDelete": {
+    "title": "Êtes-vous sûr ?",
+    "payment": "Cela supprimera définitivement ce paiement de {{amount}} CFA. Cette action est irréversible.",
+    "attendance": "Cela supprimera définitivement cet enregistrement de présence. Cette action est irréversible.",
+    "income": "Cela supprimera définitivement cet enregistrement de revenu de {{amount}} CFA. Cette action est irréversible.",
+    "debt": "Cela supprimera définitivement cet enregistrement de dette. Cette action est irréversible.",
+    "debtPayment": "Cela supprimera définitivement ce remboursement de {{amount}} CFA. Cette action est irréversible.",
+    "file": "Cela supprimera définitivement ce fichier. Cette action est irréversible.",
+    "generic": "Cette action est irréversible. Êtes-vous sûr de vouloir continuer ?"
+  },
   "adjustments": {
     "title": "Bonus & Réductions",
     "tabLabel": "Bonus/Réduction",

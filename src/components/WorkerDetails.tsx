@@ -19,6 +19,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -114,6 +118,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
+  const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
+  const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
   
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
@@ -964,7 +970,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => deleteAttendance.mutate(entry.id)}
+                                onClick={() => setAttendanceToDelete(entry.id)}
                                 className="h-6 w-6 text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1734,6 +1740,38 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Attendance Confirmation */}
+      <AlertDialog open={!!attendanceToDelete} onOpenChange={(open) => !open && setAttendanceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('confirmDelete.attendance')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => attendanceToDelete && deleteAttendance.mutate(attendanceToDelete)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Paid Entry Confirmation */}
+      <AlertDialog open={!!paidEntryToDelete} onOpenChange={(open) => !open && setPaidEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('confirmDelete.attendance')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => paidEntryToDelete && deletePaidAttendance.mutate(paidEntryToDelete)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

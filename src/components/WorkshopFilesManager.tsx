@@ -6,6 +6,10 @@ import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import JSZip from 'jszip';
@@ -51,6 +55,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
   const [uploading, setUploading] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<any>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,6 +164,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workshop-files-all', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['workshop-files', workshopId] });
+      setFileToDelete(null);
       toast({ title: t('files.deleted'), description: t('files.deletedDesc') });
     },
   });
