@@ -55,6 +55,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
   const [uploading, setUploading] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<any>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
