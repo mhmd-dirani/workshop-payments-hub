@@ -223,16 +223,36 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       const zip = new JSZip();
       const safeName = workshopName || 'workshop';
 
-      // 1) Download uploaded storage files
-      if (allFiles && allFiles.length > 0) {
-        for (const file of allFiles) {
-          const category = categorizeFile(file);
-          const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
-          const { data, error } = await supabase.storage
-            .from('workshop-files')
-            .download(file.file_path);
-          if (error || !data) continue;
-          zip.file(`${safeName}/${folderName}/${file.file_name}`, data);
+      // 1) Download uploaded storage files - fetch ALL files from DB directly
+      const { data: dbFiles } = await supabase
+        .from('workshop_files')
+        .select('*')
+        .eq('workshop_id', workshopId);
+
+      if (dbFiles && dbFiles.length > 0) {
+        // Download files in parallel batches of 5
+        const batchSize = 5;
+        for (let i = 0; i < dbFiles.length; i += batchSize) {
+          const batch = dbFiles.slice(i, i + batchSize);
+          const results = await Promise.allSettled(
+            batch.map(async (file) => {
+              const { data, error } = await supabase.storage
+                .from('workshop-files')
+                .download(file.file_path);
+              if (error || !data) return null;
+              const category = categorizeFile(file);
+              const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
+              // Use unique name to avoid collisions
+              const ext = file.file_name.split('.').pop() || 'bin';
+              const uniqueName = `${file.file_name.replace(/\.[^.]+$/, '')}_${file.id.slice(0, 6)}.${ext}`;
+              return { path: `${safeName}/${folderName}/${uniqueName}`, data };
+            })
+          );
+          results.forEach(r => {
+            if (r.status === 'fulfilled' && r.value) {
+              zip.file(r.value.path, r.value.data);
+            }
+          });
         }
       }
 
@@ -245,7 +265,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       const { data: profilesData } = await supabase.from('profiles').select('user_id, full_name');
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name || 'Unknown']) || []);
 
-      // 4) Attendance CSV
+      // 4) Attendance CSV - grouped by date
       const { data: attendanceData } = await supabase
         .from('attendance')
         .select('*')
@@ -254,15 +274,19 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
 
       if (attendanceData && attendanceData.length > 0) {
         const csvHeader = 'Date,Worker,Category,Hours,Hourly Rate,Daily Salary,Extra,Description,Paid';
-        const csvRows = attendanceData.map(a => {
+        const csvRows: string[] = [];
+        let lastDate = '';
+        attendanceData.forEach(a => {
           const wName = workerMap.get(a.worker_id) || a.worker_id;
           const wCat = workerCatMap.get(a.worker_id) || 'worker';
-          return `${a.work_date},"${wName}","${wCat}",${a.hours_worked},${a.hourly_rate},${a.daily_salary || 0},${a.extra_amount || 0},"${(a.description || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`;
+          const dateStr = a.work_date === lastDate ? '' : a.work_date;
+          lastDate = a.work_date;
+          csvRows.push(`${dateStr},"${wName}","${wCat}",${a.hours_worked},${a.hourly_rate},${a.daily_salary || 0},${a.extra_amount || 0},"${(a.description || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
         });
         zip.file(`${safeName}/attendance.csv`, csvHeader + '\n' + csvRows.join('\n'));
       }
 
-      // 5) Worker Adjustments CSV
+      // 5) Worker Adjustments CSV - grouped by date
       const { data: adjustmentsData } = await supabase
         .from('worker_adjustments')
         .select('*')
@@ -271,14 +295,18 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
 
       if (adjustmentsData && adjustmentsData.length > 0) {
         const csvHeader = 'Date,Worker,Type,Amount,Reason,Paid';
-        const csvRows = adjustmentsData.map(a => {
+        const csvRows: string[] = [];
+        let lastDate = '';
+        adjustmentsData.forEach(a => {
           const wName = workerMap.get(a.worker_id) || a.worker_id;
-          return `${a.work_date},"${wName}","${a.adjustment_type}",${a.amount},"${(a.reason || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`;
+          const dateStr = a.work_date === lastDate ? '' : a.work_date;
+          lastDate = a.work_date;
+          csvRows.push(`${dateStr},"${wName}","${a.adjustment_type}",${a.amount},"${(a.reason || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
         });
         zip.file(`${safeName}/adjustments.csv`, csvHeader + '\n' + csvRows.join('\n'));
       }
 
-      // 6) Payments CSV
+      // 6) Payments CSV - grouped by date
       const { data: paymentsData } = await supabase
         .from('payments')
         .select('*')
@@ -287,15 +315,18 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
 
       if (paymentsData && paymentsData.length > 0) {
         const csvHeader = 'Date,Paid To,Amount,Reason,Status,Added By';
-        const csvRows = paymentsData.map(p => {
+        const csvRows: string[] = [];
+        let lastDate = '';
+        paymentsData.forEach(p => {
           const addedBy = profileMap.get(p.created_by) || p.created_by;
-          const approvedBy = p.approved_by ? (profileMap.get(p.approved_by) || p.approved_by) : '';
-          return `${p.payment_date},"${p.paid_to}",${p.amount},"${(p.reason || '').replace(/"/g, '""')}","${p.status}","${addedBy}"`;
+          const dateStr = p.payment_date === lastDate ? '' : p.payment_date;
+          lastDate = p.payment_date;
+          csvRows.push(`${dateStr},"${p.paid_to}",${p.amount},"${(p.reason || '').replace(/"/g, '""')}","${p.status}","${addedBy}"`);
         });
         zip.file(`${safeName}/payments.csv`, csvHeader + '\n' + csvRows.join('\n'));
       }
 
-      // 7) Income CSV
+      // 7) Income CSV - grouped by date
       const { data: incomeData } = await supabase
         .from('income')
         .select('*')
@@ -304,9 +335,13 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
 
       if (incomeData && incomeData.length > 0) {
         const csvHeader = 'Date,Amount,Description,Added By';
-        const csvRows = incomeData.map(i => {
+        const csvRows: string[] = [];
+        let lastDate = '';
+        incomeData.forEach(i => {
           const addedBy = profileMap.get(i.created_by) || i.created_by;
-          return `${i.income_date},${i.amount},"${(i.description || '').replace(/"/g, '""')}","${addedBy}"`;
+          const dateStr = i.income_date === lastDate ? '' : i.income_date;
+          lastDate = i.income_date;
+          csvRows.push(`${dateStr},${i.amount},"${(i.description || '').replace(/"/g, '""')}","${addedBy}"`);
         });
         zip.file(`${safeName}/income.csv`, csvHeader + '\n' + csvRows.join('\n'));
       }
@@ -331,7 +366,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
         `=== Work Summary ===`,
         `Total Attendance Days: ${totalAttendanceDays}`,
         `Total Workers: ${new Set(attendanceData?.map(a => a.worker_id) || []).size}`,
-        `Total Uploaded Files: ${allFiles?.length || 0}`,
+        `Total Uploaded Files: ${dbFiles?.length || 0}`,
       ].join('\n');
 
       zip.file(`${safeName}/summary.txt`, summary);
