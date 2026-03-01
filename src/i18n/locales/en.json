@@ -515,7 +515,8 @@
     "deleted": "File deleted",
     "deletedDesc": "The file has been removed",
     "uploadedBy": "Uploaded by",
-    "downloadAll": "Download All"
+    "downloadAll": "Download All",
+    "downloadReport": "Export Workshop Data"
   },
   "transfers": {
     "title": "Transfers",

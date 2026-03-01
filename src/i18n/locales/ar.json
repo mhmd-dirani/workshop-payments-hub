@@ -514,7 +514,8 @@
     "deleted": "تم حذف الملف",
     "deletedDesc": "تم إزالة الملف",
     "uploadedBy": "رفعه",
-    "downloadAll": "تحميل الكل"
+    "downloadAll": "تحميل الكل",
+    "downloadReport": "تصدير بيانات الورشة"
   },
   "transfers": {
     "title": "التحويلات",

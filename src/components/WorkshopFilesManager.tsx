@@ -385,7 +385,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
                 {t('files.mapsAndReceipts')}
               </CardDescription>
             </div>
-            {allFiles && allFiles.length > 0 && (
+            {(
               <Button
                 variant="outline"
                 size="sm"
