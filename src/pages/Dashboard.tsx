@@ -356,8 +356,8 @@ export default function Dashboard() {
           <IncomeTable workshopId={selectedWorkshop} />
         )}
 
-        {/* Workshop Files Manager (admin only) */}
-        {selectedWorkshop && role === 'admin' && (
+        {/* Workshop Files Manager (admin and co_admin) */}
+        {selectedWorkshop && (role === 'admin' || role === 'co_admin') && (
           <WorkshopFilesManager workshopId={selectedWorkshop} workshopName={selectedWorkshopName} />
         )}
 

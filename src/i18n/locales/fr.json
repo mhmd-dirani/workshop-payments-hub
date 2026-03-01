@@ -514,7 +514,8 @@
     "deleted": "Fichier supprimé",
     "deletedDesc": "Le fichier a été supprimé",
     "uploadedBy": "Téléchargé par",
-    "downloadAll": "Tout télécharger"
+    "downloadAll": "Tout télécharger",
+    "downloadReport": "Exporter les données de l'atelier"
   },
   "transfers": {
     "title": "Transferts",
