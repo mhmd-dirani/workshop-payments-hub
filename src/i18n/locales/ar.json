@@ -136,6 +136,7 @@
     "capturePhoto": "التقاط",
     "uploadFile": "رفع",
     "fileHint": "أرفق صورة للفاتورة أو الإيصال (اختياري)",
+    "viewReceipt": "عرض الإيصال",
     "invalidFileType": "مسموح فقط بالصور وملفات PDF",
     "fileTooLarge": "يجب أن يكون حجم الملف أقل من 10 ميجابايت",
     "fileRemoved": "تم حذف الملف",

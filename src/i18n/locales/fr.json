@@ -136,6 +136,7 @@
     "capturePhoto": "Capturer",
     "uploadFile": "Télécharger",
     "fileHint": "Joindre une photo de la facture ou du reçu (optionnel)",
+    "viewReceipt": "Voir le reçu",
     "invalidFileType": "Seuls les images et PDF sont autorisés",
     "fileTooLarge": "Le fichier doit faire moins de 10 Mo",
     "fileRemoved": "Fichier supprimé",

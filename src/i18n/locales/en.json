@@ -137,6 +137,7 @@
     "capturePhoto": "Capture",
     "uploadFile": "Upload",
     "fileHint": "Attach a photo of the invoice or receipt (optional)",
+    "viewReceipt": "View Receipt",
     "invalidFileType": "Only images and PDFs are allowed",
     "fileTooLarge": "File must be less than 10MB",
     "fileRemoved": "File removed",
