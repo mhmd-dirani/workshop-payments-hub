@@ -138,6 +138,9 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
          if (adjustmentsRevertError) throw adjustmentsRevertError;
        }
 
+      // Delete linked contractor_payments
+      await supabase.from('contractor_payments').delete().eq('payment_id', paymentId);
+
       const { error } = await supabase.from('payments').delete().eq('id', paymentId);
       if (error) throw error;
     },
