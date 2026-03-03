@@ -117,12 +117,20 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     return filtered;
   }, [payments, role, user, searchTerm, typeFilter]);
 
-  const searchTotal = useMemo(() => {
-    if (!searchTerm.trim()) return null;
+  const approvedTotal = useMemo(() => {
     return filteredPayments
       .filter(p => p.status === 'approved')
       .reduce((sum, p) => sum + Number(p.amount), 0);
-  }, [filteredPayments, searchTerm]);
+  }, [filteredPayments]);
+
+  const approvedCount = useMemo(() => {
+    return filteredPayments.filter(p => p.status === 'approved').length;
+  }, [filteredPayments]);
+
+  const searchTotal = useMemo(() => {
+    if (!searchTerm.trim() && typeFilter === 'all') return null;
+    return approvedTotal;
+  }, [searchTerm, typeFilter, approvedTotal]);
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
