@@ -49,6 +49,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
 
