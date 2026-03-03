@@ -55,6 +55,9 @@ export default function ContractorPayments() {
   const [markAdvancePayment, setMarkAdvancePayment] = useState<any>(null);
   const [purchaseWorkshopId, setPurchaseWorkshopId] = useState('');
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState('');
+  const [purchaseMode, setPurchaseMode] = useState<'new' | 'existing'>('new');
+  const [selectedExistingPaymentId, setSelectedExistingPaymentId] = useState('');
+  const [existingPaymentSearch, setExistingPaymentSearch] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
