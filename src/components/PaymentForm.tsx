@@ -442,6 +442,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
       queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       queryClient.invalidateQueries({ queryKey: ['payment-contractor-link'] });
+      queryClient.invalidateQueries({ queryKey: ['contract-payments-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-contract-link'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
