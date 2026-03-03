@@ -199,6 +199,7 @@ export default function ContractorPayments() {
             paid_to: contractorName,
             reason,
             created_by: user!.id,
+            status: 'approved',
           })
           .select()
           .single();
