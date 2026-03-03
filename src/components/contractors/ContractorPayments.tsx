@@ -836,6 +836,11 @@ export default function ContractorPayments() {
                             )}
                           </>
                         )}
+                        {role === 'admin' && !isBudget && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingPaymentType(p); setEditPaymentTypeValue(p.payment_type); }}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         {role === 'admin' && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
                             <Trash2 className="w-3.5 h-3.5 text-destructive" />
