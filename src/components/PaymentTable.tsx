@@ -195,6 +195,12 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
         .delete()
         .eq('payment_id', payment.id);
 
+      // Delete linked contractor_payments
+      await supabase
+        .from('contractor_payments')
+        .delete()
+        .eq('payment_id', payment.id);
+
       const { error } = await supabase
         .from('payments')
         .delete()
