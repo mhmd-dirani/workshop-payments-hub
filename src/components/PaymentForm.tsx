@@ -168,6 +168,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     }
     setSelectedFile(null);
     setPreviewUrl(null);
+    setSelectedContractorId('none');
   }, [payment, open]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
