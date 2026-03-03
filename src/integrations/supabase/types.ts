@@ -426,7 +426,6 @@ export type Database = {
           id: string
           paid_to: string
           payment_date: string
-          payment_type: string
           reason: string
           rejection_reason: string | null
           status: Database["public"]["Enums"]["payment_status"]
@@ -442,7 +441,6 @@ export type Database = {
           id?: string
           paid_to: string
           payment_date: string
-          payment_type?: string
           reason: string
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
@@ -458,7 +456,6 @@ export type Database = {
           id?: string
           paid_to?: string
           payment_date?: string
-          payment_type?: string
           reason?: string
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]

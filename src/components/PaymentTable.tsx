@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -49,7 +48,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
 
@@ -102,10 +100,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       filtered = filtered.filter(p => p.created_by === user.id);
     }
     
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(p => (p.payment_type || 'cash') === typeFilter);
-    }
-    
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(p => 
@@ -115,22 +109,14 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     }
     
     return filtered;
-  }, [payments, role, user, searchTerm, typeFilter]);
+  }, [payments, role, user, searchTerm]);
 
-  const approvedTotal = useMemo(() => {
+  const searchTotal = useMemo(() => {
+    if (!searchTerm.trim()) return null;
     return filteredPayments
       .filter(p => p.status === 'approved')
       .reduce((sum, p) => sum + Number(p.amount), 0);
-  }, [filteredPayments]);
-
-  const approvedCount = useMemo(() => {
-    return filteredPayments.filter(p => p.status === 'approved').length;
-  }, [filteredPayments]);
-
-  const searchTotal = useMemo(() => {
-    if (!searchTerm.trim() && typeFilter === 'all') return null;
-    return approvedTotal;
-  }, [searchTerm, typeFilter, approvedTotal]);
+  }, [filteredPayments, searchTerm]);
 
   const deletePayment = useMutation({
     mutationFn: async (payment: any) => {
@@ -330,28 +316,14 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   if (!filteredPayments || filteredPayments.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder={t('payments.searchByName')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('payments.allTypes')}</SelectItem>
-              <SelectItem value="cash">{t('payments.paymentTypes.cash')}</SelectItem>
-              <SelectItem value="check">{t('payments.paymentTypes.check')}</SelectItem>
-              <SelectItem value="bank_transfer">{t('payments.paymentTypes.bank_transfer')}</SelectItem>
-              <SelectItem value="mobile_payment">{t('payments.paymentTypes.mobile_payment')}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={t('payments.searchByName')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
         <div className="text-center py-12 text-muted-foreground">
           <p>{searchTerm ? t('payments.noMatchingPayments') : t('payments.noPayments')}</p>
@@ -364,49 +336,35 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   return (
     <>
       <div className="space-y-3 md:space-y-4">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder={t('payments.searchByName')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-9 md:h-10"
-            />
-          </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[120px] md:w-[140px] h-9 md:h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('payments.allTypes')}</SelectItem>
-              <SelectItem value="cash">{t('payments.paymentTypes.cash')}</SelectItem>
-              <SelectItem value="check">{t('payments.paymentTypes.check')}</SelectItem>
-              <SelectItem value="bank_transfer">{t('payments.paymentTypes.bank_transfer')}</SelectItem>
-              <SelectItem value="mobile_payment">{t('payments.paymentTypes.mobile_payment')}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={t('payments.searchByName')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-9 md:h-10"
+          />
         </div>
 
-        <Card className="bg-destructive/5 border-destructive/20">
-          <CardContent className="py-3 px-3 md:px-6">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
-                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
+        {searchTerm.trim() && searchTotal !== null && (
+          <Card className="bg-destructive/5 border-destructive/20">
+            <CardContent className="py-3 px-3 md:px-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
+                  <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-xs md:text-sm text-destructive font-medium">
+                    {t('payments.totalPaidTo')} "{searchTerm}"
+                  </p>
+                  <p className="text-base md:text-xl font-bold font-mono text-destructive">
+                    -{searchTotal.toLocaleString('fr-FR')} CFA
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs md:text-sm text-destructive font-medium">
-                  {searchTerm.trim() ? `${t('payments.totalPaidTo')} "${searchTerm}"` : t('payments.totalApproved')}
-                  {typeFilter !== 'all' && ` (${t(`payments.paymentTypes.${typeFilter}`)})`}
-                  {' '}<span className="text-muted-foreground">({approvedCount})</span>
-                </p>
-                <p className="text-base md:text-xl font-bold font-mono text-destructive">
-                  -{approvedTotal.toLocaleString('fr-FR')} CFA
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-2">
@@ -433,11 +391,8 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
                     {getStatusBadge(payment.status)}
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {t(`payments.paymentTypes.${payment.payment_type || 'cash'}`)}
-                    </Badge>
                     <span className="text-[10px] text-muted-foreground truncate">{payment.creator_name}</span>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
@@ -478,7 +433,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                 <TableHead>{t('common.reason')}</TableHead>
                 <TableHead className="text-right">{t('common.amount')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
-                <TableHead>{t('payments.paymentType')}</TableHead>
                 <TableHead>{t('payments.addedBy')}</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
@@ -502,11 +456,6 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>
                   <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {t(`payments.paymentTypes.${payment.payment_type || 'cash'}`)}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {payment.creator_name}
                   </TableCell>
