@@ -355,6 +355,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         // Handle contractor link changes
         const hadLink = !!existingContractorLink;
         const wantsLink = selectedContractorId && selectedContractorId !== 'none';
+        const contractIdToUse = selectedContractId && selectedContractId !== 'none' ? selectedContractId : null;
         
         if (hadLink && !wantsLink) {
           // Remove existing link
@@ -362,18 +363,19 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         } else if (hadLink && wantsLink && existingContractorLink.contractor_id !== selectedContractorId) {
           // Update existing link to new contractor
           await supabase.from('contractor_payments')
-            .update({ contractor_id: selectedContractorId, amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .update({ contractor_id: selectedContractorId, contract_id: contractIdToUse, amount: data.amount, description: data.reason, payment_date: data.payment_date })
             .eq('id', existingContractorLink.id);
         } else if (hadLink && wantsLink) {
-          // Same contractor, update amount/description
+          // Same contractor, update amount/description/contract
           await supabase.from('contractor_payments')
-            .update({ amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .update({ contract_id: contractIdToUse, amount: data.amount, description: data.reason, payment_date: data.payment_date })
             .eq('id', existingContractorLink.id);
         } else if (!hadLink && wantsLink) {
           // Create new link
           const creatorId = (role === 'admin' && newCreatorId) ? newCreatorId : user?.id;
           await supabase.from('contractor_payments').insert({
             contractor_id: selectedContractorId,
+            contract_id: contractIdToUse,
             workshop_id: workshopId,
             amount: data.amount,
             payment_type: 'advance',
