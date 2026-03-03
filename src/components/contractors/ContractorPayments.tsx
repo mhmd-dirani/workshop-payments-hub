@@ -494,7 +494,7 @@ export default function ContractorPayments() {
                     <SelectTrigger><SelectValue placeholder={t('contractors.selectContractor')} /></SelectTrigger>
                     <SelectContent>
                       {contractors.filter(c => c.is_active).map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name} - {t(`contractors.specialties.${c.specialty}`, c.specialty)}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>{c.name} - {String(t(`contractors.specialties.${c.specialty}`, { defaultValue: c.specialty }))}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
