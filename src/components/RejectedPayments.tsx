@@ -153,6 +153,8 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
       queryClient.invalidateQueries({ queryKey: ['worker-paid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       setPaymentToDelete(null);
       toast({
         title: t('payments.paymentDeleted'),
