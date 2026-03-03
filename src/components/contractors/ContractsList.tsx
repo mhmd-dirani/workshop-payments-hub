@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Search, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ContractsList() {
@@ -21,10 +21,12 @@ export default function ContractsList() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contractorId, setContractorId] = useState('');
   const [workshopId, setWorkshopId] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
@@ -47,46 +49,48 @@ export default function ContractsList() {
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('contracts').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
-  // Get payments per contract
   const { data: paymentsByContract = {} } = useQuery({
     queryKey: ['contract-payments-summary'],
     queryFn: async () => {
       const { data, error } = await supabase.from('contractor_payments').select('contract_id, amount');
       if (error) throw error;
       const map: Record<string, number> = {};
-      data?.forEach(p => {
-        if (p.contract_id) {
-          map[p.contract_id] = (map[p.contract_id] || 0) + Number(p.amount);
-        }
-      });
+      data?.forEach(p => { if (p.contract_id) map[p.contract_id] = (map[p.contract_id] || 0) + Number(p.amount); });
       return map;
     },
   });
 
-  const createMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('contracts').insert({
-        contractor_id: contractorId,
-        workshop_id: workshopId,
-        total_amount: totalAmount ? Number(totalAmount) : null,
-        description: description || null,
-        created_by: user!.id,
-      });
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await supabase.from('contracts').update({
+          contractor_id: contractorId,
+          workshop_id: workshopId,
+          total_amount: totalAmount ? Number(totalAmount) : null,
+          description: description || null,
+        }).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('contracts').insert({
+          contractor_id: contractorId,
+          workshop_id: workshopId,
+          total_amount: totalAmount ? Number(totalAmount) : null,
+          description: description || null,
+          created_by: user!.id,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['contractor-contract-counts'] });
-      toast({ title: t('contractors.contractCreated') });
+      toast({ title: t(editingId ? 'contractors.contractUpdated' : 'contractors.contractCreated') });
       resetForm();
     },
     onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
@@ -105,22 +109,60 @@ export default function ContractsList() {
 
   const resetForm = () => {
     setShowForm(false);
+    setEditingId(null);
     setContractorId('');
     setWorkshopId('');
     setTotalAmount('');
     setDescription('');
   };
 
+  const startEdit = (contract: any) => {
+    setEditingId(contract.id);
+    setContractorId(contract.contractor_id);
+    setWorkshopId(contract.workshop_id);
+    setTotalAmount(contract.total_amount ? String(contract.total_amount) : '');
+    setDescription(contract.description || '');
+    setShowForm(true);
+  };
+
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
   const getWorkshopName = (id: string) => workshops.find(w => w.id === id)?.name || '?';
+
+  // Also include all contractors for search (not just active)
+  const { data: allContractors = [] } = useQuery({
+    queryKey: ['contractors-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contractors').select('id, name').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const getAnyContractorName = (id: string) => allContractors.find(c => c.id === id)?.name || '?';
+
+  const filtered = contracts.filter(c => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const cName = getAnyContractorName(c.contractor_id).toLowerCase();
+    const wName = getWorkshopName(c.workshop_id).toLowerCase();
+    return cName.includes(q) || wName.includes(q) || (c.description || '').toLowerCase().includes(q);
+  });
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('contractors.searchContracts')}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
         <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1">
@@ -130,7 +172,7 @@ export default function ContractsList() {
           </DialogTrigger>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>{t('contractors.addContract')}</DialogTitle>
+              <DialogTitle>{editingId ? t('contractors.editContract') : t('contractors.addContract')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div>
@@ -163,10 +205,10 @@ export default function ContractsList() {
                 <Label>{t('common.description')} ({t('common.optional')})</Label>
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={t('contractors.contractDescPlaceholder')} rows={2} />
               </div>
-              <Button 
-                className="w-full" 
-                onClick={() => createMutation.mutate()} 
-                disabled={!contractorId || !workshopId || createMutation.isPending}
+              <Button
+                className="w-full"
+                onClick={() => saveMutation.mutate()}
+                disabled={!contractorId || !workshopId || saveMutation.isPending}
               >
                 {t('common.save')}
               </Button>
@@ -175,11 +217,11 @@ export default function ContractsList() {
         </Dialog>
       </div>
 
-      {contracts.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noContracts')}</CardContent></Card>
       ) : (
         <div className="grid gap-2 md:gap-3">
-          {contracts.map(contract => {
+          {filtered.map(contract => {
             const paid = paymentsByContract[contract.id] || 0;
             const total = Number(contract.total_amount) || 0;
             const progress = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
@@ -191,7 +233,7 @@ export default function ContractsList() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-sm md:text-base">{getContractorName(contract.contractor_id)}</h3>
+                        <h3 className="font-semibold text-sm md:text-base">{getAnyContractorName(contract.contractor_id)}</h3>
                         <Badge variant="outline" className="text-xs">{getWorkshopName(contract.workshop_id)}</Badge>
                         <Badge variant={contract.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                           {t(`contractors.status.${contract.status}`)}
@@ -216,17 +258,22 @@ export default function ContractsList() {
                         )}
                       </div>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => toggleStatusMutation.mutate({
-                        id: contract.id,
-                        status: contract.status === 'active' ? 'completed' : 'active',
-                      })}
-                    >
-                      {contract.status === 'active' ? <CheckCircle className="w-4 h-4 text-primary" /> : <XCircle className="w-4 h-4" />}
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(contract)}>
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => toggleStatusMutation.mutate({
+                          id: contract.id,
+                          status: contract.status === 'active' ? 'completed' : 'active',
+                        })}
+                      >
+                        {contract.status === 'active' ? <CheckCircle className="w-4 h-4 text-primary" /> : <XCircle className="w-4 h-4" />}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

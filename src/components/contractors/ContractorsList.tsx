@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Phone, Edit2, UserX, UserCheck } from 'lucide-react';
+import { Plus, Phone, Edit2, UserX, UserCheck, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ContractorProfile from './ContractorProfile';
 
-const SPECIALTIES = ['painter', 'plumber', 'woodworker', 'electrician', 'tiler', 'other'];
+const DEFAULT_SPECIALTIES = ['painter', 'plumber', 'woodworker', 'electrician', 'tiler', 'other'];
 
 export default function ContractorsList() {
   const { t } = useTranslation();
@@ -24,33 +25,37 @@ export default function ContractorsList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [specialty, setSpecialty] = useState('other');
+  const [customSpecialty, setCustomSpecialty] = useState('');
   const [phone, setPhone] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSpecialty, setFilterSpecialty] = useState('all');
+  const [selectedContractor, setSelectedContractor] = useState<any>(null);
 
   const { data: contractors = [], isLoading } = useQuery({
     queryKey: ['contractors'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contractors')
-        .select('*')
-        .order('name');
+      const { data, error } = await supabase.from('contractors').select('*').order('name');
       if (error) throw error;
       return data;
     },
   });
 
-  // Get contract/payment summaries
+  // Extract unique custom specialties from existing contractors
+  const customSpecialties = [...new Set(
+    contractors
+      .map(c => c.specialty)
+      .filter(s => !DEFAULT_SPECIALTIES.includes(s))
+  )];
+  const allSpecialties = [...DEFAULT_SPECIALTIES, ...customSpecialties];
+
   const { data: summaries = {} } = useQuery({
     queryKey: ['contractor-summaries'],
     queryFn: async () => {
-      const { data: payments, error } = await supabase
-        .from('contractor_payments')
-        .select('contractor_id, amount');
+      const { data: payments, error } = await supabase.from('contractor_payments').select('contractor_id, amount');
       if (error) throw error;
       const map: Record<string, number> = {};
-      payments?.forEach(p => {
-        map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount);
-      });
+      payments?.forEach(p => { map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount); });
       return map;
     },
   });
@@ -58,9 +63,7 @@ export default function ContractorsList() {
   const { data: contractCounts = {} } = useQuery({
     queryKey: ['contractor-contract-counts'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('contractor_id, status');
+      const { data, error } = await supabase.from('contracts').select('contractor_id, status');
       if (error) throw error;
       const map: Record<string, { active: number; total: number }> = {};
       data?.forEach(c => {
@@ -74,16 +77,13 @@ export default function ContractorsList() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const finalSpecialty = specialty === 'custom' ? customSpecialty.trim() : specialty;
+      if (!finalSpecialty) throw new Error('Specialty required');
       if (editingId) {
-        const { error } = await supabase
-          .from('contractors')
-          .update({ name, specialty, phone: phone || null })
-          .eq('id', editingId);
+        const { error } = await supabase.from('contractors').update({ name, specialty: finalSpecialty, phone: phone || null }).eq('id', editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('contractors')
-          .insert({ name, specialty, phone: phone || null, created_by: user!.id });
+        const { error } = await supabase.from('contractors').insert({ name, specialty: finalSpecialty, phone: phone || null, created_by: user!.id });
         if (error) throw error;
       }
     },
@@ -97,15 +97,10 @@ export default function ContractorsList() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase
-        .from('contractors')
-        .update({ is_active: active })
-        .eq('id', id);
+      const { error } = await supabase.from('contractors').update({ is_active: active }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contractors'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contractors'] }),
   });
 
   const resetForm = () => {
@@ -113,70 +108,126 @@ export default function ContractorsList() {
     setEditingId(null);
     setName('');
     setSpecialty('other');
+    setCustomSpecialty('');
     setPhone('');
   };
 
   const startEdit = (c: any) => {
     setEditingId(c.id);
     setName(c.name);
-    setSpecialty(c.specialty);
+    if (DEFAULT_SPECIALTIES.includes(c.specialty)) {
+      setSpecialty(c.specialty);
+      setCustomSpecialty('');
+    } else {
+      setSpecialty('custom');
+      setCustomSpecialty(c.specialty);
+    }
     setPhone(c.phone || '');
     setShowForm(true);
   };
 
-  const filtered = contractors.filter(c => showInactive || c.is_active);
+  const getSpecialtyLabel = (s: string) => {
+    if (DEFAULT_SPECIALTIES.includes(s)) return t(`contractors.specialties.${s}`);
+    return s;
+  };
+
+  if (selectedContractor) {
+    return <ContractorProfile contractor={selectedContractor} onBack={() => setSelectedContractor(null)} />;
+  }
+
+  const filtered = contractors
+    .filter(c => showInactive || c.is_active)
+    .filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(c => filterSpecialty === 'all' || c.specialty === filterSpecialty);
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <Button size="sm" variant="outline" onClick={() => setShowInactive(!showInactive)}>
-          {showInactive ? t('workers.hideInactive') : t('workers.showInactive')}
-        </Button>
-        <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1">
-              <Plus className="w-4 h-4" />
-              {t('contractors.add')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>{editingId ? t('contractors.edit') : t('contractors.add')}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label>{t('common.name')}</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('contractors.namePlaceholder')} />
-              </div>
-              <div>
-                <Label>{t('contractors.specialty')}</Label>
-                <Select value={specialty} onValueChange={setSpecialty}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {SPECIALTIES.map(s => (
-                      <SelectItem key={s} value={s}>{t(`contractors.specialties.${s}`)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>{t('contractors.phone')} ({t('common.optional')})</Label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="0XX XXX XXXX" />
-              </div>
-              <Button 
-                className="w-full" 
-                onClick={() => saveMutation.mutate()} 
-                disabled={!name.trim() || saveMutation.isPending}
-              >
-                {t('common.save')}
+    <div className="space-y-3">
+      {/* Filters */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('contractors.searchByName')}
+              className="pl-8 h-9 text-sm"
+            />
+          </div>
+          <Select value={filterSpecialty} onValueChange={setFilterSpecialty}>
+            <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('common.all')}</SelectItem>
+              {allSpecialties.map(s => (
+                <SelectItem key={s} value={s}>{getSpecialtyLabel(s)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowInactive(!showInactive)}>
+            {showInactive ? t('workers.hideInactive') : t('workers.showInactive')}
+          </Button>
+          <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1">
+                <Plus className="w-4 h-4" />
+                {t('contractors.add')}
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{editingId ? t('contractors.edit') : t('contractors.add')}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>{t('common.name')}</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('contractors.namePlaceholder')} />
+                </div>
+                <div>
+                  <Label>{t('contractors.specialty')}</Label>
+                  <Select value={specialty} onValueChange={v => { setSpecialty(v); if (v !== 'custom') setCustomSpecialty(''); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DEFAULT_SPECIALTIES.map(s => (
+                        <SelectItem key={s} value={s}>{t(`contractors.specialties.${s}`)}</SelectItem>
+                      ))}
+                      {customSpecialties.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                      <SelectItem value="custom">{t('contractors.customSpecialty')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {specialty === 'custom' && (
+                    <Input
+                      className="mt-2"
+                      value={customSpecialty}
+                      onChange={e => setCustomSpecialty(e.target.value)}
+                      placeholder={t('contractors.customSpecialtyPlaceholder')}
+                    />
+                  )}
+                </div>
+                <div>
+                  <Label>{t('contractors.phone')} ({t('common.optional')})</Label>
+                  <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="0XX XXX XXXX" />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={!name.trim() || (specialty === 'custom' && !customSpecialty.trim()) || saveMutation.isPending}
+                >
+                  {t('common.save')}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -192,9 +243,14 @@ export default function ContractorsList() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-sm md:text-base">{c.name}</h3>
+                        <button
+                          className="font-semibold text-sm md:text-base text-primary hover:underline text-left"
+                          onClick={() => setSelectedContractor(c)}
+                        >
+                          {c.name}
+                        </button>
                         <Badge variant="secondary" className="text-xs">
-                          {t(`contractors.specialties.${c.specialty}`)}
+                          {getSpecialtyLabel(c.specialty)}
                         </Badge>
                         {!c.is_active && <Badge variant="outline" className="text-xs">{t('workers.inactive')}</Badge>}
                       </div>
@@ -213,14 +269,14 @@ export default function ContractorsList() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(c)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); startEdit(c); }}>
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
                         className="h-8 w-8"
-                        onClick={() => toggleActiveMutation.mutate({ id: c.id, active: !c.is_active })}
+                        onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate({ id: c.id, active: !c.is_active }); }}
                       >
                         {c.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                       </Button>
