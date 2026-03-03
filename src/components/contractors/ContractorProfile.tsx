@@ -98,7 +98,7 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
 
   const workshopIds = [...new Set([
     ...contracts.map(c => c.workshop_id),
-    ...payments.map(p => p.workshop_id),
+    ...payments.filter(p => p.workshop_id).map(p => p.workshop_id),
   ])];
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
