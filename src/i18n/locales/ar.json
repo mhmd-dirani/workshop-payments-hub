@@ -655,7 +655,8 @@
     "paymentType": "نوع الدفعة",
     "paymentTypes": {
       "advance": "سلفة",
-      "product": "منتج/مواد"
+      "product": "منتج/مواد",
+      "material_budget": "ميزانية مواد"
     },
     "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
     "filterByContractor": "تصفية حسب المقاول",
@@ -668,6 +669,20 @@
     "editContract": "تعديل العقد",
     "contractUpdated": "تم تحديث العقد",
     "profileContracts": "العقود",
-    "profilePayments": "المدفوعات"
+    "profilePayments": "المدفوعات",
+    "budgetHint": "أعط ميزانية لشراء المواد. تتبع كل عملية شراء مع الإيصالات. لن يظهر هذا في لوحة المدفوعات الرئيسية.",
+    "editBudget": "تعديل مبلغ الميزانية",
+    "budgetUpdated": "تم تحديث الميزانية",
+    "spent": "المصروف",
+    "purchases": "المشتريات",
+    "addPurchase": "إضافة شراء",
+    "purchaseAdded": "تم تسجيل الشراء",
+    "purchaseDeleted": "تم حذف الشراء",
+    "noPurchases": "لا توجد مشتريات مسجلة",
+    "purchaseDescPlaceholder": "ماذا تم شراؤه؟",
+    "markAsAdvance": "تحويل المتبقي إلى سلفة",
+    "markAsAdvanceDesc": "سيتم تسجيل المبلغ المتبقي كسلفة في لوحة المدفوعات الرئيسية.",
+    "budgetRemaining": "المتبقي من الميزانية",
+    "advanceCreated": "تم إنشاء سلفة من المتبقي من الميزانية"
   }
 }

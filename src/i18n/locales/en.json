@@ -656,7 +656,8 @@
     "paymentType": "Payment Type",
     "paymentTypes": {
       "advance": "Advance",
-      "product": "Product/Material"
+      "product": "Product/Material",
+      "material_budget": "Material Budget"
     },
     "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
     "filterByContractor": "Filter by contractor",
@@ -669,6 +670,20 @@
     "editContract": "Edit Contract",
     "contractUpdated": "Contract updated",
     "profileContracts": "Contracts",
-    "profilePayments": "Payments"
+    "profilePayments": "Payments",
+    "budgetHint": "Give a budget for material purchases. Track each purchase with receipts. This won't appear in the main payments dashboard.",
+    "editBudget": "Edit Budget Amount",
+    "budgetUpdated": "Budget updated",
+    "spent": "Spent",
+    "purchases": "Purchases",
+    "addPurchase": "Add Purchase",
+    "purchaseAdded": "Purchase recorded",
+    "purchaseDeleted": "Purchase deleted",
+    "noPurchases": "No purchases recorded yet",
+    "purchaseDescPlaceholder": "What was purchased?",
+    "markAsAdvance": "Mark Remaining as Advance",
+    "markAsAdvanceDesc": "The remaining amount will be recorded as an advance payment in the main payments dashboard.",
+    "budgetRemaining": "Budget remaining",
+    "advanceCreated": "Advance payment created from budget remaining"
   }
 }

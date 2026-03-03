@@ -655,7 +655,8 @@
     "paymentType": "Type de paiement",
     "paymentTypes": {
       "advance": "Avance",
-      "product": "Produit/Matériel"
+      "product": "Produit/Matériel",
+      "material_budget": "Budget matériel"
     },
     "paymentDescPlaceholder": "ex: Pots de peinture, avance main-d'œuvre...",
     "filterByContractor": "Filtrer par sous-traitant",
@@ -668,6 +669,20 @@
     "editContract": "Modifier le contrat",
     "contractUpdated": "Contrat mis à jour",
     "profileContracts": "Contrats",
-    "profilePayments": "Paiements"
+    "profilePayments": "Paiements",
+    "budgetHint": "Donnez un budget pour les achats de matériel. Suivez chaque achat avec des reçus. Cela n'apparaîtra pas dans le tableau de bord principal.",
+    "editBudget": "Modifier le montant du budget",
+    "budgetUpdated": "Budget mis à jour",
+    "spent": "Dépensé",
+    "purchases": "Achats",
+    "addPurchase": "Ajouter un achat",
+    "purchaseAdded": "Achat enregistré",
+    "purchaseDeleted": "Achat supprimé",
+    "noPurchases": "Aucun achat enregistré",
+    "purchaseDescPlaceholder": "Qu'est-ce qui a été acheté?",
+    "markAsAdvance": "Marquer le restant comme avance",
+    "markAsAdvanceDesc": "Le montant restant sera enregistré comme avance dans le tableau de bord principal.",
+    "budgetRemaining": "Restant du budget",
+    "advanceCreated": "Avance créée à partir du restant du budget"
   }
 }
