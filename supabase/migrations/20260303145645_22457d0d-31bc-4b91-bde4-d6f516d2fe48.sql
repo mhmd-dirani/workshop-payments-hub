@@ -1,0 +1,1 @@
+ALTER TABLE public.contractor_payments ALTER COLUMN workshop_id DROP NOT NULL;

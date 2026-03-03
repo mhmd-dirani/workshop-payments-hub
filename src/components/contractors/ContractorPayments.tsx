@@ -50,6 +50,8 @@ export default function ContractorPayments() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [editBudgetAmount, setEditBudgetAmount] = useState('');
   const [markAdvancePayment, setMarkAdvancePayment] = useState<any>(null);
+  const [purchaseWorkshopId, setPurchaseWorkshopId] = useState('');
+  const [advanceWorkshopId, setAdvanceWorkshopId] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
@@ -173,16 +175,16 @@ export default function ContractorPayments() {
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
 
       if (paymentType === 'material_budget') {
-        // Material budget does NOT go to main payments dashboard
+        // Material budget does NOT go to main payments dashboard, no workshop needed
         const { error } = await supabase.from('contractor_payments').insert({
           contractor_id: contractorId,
           contract_id: contractId || null,
-          workshop_id: workshopForPayment,
+          workshop_id: null,
           amount: Number(amount),
           payment_type: 'material_budget',
           description: description || null,
           payment_date: paymentDate,
-          payment_id: null, // No main payment
+          payment_id: null,
           created_by: user!.id,
         });
         if (error) throw error;
@@ -235,7 +237,8 @@ export default function ContractorPayments() {
 
   const addPurchaseMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
-      const workshopName = workshops.find(w => w.id === budgetPayment.workshop_id)?.name || '';
+      if (!purchaseWorkshopId) throw new Error('No workshop selected');
+      const workshopName = workshops.find(w => w.id === purchaseWorkshopId)?.name || '';
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
@@ -245,7 +248,7 @@ export default function ContractorPayments() {
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: purchaseWorkshopId,
           amount: Number(purchaseAmount),
           payment_date: purchaseDate,
           paid_to: contractorName,
@@ -267,7 +270,7 @@ export default function ContractorPayments() {
 
         // Link receipt to the payment record
         await supabase.from('workshop_files').insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: purchaseWorkshopId,
           file_type: purchaseReceipt.type,
           file_name: purchaseReceipt.name,
           file_path: fileName,
@@ -338,11 +341,12 @@ export default function ContractorPayments() {
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.advance')} (${t('contractors.budgetRemaining')})`;
 
+      if (!advanceWorkshopId) throw new Error('No workshop selected');
       // Create main payment for the remaining as advance
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: advanceWorkshopId,
           amount: remaining,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           paid_to: contractorName,
@@ -357,7 +361,7 @@ export default function ContractorPayments() {
       const { error } = await supabase.from('contractor_payments').insert({
         contractor_id: budgetPayment.contractor_id,
         contract_id: budgetPayment.contract_id || null,
-        workshop_id: budgetPayment.workshop_id,
+        workshop_id: advanceWorkshopId,
         amount: remaining,
         payment_type: 'advance',
         description: `${t('contractors.budgetRemaining')}: ${Number(budgetPayment.amount).toLocaleString('fr-FR')} - ${spent.toLocaleString('fr-FR')} = ${remaining.toLocaleString('fr-FR')} CFA`,
@@ -428,6 +432,7 @@ export default function ContractorPayments() {
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
     setPurchaseDescription('');
     setPurchaseReceipt(null);
+    setPurchaseWorkshopId('');
   };
 
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
@@ -543,7 +548,7 @@ export default function ContractorPayments() {
                   </div>
                 )}
 
-                {(!contractId || contracts.length === 0) && (
+                {(!contractId || contracts.length === 0) && paymentType !== 'material_budget' && (
                   <div>
                     <Label>{t('common.workshop')}</Label>
                     <Select value={workshopId} onValueChange={setWorkshopId}>
@@ -621,7 +626,7 @@ export default function ContractorPayments() {
                 <Button
                   className="w-full"
                   onClick={() => createMutation.mutate()}
-                  disabled={!contractorId || !(workshopId || contractId) || !amount || Number(amount) <= 0 || createMutation.isPending}
+                  disabled={!contractorId || (paymentType !== 'material_budget' && !(workshopId || contractId)) || !amount || Number(amount) <= 0 || createMutation.isPending}
                 >
                   {t('common.save')}
                 </Button>
@@ -664,10 +669,21 @@ export default function ContractorPayments() {
                 <div className="text-sm font-medium">
                   {t('contractors.remaining')}: {remaining.toLocaleString('fr-FR')} CFA
                 </div>
+                <div>
+                  <Label className="text-xs">{t('common.workshop')}</Label>
+                  <Select value={advanceWorkshopId} onValueChange={setAdvanceWorkshopId}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                    <SelectContent>
+                      {workshops.map(w => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   className="w-full"
                   onClick={() => markRemainingAsAdvanceMutation.mutate(markAdvancePayment)}
-                  disabled={remaining <= 0 || markRemainingAsAdvanceMutation.isPending}
+                  disabled={remaining <= 0 || !advanceWorkshopId || markRemainingAsAdvanceMutation.isPending}
                 >
                   {t('common.confirm')}
                 </Button>
@@ -684,7 +700,7 @@ export default function ContractorPayments() {
           if (!searchQuery) return true;
           const q = searchQuery.toLowerCase();
           return getContractorName(p.contractor_id).toLowerCase().includes(q)
-            || getWorkshopName(p.workshop_id).toLowerCase().includes(q)
+            || (p.workshop_id && getWorkshopName(p.workshop_id).toLowerCase().includes(q))
             || (p.description || '').toLowerCase().includes(q);
         });
         return filteredPayments.length === 0 ? (
@@ -706,7 +722,7 @@ export default function ContractorPayments() {
                       <div className={`min-w-0 flex-1 ${isBudget ? 'cursor-pointer' : ''}`} onClick={() => isBudget && toggleBudgetExpand(p.id)}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
-                          <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
+                          {p.workshop_id && <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>}
                           <Badge variant={isBudget ? 'default' : 'secondary'} className="text-xs">
                             {t(`contractors.paymentTypes.${p.payment_type}`)}
                           </Badge>
@@ -766,6 +782,17 @@ export default function ContractorPayments() {
                         {/* Purchase form */}
                         {showPurchaseForm === p.id && (
                           <div className="p-2 bg-muted/50 rounded-md space-y-2">
+                            <div>
+                              <Label className="text-xs">{t('common.workshop')}</Label>
+                              <Select value={purchaseWorkshopId} onValueChange={setPurchaseWorkshopId}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                                <SelectContent>
+                                  {workshops.map(w => (
+                                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <Label className="text-xs">{t('common.amount')}</Label>
@@ -802,7 +829,7 @@ export default function ContractorPayments() {
                                 </div>
                               )}
                             </div>
-                            <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
+                            <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
                               {t('common.save')}
                             </Button>
                           </div>
