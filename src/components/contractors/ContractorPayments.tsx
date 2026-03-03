@@ -430,6 +430,7 @@ export default function ContractorPayments() {
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
     setPurchaseDescription('');
     setPurchaseReceipt(null);
+    setPurchaseWorkshopId('');
   };
 
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
