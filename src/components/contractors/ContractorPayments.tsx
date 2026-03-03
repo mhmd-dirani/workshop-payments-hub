@@ -259,13 +259,32 @@ export default function ContractorPayments() {
 
   const addPurchaseMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
+      if (purchaseMode === 'existing') {
+        // Link an existing payment as a purchase
+        if (!selectedExistingPaymentId) throw new Error('No payment selected');
+        const existingPayment = approvedPayments.find(p => p.id === selectedExistingPaymentId);
+        if (!existingPayment) throw new Error('Payment not found');
+
+        const { error } = await supabase.from('contractor_budget_purchases').insert({
+          contractor_payment_id: budgetPayment.id,
+          amount: Number(existingPayment.amount),
+          purchase_date: existingPayment.payment_date,
+          description: `${existingPayment.paid_to} - ${existingPayment.reason}`,
+          receipt_file_path: null,
+          receipt_file_name: null,
+          created_by: user!.id,
+        });
+        if (error) throw error;
+        return;
+      }
+
+      // New purchase flow
       if (!purchaseWorkshopId) throw new Error('No workshop selected');
       const workshopName = workshops.find(w => w.id === purchaseWorkshopId)?.name || '';
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 
-      // Create main payment record for this purchase
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.product')}${purchaseDescription ? ': ' + purchaseDescription : ''}`;
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
@@ -291,7 +310,6 @@ export default function ContractorPayments() {
         receiptPath = fileName;
         receiptName = purchaseReceipt.name;
 
-        // Link receipt to the payment record
         await supabase.from('workshop_files').insert({
           workshop_id: purchaseWorkshopId,
           file_type: purchaseReceipt.type,
