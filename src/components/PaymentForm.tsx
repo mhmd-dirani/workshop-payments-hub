@@ -52,6 +52,7 @@ interface Payment {
   reason: string;
   amount: number;
   payment_date: string;
+  payment_type?: string;
   status?: string;
   created_by?: string;
 }
