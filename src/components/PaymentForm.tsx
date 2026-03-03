@@ -540,8 +540,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
           )}
 
           {/* Contractor selector */}
-          {!payment?.id && (
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Users2 className="w-3.5 h-3.5" />
                 {t('payments.linkToContractor')}
