@@ -148,6 +148,22 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     }
   }, [payment?.id, open]);
 
+  // Fetch existing contractor link for editing
+  const { data: existingContractorLink } = useQuery({
+    queryKey: ['payment-contractor-link', payment?.id],
+    queryFn: async () => {
+      if (!payment?.id) return null;
+      const { data, error } = await supabase
+        .from('contractor_payments')
+        .select('id, contractor_id')
+        .eq('payment_id', payment.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!payment?.id && open,
+  });
+
   useEffect(() => {
     if (payment) {
       setFormData({
@@ -157,6 +173,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         payment_date: payment.payment_date,
       });
       setSelectedCreatorId(payment.created_by || null);
+      // Pre-select contractor if linked
+      setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
     } else {
       setFormData({
         paid_to: '',
@@ -165,11 +183,11 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         payment_date: new Date().toISOString().split('T')[0],
       });
       setSelectedCreatorId(null);
+      setSelectedContractorId('none');
     }
     setSelectedFile(null);
     setPreviewUrl(null);
-    setSelectedContractorId('none');
-  }, [payment, open]);
+  }, [payment, open, existingContractorLink]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
