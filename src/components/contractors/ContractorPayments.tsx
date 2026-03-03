@@ -50,6 +50,7 @@ export default function ContractorPayments() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [editBudgetAmount, setEditBudgetAmount] = useState('');
   const [markAdvancePayment, setMarkAdvancePayment] = useState<any>(null);
+  const [purchaseWorkshopId, setPurchaseWorkshopId] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
