@@ -357,6 +357,9 @@ export default function ContractorPayments() {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-payments-for-budget'] });
       toast({ title: t('contractors.purchaseAdded') });
       resetPurchaseForm();
     },
