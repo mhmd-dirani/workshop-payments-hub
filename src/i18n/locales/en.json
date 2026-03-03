@@ -113,7 +113,7 @@
     "pending": "Pending",
     "approved": "Approved",
     "rejected": "Rejected",
-    "searchByName": "Search by name...",
+    "searchByName": "Search by paid to or who paid...",
     "totalPaidTo": "Total paid to",
     "noPayments": "No payments recorded for this workshop yet.",
     "clickToAdd": "Click \"Add Payment\" to create the first one.",

@@ -112,7 +112,7 @@
     "pending": "En attente",
     "approved": "Approuvé",
     "rejected": "Refusé",
-    "searchByName": "Rechercher par nom...",
+    "searchByName": "Rechercher par destinataire ou payeur...",
     "totalPaidTo": "Total payé à",
     "noPayments": "Aucun paiement enregistré pour cet atelier.",
     "clickToAdd": "Cliquez sur \"Ajouter paiement\" pour créer le premier.",
