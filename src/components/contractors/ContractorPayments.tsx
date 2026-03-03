@@ -33,7 +33,10 @@ export default function ContractorPayments() {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterContractor, setFilterContractor] = useState('all');
   const [filterWorkshop, setFilterWorkshop] = useState('all');
+  const [filterPaymentType, setFilterPaymentType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingPaymentType, setEditingPaymentType] = useState<any>(null);
+  const [editPaymentTypeValue, setEditPaymentTypeValue] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
