@@ -676,7 +676,7 @@ export default function ContractorPayments() {
                 <Card key={p.id} className={isBudget ? 'border-primary/30' : ''}>
                   <CardContent className="p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1" onClick={() => isBudget && toggleBudgetExpand(p.id)} className={`min-w-0 flex-1 ${isBudget ? 'cursor-pointer' : ''}`}>
+                      <div className={`min-w-0 flex-1 ${isBudget ? 'cursor-pointer' : ''}`} onClick={() => isBudget && toggleBudgetExpand(p.id)}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
                           <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>

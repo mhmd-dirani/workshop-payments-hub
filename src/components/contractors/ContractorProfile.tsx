@@ -114,7 +114,7 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
         <CardContent className="p-3 md:p-4">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-bold text-base md:text-lg">{contractor.name}</h2>
-            <Badge variant="secondary">{t(`contractors.specialties.${contractor.specialty}`, contractor.specialty)}</Badge>
+            <Badge variant="secondary">{String(t(`contractors.specialties.${contractor.specialty}`, { defaultValue: contractor.specialty }))}</Badge>
             {!contractor.is_active && <Badge variant="outline">{t('workers.inactive')}</Badge>}
           </div>
           {contractor.phone && (
