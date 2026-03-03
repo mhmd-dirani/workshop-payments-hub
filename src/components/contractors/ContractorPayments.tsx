@@ -624,7 +624,7 @@ export default function ContractorPayments() {
                 <Button
                   className="w-full"
                   onClick={() => createMutation.mutate()}
-                  disabled={!contractorId || !(workshopId || contractId) || !amount || Number(amount) <= 0 || createMutation.isPending}
+                  disabled={!contractorId || (paymentType !== 'material_budget' && !(workshopId || contractId)) || !amount || Number(amount) <= 0 || createMutation.isPending}
                 >
                   {t('common.save')}
                 </Button>
