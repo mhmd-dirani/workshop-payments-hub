@@ -727,10 +727,36 @@ export default function ContractorPayments() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Payment Type Dialog */}
+      <Dialog open={!!editingPaymentType} onOpenChange={(open) => { if (!open) setEditingPaymentType(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.changePaymentType')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t('contractors.paymentType')}</Label>
+              <Select value={editPaymentTypeValue} onValueChange={setEditPaymentTypeValue}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TYPES.map(pt => (
+                    <SelectItem key={pt} value={pt}>{t(`contractors.paymentTypes.${pt}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={() => editPaymentTypeMutation.mutate()} disabled={!editPaymentTypeValue || editPaymentTypeMutation.isPending}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? (
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
       ) : (() => {
         const filteredPayments = payments.filter(p => {
+          if (filterPaymentType !== 'all' && p.payment_type !== filterPaymentType) return false;
           if (!searchQuery) return true;
           const q = searchQuery.toLowerCase();
           return getContractorName(p.contractor_id).toLowerCase().includes(q)
