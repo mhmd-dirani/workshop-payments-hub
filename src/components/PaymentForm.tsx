@@ -92,6 +92,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     reason: '',
     amount: 0,
     payment_date: new Date().toISOString().split('T')[0],
+    payment_type: 'cash',
   });
 
   const { data: previousPayees = [] } = useQuery({
