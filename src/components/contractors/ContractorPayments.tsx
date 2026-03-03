@@ -395,6 +395,7 @@ export default function ContractorPayments() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
