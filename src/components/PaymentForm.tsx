@@ -311,6 +311,21 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         if (selectedFile && newPayment?.id) {
           await uploadFile(newPayment.id);
         }
+
+        // If linked to a contractor, create contractor_payments record
+        if (selectedContractorId && selectedContractorId !== 'none' && newPayment?.id) {
+          const { error: cpError } = await supabase.from('contractor_payments').insert({
+            contractor_id: selectedContractorId,
+            workshop_id: workshopId,
+            amount: data.amount,
+            payment_type: 'advance',
+            description: data.reason,
+            payment_date: data.payment_date,
+            payment_id: newPayment.id,
+            created_by: creatorId,
+          });
+          if (cpError) throw cpError;
+        }
       }
     },
     onSuccess: () => {
