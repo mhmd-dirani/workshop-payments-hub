@@ -709,7 +709,7 @@ export default function ContractorPayments() {
                       <div className={`min-w-0 flex-1 ${isBudget ? 'cursor-pointer' : ''}`} onClick={() => isBudget && toggleBudgetExpand(p.id)}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
-                          <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
+                          {p.workshop_id && <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>}
                           <Badge variant={isBudget ? 'default' : 'secondary'} className="text-xs">
                             {t(`contractors.paymentTypes.${p.payment_type}`)}
                           </Badge>
