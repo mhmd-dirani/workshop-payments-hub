@@ -338,6 +338,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['global-wealth-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
