@@ -706,7 +706,23 @@ export default function ContractorPayments() {
             || (p.workshop_id && getWorkshopName(p.workshop_id).toLowerCase().includes(q))
             || (p.description || '').toLowerCase().includes(q);
         });
-        return filteredPayments.length === 0 ? (
+        const filteredTotal = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        return (
+          <>
+            <Card className="bg-destructive/5 border-destructive/20">
+              <CardContent className="py-3 px-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-destructive/10">
+                    <DollarSign className="w-4 h-4 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-destructive font-medium">{t('common.total')} ({filteredPayments.length})</p>
+                    <p className="text-base font-bold font-mono text-destructive">{filteredTotal.toLocaleString('fr-FR')} CFA</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            {filteredPayments.length === 0 ? (
           <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noPayments')}</CardContent></Card>
         ) : (
           <div className="grid gap-2">
@@ -869,6 +885,8 @@ export default function ContractorPayments() {
               );
             })}
           </div>
+            )}
+          </>
         );
       })()}
     </div>

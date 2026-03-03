@@ -127,6 +127,51 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     },
   });
 
+  const [selectedContractId, setSelectedContractId] = useState<string>('none');
+
+  // Fetch active contracts for selected contractor
+  const { data: contractorContracts = [] } = useQuery({
+    queryKey: ['contractor-contracts', selectedContractorId !== 'none' ? selectedContractorId : null, selectedContractorId],
+    queryFn: async () => {
+      if (!selectedContractorId || selectedContractorId === 'none') return [];
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('contractor_id', selectedContractorId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedContractorId && selectedContractorId !== 'none',
+  });
+
+  // Fetch existing contract link for editing
+  const { data: existingContractLink } = useQuery({
+    queryKey: ['payment-contract-link', payment?.id],
+    queryFn: async () => {
+      if (!payment?.id) return null;
+      const { data, error } = await supabase
+        .from('contractor_payments')
+        .select('id, contract_id')
+        .eq('payment_id', payment.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!payment?.id && open,
+  });
+
+  // Fetch workshops for contract display
+  const { data: workshopsList = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workshops').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     const fetchExistingFiles = async () => {
       if (payment?.id) {
@@ -175,6 +220,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       setSelectedCreatorId(payment.created_by || null);
       // Pre-select contractor if linked
       setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
+      setSelectedContractId(existingContractLink?.contract_id || 'none');
     } else {
       setFormData({
         paid_to: '',
@@ -184,10 +230,11 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       });
       setSelectedCreatorId(null);
       setSelectedContractorId('none');
+      setSelectedContractId('none');
     }
     setSelectedFile(null);
     setPreviewUrl(null);
-  }, [payment, open, existingContractorLink]);
+  }, [payment, open, existingContractorLink, existingContractLink]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -308,6 +355,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         // Handle contractor link changes
         const hadLink = !!existingContractorLink;
         const wantsLink = selectedContractorId && selectedContractorId !== 'none';
+        const contractIdToUse = selectedContractId && selectedContractId !== 'none' ? selectedContractId : null;
         
         if (hadLink && !wantsLink) {
           // Remove existing link
@@ -315,18 +363,19 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         } else if (hadLink && wantsLink && existingContractorLink.contractor_id !== selectedContractorId) {
           // Update existing link to new contractor
           await supabase.from('contractor_payments')
-            .update({ contractor_id: selectedContractorId, amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .update({ contractor_id: selectedContractorId, contract_id: contractIdToUse, amount: data.amount, description: data.reason, payment_date: data.payment_date })
             .eq('id', existingContractorLink.id);
         } else if (hadLink && wantsLink) {
-          // Same contractor, update amount/description
+          // Same contractor, update amount/description/contract
           await supabase.from('contractor_payments')
-            .update({ amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .update({ contract_id: contractIdToUse, amount: data.amount, description: data.reason, payment_date: data.payment_date })
             .eq('id', existingContractorLink.id);
         } else if (!hadLink && wantsLink) {
           // Create new link
           const creatorId = (role === 'admin' && newCreatorId) ? newCreatorId : user?.id;
           await supabase.from('contractor_payments').insert({
             contractor_id: selectedContractorId,
+            contract_id: contractIdToUse,
             workshop_id: workshopId,
             amount: data.amount,
             payment_type: 'advance',
@@ -364,8 +413,10 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
 
         // If linked to a contractor, create contractor_payments record
         if (selectedContractorId && selectedContractorId !== 'none' && newPayment?.id) {
+          const contractIdToUse = selectedContractId && selectedContractId !== 'none' ? selectedContractId : null;
           const { error: cpError } = await supabase.from('contractor_payments').insert({
             contractor_id: selectedContractorId,
+            contract_id: contractIdToUse,
             workshop_id: workshopId,
             amount: data.amount,
             payment_type: 'advance',
@@ -391,6 +442,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
       queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       queryClient.invalidateQueries({ queryKey: ['payment-contractor-link'] });
+      queryClient.invalidateQueries({ queryKey: ['contract-payments-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-contract-link'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
@@ -548,6 +601,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
               </Label>
               <Select value={selectedContractorId} onValueChange={(val) => {
                 setSelectedContractorId(val);
+                setSelectedContractId('none');
                 if (val !== 'none') {
                   const contractor = contractors.find(c => c.id === val);
                   if (contractor) {
@@ -566,6 +620,26 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
                 </SelectContent>
               </Select>
             </div>
+
+          {/* Contract selector - shown when contractor is selected */}
+          {selectedContractorId && selectedContractorId !== 'none' && contractorContracts.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">{t('contractors.selectContract')} ({t('common.optional')})</Label>
+              <Select value={selectedContractId} onValueChange={setSelectedContractId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('contractors.selectContract')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('common.none')}</SelectItem>
+                  {contractorContracts.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {workshopsList.find(w => w.id === c.workshop_id)?.name || '?'} {c.total_amount ? `(${Number(c.total_amount).toLocaleString('fr-FR')} CFA)` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea
