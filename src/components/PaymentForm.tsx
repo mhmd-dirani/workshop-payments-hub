@@ -593,52 +593,55 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             </div>
           )}
 
-          {/* Contractor selector */}
-          <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <Users2 className="w-3.5 h-3.5" />
-                {t('payments.linkToContractor')}
-              </Label>
-              <Select value={selectedContractorId} onValueChange={(val) => {
-                setSelectedContractorId(val);
-                setSelectedContractId('none');
-                if (val !== 'none') {
-                  const contractor = contractors.find(c => c.id === val);
-                  if (contractor) {
-                    setFormData(prev => ({ ...prev, paid_to: contractor.name }));
+          {/* Contractor selector - admin only */}
+          {role === 'admin' && (
+            <>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Users2 className="w-3.5 h-3.5" />
+                  {t('payments.linkToContractor')}
+                </Label>
+                <Select value={selectedContractorId} onValueChange={(val) => {
+                  setSelectedContractorId(val);
+                  setSelectedContractId('none');
+                  if (val !== 'none') {
+                    const contractor = contractors.find(c => c.id === val);
+                    if (contractor) {
+                      setFormData(prev => ({ ...prev, paid_to: contractor.name }));
+                    }
                   }
-                }
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('payments.selectContractorOptional')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('payments.noContractor')}</SelectItem>
-                  {contractors.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} - {c.specialty}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('payments.selectContractorOptional')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t('payments.noContractor')}</SelectItem>
+                    {contractors.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name} - {c.specialty}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Contract selector - shown when contractor is selected */}
-          {selectedContractorId && selectedContractorId !== 'none' && contractorContracts.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-xs">{t('contractors.selectContract')} ({t('common.optional')})</Label>
-              <Select value={selectedContractId} onValueChange={setSelectedContractId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('contractors.selectContract')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('common.none')}</SelectItem>
-                  {contractorContracts.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {workshopsList.find(w => w.id === c.workshop_id)?.name || '?'} {c.total_amount ? `(${Number(c.total_amount).toLocaleString('fr-FR')} CFA)` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {selectedContractorId && selectedContractorId !== 'none' && contractorContracts.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs">{t('contractors.selectContract')} ({t('common.optional')})</Label>
+                  <Select value={selectedContractId} onValueChange={setSelectedContractId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('contractors.selectContract')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('common.none')}</SelectItem>
+                      {contractorContracts.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {workshopsList.find(w => w.id === c.workshop_id)?.name || '?'} {c.total_amount ? `(${Number(c.total_amount).toLocaleString('fr-FR')} CFA)` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
           )}
           <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
