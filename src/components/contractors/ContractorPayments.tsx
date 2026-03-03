@@ -958,15 +958,17 @@ export default function ContractorPayments() {
                                 <div className="max-h-40 overflow-y-auto space-y-1">
                                   {approvedPayments
                                     .filter(ap => {
-                                      // Only show payments made for this contractor
-                                      const contractorName = getContractorName(p.contractor_id).toLowerCase();
-                                      if (!ap.paid_to.toLowerCase().includes(contractorName) && !ap.reason.toLowerCase().includes(contractorName)) return false;
-                                      if (!existingPaymentSearch) return true;
-                                      const q = existingPaymentSearch.toLowerCase();
-                                      return ap.paid_to.toLowerCase().includes(q)
-                                        || ap.reason.toLowerCase().includes(q)
-                                        || getWorkshopName(ap.workshop_id).toLowerCase().includes(q);
-                                    })
+                                       // Only show payments linked to this contractor via contractor_payments
+                                       const contractorPaymentIds = payments
+                                         .filter(cp => cp.contractor_id === p.contractor_id && cp.payment_id)
+                                         .map(cp => cp.payment_id);
+                                       if (!contractorPaymentIds.includes(ap.id)) return false;
+                                       if (!existingPaymentSearch) return true;
+                                       const q = existingPaymentSearch.toLowerCase();
+                                       return ap.paid_to.toLowerCase().includes(q)
+                                         || ap.reason.toLowerCase().includes(q)
+                                         || getWorkshopName(ap.workshop_id).toLowerCase().includes(q);
+                                     })
                                     .slice(0, 20)
                                     .map(ap => (
                                       <div
