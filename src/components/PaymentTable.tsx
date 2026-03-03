@@ -101,8 +101,10 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     }
     
     if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(p => 
-        p.paid_to.toLowerCase().includes(searchTerm.toLowerCase())
+        p.paid_to.toLowerCase().includes(term) ||
+        (p.creator_name && p.creator_name.toLowerCase().includes(term))
       );
     }
     
