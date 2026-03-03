@@ -769,6 +769,17 @@ export default function ContractorPayments() {
                         {/* Purchase form */}
                         {showPurchaseForm === p.id && (
                           <div className="p-2 bg-muted/50 rounded-md space-y-2">
+                            <div>
+                              <Label className="text-xs">{t('common.workshop')}</Label>
+                              <Select value={purchaseWorkshopId} onValueChange={setPurchaseWorkshopId}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                                <SelectContent>
+                                  {workshops.map(w => (
+                                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <Label className="text-xs">{t('common.amount')}</Label>
