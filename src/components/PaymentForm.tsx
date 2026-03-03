@@ -413,8 +413,10 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
 
         // If linked to a contractor, create contractor_payments record
         if (selectedContractorId && selectedContractorId !== 'none' && newPayment?.id) {
+          const contractIdToUse = selectedContractId && selectedContractId !== 'none' ? selectedContractId : null;
           const { error: cpError } = await supabase.from('contractor_payments').insert({
             contractor_id: selectedContractorId,
+            contract_id: contractIdToUse,
             workshop_id: workshopId,
             amount: data.amount,
             payment_type: 'advance',
