@@ -11,7 +11,7 @@ import ContractorPayments from '@/components/contractors/ContractorPayments';
 
 export default function Contractors() {
   const { t } = useTranslation();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -23,8 +23,8 @@ export default function Contractors() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
+  if (!user || role !== 'admin') {
+    return <Navigate to={!user ? "/auth" : "/"} replace />;
   }
 
   return (
