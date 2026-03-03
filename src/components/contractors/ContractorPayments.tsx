@@ -174,16 +174,16 @@ export default function ContractorPayments() {
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
 
       if (paymentType === 'material_budget') {
-        // Material budget does NOT go to main payments dashboard
+        // Material budget does NOT go to main payments dashboard, no workshop needed
         const { error } = await supabase.from('contractor_payments').insert({
           contractor_id: contractorId,
           contract_id: contractId || null,
-          workshop_id: workshopForPayment,
+          workshop_id: null,
           amount: Number(amount),
           payment_type: 'material_budget',
           description: description || null,
           payment_date: paymentDate,
-          payment_id: null, // No main payment
+          payment_id: null,
           created_by: user!.id,
         });
         if (error) throw error;
