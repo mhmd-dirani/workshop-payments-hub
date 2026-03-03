@@ -546,7 +546,7 @@ export default function ContractorPayments() {
                   </div>
                 )}
 
-                {(!contractId || contracts.length === 0) && (
+                {(!contractId || contracts.length === 0) && paymentType !== 'material_budget' && (
                   <div>
                     <Label>{t('common.workshop')}</Label>
                     <Select value={workshopId} onValueChange={setWorkshopId}>
