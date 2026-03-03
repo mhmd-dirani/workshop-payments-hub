@@ -492,6 +492,9 @@ export default function ContractorPayments() {
     setPurchaseDescription('');
     setPurchaseReceipt(null);
     setPurchaseWorkshopId('');
+    setPurchaseMode('new');
+    setSelectedExistingPaymentId('');
+    setExistingPaymentSearch('');
   };
 
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
