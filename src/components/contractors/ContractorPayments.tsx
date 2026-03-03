@@ -338,11 +338,15 @@ export default function ContractorPayments() {
         });
       }
 
+      const purchaseDesc = purchaseDescription 
+        ? `[${workshopName}] ${purchaseDescription}` 
+        : `[${workshopName}]`;
+
       const { error } = await supabase.from('contractor_budget_purchases').insert({
         contractor_payment_id: budgetPayment.id,
         amount: Number(purchaseAmount),
         purchase_date: purchaseDate,
-        description: purchaseDescription || null,
+        description: purchaseDesc,
         receipt_file_path: receiptPath,
         receipt_file_name: receiptName,
         created_by: user!.id,
