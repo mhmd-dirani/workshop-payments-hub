@@ -139,7 +139,11 @@
     "invalidFileType": "Seuls les images et PDF sont autorisés",
     "fileTooLarge": "Le fichier doit faire moins de 10 Mo",
     "fileRemoved": "Fichier supprimé",
-    "fileRemoveFailed": "Échec de la suppression du fichier"
+    "fileRemoveFailed": "Échec de la suppression du fichier",
+    "linkToContractor": "Lier à un sous-traitant",
+    "selectContractorOptional": "Sélectionner un sous-traitant (optionnel)",
+    "noContractor": "Aucun sous-traitant",
+    "linkedToContractor": "Paiement lié au sous-traitant"
   },
   "income": {
     "title": "Enregistrements de revenus",

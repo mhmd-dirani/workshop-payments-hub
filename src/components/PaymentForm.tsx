@@ -29,8 +29,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image, Users2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
 
 const paymentSchema = z.object({
@@ -76,6 +77,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [paidToOpen, setPaidToOpen] = useState(false);
+  const [selectedContractorId, setSelectedContractorId] = useState<string>('none');
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -113,6 +115,16 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       return data || [];
     },
     enabled: role === 'admin',
+  });
+
+  // Fetch contractors for linking
+  const { data: contractors = [] } = useQuery({
+    queryKey: ['contractors'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contractors').select('*').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
   useEffect(() => {
@@ -156,6 +168,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     }
     setSelectedFile(null);
     setPreviewUrl(null);
+    setSelectedContractorId('none');
   }, [payment, open]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,6 +311,21 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         if (selectedFile && newPayment?.id) {
           await uploadFile(newPayment.id);
         }
+
+        // If linked to a contractor, create contractor_payments record
+        if (selectedContractorId && selectedContractorId !== 'none' && newPayment?.id) {
+          const { error: cpError } = await supabase.from('contractor_payments').insert({
+            contractor_id: selectedContractorId,
+            workshop_id: workshopId,
+            amount: data.amount,
+            payment_type: 'advance',
+            description: data.reason,
+            payment_date: data.payment_date,
+            payment_id: newPayment.id,
+            created_by: creatorId,
+          });
+          if (cpError) throw cpError;
+        }
       }
     },
     onSuccess: () => {
@@ -310,6 +338,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       queryClient.invalidateQueries({ queryKey: ['user-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       queryClient.invalidateQueries({ queryKey: ['global-wealth-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       onOpenChange(false);
       toast({
         title: payment?.id ? t('payments.paymentUpdated') : t('payments.paymentAdded'),
@@ -458,7 +488,35 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
               </Popover>
             </div>
           )}
-          
+
+          {/* Contractor selector */}
+          {!payment?.id && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Users2 className="w-3.5 h-3.5" />
+                {t('payments.linkToContractor')}
+              </Label>
+              <Select value={selectedContractorId} onValueChange={(val) => {
+                setSelectedContractorId(val);
+                if (val !== 'none') {
+                  const contractor = contractors.find(c => c.id === val);
+                  if (contractor) {
+                    setFormData(prev => ({ ...prev, paid_to: contractor.name }));
+                  }
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('payments.selectContractorOptional')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('payments.noContractor')}</SelectItem>
+                  {contractors.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} - {c.specialty}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea

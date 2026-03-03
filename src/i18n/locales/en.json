@@ -140,7 +140,11 @@
     "invalidFileType": "Only images and PDFs are allowed",
     "fileTooLarge": "File must be less than 10MB",
     "fileRemoved": "File removed",
-    "fileRemoveFailed": "Failed to remove file"
+    "fileRemoveFailed": "Failed to remove file",
+    "linkToContractor": "Link to contractor",
+    "selectContractorOptional": "Select contractor (optional)",
+    "noContractor": "No contractor",
+    "linkedToContractor": "Payment linked to contractor"
   },
   "income": {
     "title": "Income Records",
