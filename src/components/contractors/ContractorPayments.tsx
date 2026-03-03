@@ -958,6 +958,9 @@ export default function ContractorPayments() {
                                 <div className="max-h-40 overflow-y-auto space-y-1">
                                   {approvedPayments
                                     .filter(ap => {
+                                      // Only show payments made for this contractor
+                                      const contractorName = getContractorName(p.contractor_id).toLowerCase();
+                                      if (!ap.paid_to.toLowerCase().includes(contractorName) && !ap.reason.toLowerCase().includes(contractorName)) return false;
                                       if (!existingPaymentSearch) return true;
                                       const q = existingPaymentSearch.toLowerCase();
                                       return ap.paid_to.toLowerCase().includes(q)
