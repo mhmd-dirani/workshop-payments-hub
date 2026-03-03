@@ -11,7 +11,7 @@ import ContractorPayments from '@/components/contractors/ContractorPayments';
 
 export default function Contractors() {
   const { t } = useTranslation();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
