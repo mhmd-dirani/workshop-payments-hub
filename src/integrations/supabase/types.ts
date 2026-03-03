@@ -99,6 +99,50 @@ export type Database = {
           },
         ]
       }
+      contractor_budget_purchases: {
+        Row: {
+          amount: number
+          contractor_payment_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          purchase_date: string
+          receipt_file_name: string | null
+          receipt_file_path: string | null
+        }
+        Insert: {
+          amount: number
+          contractor_payment_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          purchase_date: string
+          receipt_file_name?: string | null
+          receipt_file_path?: string | null
+        }
+        Update: {
+          amount?: number
+          contractor_payment_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          purchase_date?: string
+          receipt_file_name?: string | null
+          receipt_file_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_budget_purchases_contractor_payment_id_fkey"
+            columns: ["contractor_payment_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contractor_payments: {
         Row: {
           amount: number
