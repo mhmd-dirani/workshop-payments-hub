@@ -658,6 +658,16 @@
       "product": "Produit/Matériel"
     },
     "paymentDescPlaceholder": "ex: Pots de peinture, avance main-d'œuvre...",
-    "filterByContractor": "Filtrer par sous-traitant"
+    "filterByContractor": "Filtrer par sous-traitant",
+    "filterByWorkshop": "Filtrer par atelier",
+    "searchByName": "Rechercher par nom...",
+    "searchContracts": "Rechercher par nom ou atelier...",
+    "searchPayments": "Rechercher par nom ou atelier...",
+    "customSpecialty": "Ajouter spécialité personnalisée",
+    "customSpecialtyPlaceholder": "Entrez le nom de la spécialité...",
+    "editContract": "Modifier le contrat",
+    "contractUpdated": "Contrat mis à jour",
+    "profileContracts": "Contrats",
+    "profilePayments": "Paiements"
   }
 }

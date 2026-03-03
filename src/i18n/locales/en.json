@@ -659,6 +659,16 @@
       "product": "Product/Material"
     },
     "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
-    "filterByContractor": "Filter by contractor"
+    "filterByContractor": "Filter by contractor",
+    "filterByWorkshop": "Filter by workshop",
+    "searchByName": "Search by name...",
+    "searchContracts": "Search by name or workshop...",
+    "searchPayments": "Search by name or workshop...",
+    "customSpecialty": "Add custom specialty",
+    "customSpecialtyPlaceholder": "Enter specialty name...",
+    "editContract": "Edit Contract",
+    "contractUpdated": "Contract updated",
+    "profileContracts": "Contracts",
+    "profilePayments": "Payments"
   }
 }

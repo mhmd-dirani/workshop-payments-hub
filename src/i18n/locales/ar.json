@@ -658,6 +658,16 @@
       "product": "منتج/مواد"
     },
     "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
-    "filterByContractor": "تصفية حسب المقاول"
+    "filterByContractor": "تصفية حسب المقاول",
+    "filterByWorkshop": "تصفية حسب الورشة",
+    "searchByName": "البحث بالاسم...",
+    "searchContracts": "البحث بالاسم أو الورشة...",
+    "searchPayments": "البحث بالاسم أو الورشة...",
+    "customSpecialty": "إضافة تخصص مخصص",
+    "customSpecialtyPlaceholder": "أدخل اسم التخصص...",
+    "editContract": "تعديل العقد",
+    "contractUpdated": "تم تحديث العقد",
+    "profileContracts": "العقود",
+    "profilePayments": "المدفوعات"
   }
 }
