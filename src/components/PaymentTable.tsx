@@ -364,14 +364,28 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   return (
     <>
       <div className="space-y-3 md:space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={t('payments.searchByName')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-9 md:h-10"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={t('payments.searchByName')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-9 md:h-10"
+            />
+          </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[120px] md:w-[140px] h-9 md:h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('payments.allTypes')}</SelectItem>
+              <SelectItem value="cash">{t('payments.paymentTypes.cash')}</SelectItem>
+              <SelectItem value="check">{t('payments.paymentTypes.check')}</SelectItem>
+              <SelectItem value="bank_transfer">{t('payments.paymentTypes.bank_transfer')}</SelectItem>
+              <SelectItem value="mobile_payment">{t('payments.paymentTypes.mobile_payment')}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {searchTerm.trim() && searchTotal !== null && (
