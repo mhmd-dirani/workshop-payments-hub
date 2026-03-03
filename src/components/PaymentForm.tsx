@@ -218,6 +218,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         reason: payment.reason,
         amount: payment.amount,
         payment_date: payment.payment_date,
+        payment_type: payment.payment_type || 'cash',
       });
       setSelectedCreatorId(payment.created_by || null);
       // Pre-select contractor if linked
