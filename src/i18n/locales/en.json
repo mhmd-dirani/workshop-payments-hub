@@ -78,7 +78,8 @@
     "debts": "Debts",
     "manageUsers": "Manage Users",
     "attendance": "Attendance",
-    "workers": "Workers"
+    "workers": "Workers",
+    "contractors": "Contractors"
   },
   "dashboard": {
     "title": "Payment Dashboard",
@@ -604,5 +605,61 @@
     "bonusTotal": "Bonuses",
     "discountTotal": "Discounts",
     "taxiTotal": "Taxi"
+  },
+  "contractors": {
+    "title": "Contractors",
+    "description": "Manage subcontractors, agreements, and track their payments",
+    "contractorsTab": "Contractors",
+    "contractorsTabShort": "People",
+    "contractsTab": "Contracts",
+    "contractsTabShort": "Deals",
+    "paymentsTab": "Payments",
+    "paymentsTabShort": "Pay",
+    "add": "Add Contractor",
+    "edit": "Edit Contractor",
+    "noContractors": "No contractors added yet",
+    "added": "Contractor added",
+    "updated": "Contractor updated",
+    "namePlaceholder": "e.g., Mahmoud",
+    "specialty": "Specialty",
+    "phone": "Phone",
+    "specialties": {
+      "painter": "Painter",
+      "plumber": "Plumber",
+      "woodworker": "Woodworker",
+      "electrician": "Electrician",
+      "tiler": "Tiler",
+      "other": "Other"
+    },
+    "activeContracts": "active",
+    "totalPaid": "paid",
+    "contractor": "Contractor",
+    "selectContractor": "Select contractor",
+    "addContract": "New Contract",
+    "noContracts": "No contracts yet",
+    "contractCreated": "Contract created",
+    "totalAmount": "Agreement Amount",
+    "totalAmountPlaceholder": "Leave empty for open-ended",
+    "contractDescPlaceholder": "e.g., Paint all rooms in building A",
+    "remaining": "Remaining",
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "contract": "Contract",
+    "selectContract": "Link to contract",
+    "addPayment": "Add Payment",
+    "paymentAdded": "Payment recorded",
+    "paymentDeleted": "Payment deleted",
+    "noPayments": "No payments yet",
+    "paymentType": "Payment Type",
+    "paymentTypes": {
+      "advance": "Advance",
+      "product": "Product/Material",
+      "work_payment": "Work Payment"
+    },
+    "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
+    "filterByContractor": "Filter by contractor"
   }
 }

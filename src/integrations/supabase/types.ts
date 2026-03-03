@@ -99,6 +99,161 @@ export type Database = {
           },
         ]
       }
+      contractor_payments: {
+        Row: {
+          amount: number
+          contract_id: string | null
+          contractor_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          payment_date: string
+          payment_id: string | null
+          payment_type: string
+          workshop_id: string
+        }
+        Insert: {
+          amount: number
+          contract_id?: string | null
+          contractor_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          payment_date: string
+          payment_id?: string | null
+          payment_type?: string
+          workshop_id: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string | null
+          contractor_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          payment_date?: string
+          payment_id?: string | null
+          payment_type?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_payments_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_payments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_payments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractors: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          specialty: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          specialty?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          specialty?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          contractor_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          status: string
+          total_amount: number | null
+          updated_at: string
+          workshop_id: string
+        }
+        Insert: {
+          contractor_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          workshop_id: string
+        }
+        Update: {
+          contractor_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debt_payments: {
         Row: {
           amount: number

@@ -77,7 +77,8 @@
     "debts": "Dettes",
     "manageUsers": "Gérer",
     "attendance": "Présence",
-    "workers": "Travailleurs"
+    "workers": "Travailleurs",
+    "contractors": "Sous-traitants"
   },
   "dashboard": {
     "title": "Tableau de bord des paiements",
@@ -603,5 +604,61 @@
     "bonusTotal": "Bonus",
     "discountTotal": "Réductions",
     "taxiTotal": "Taxi"
+  },
+  "contractors": {
+    "title": "Sous-traitants",
+    "description": "Gérer les sous-traitants, les accords et suivre leurs paiements",
+    "contractorsTab": "Sous-traitants",
+    "contractorsTabShort": "Pers.",
+    "contractsTab": "Contrats",
+    "contractsTabShort": "Accords",
+    "paymentsTab": "Paiements",
+    "paymentsTabShort": "Payer",
+    "add": "Ajouter sous-traitant",
+    "edit": "Modifier sous-traitant",
+    "noContractors": "Aucun sous-traitant ajouté",
+    "added": "Sous-traitant ajouté",
+    "updated": "Sous-traitant mis à jour",
+    "namePlaceholder": "ex: Mahmoud",
+    "specialty": "Spécialité",
+    "phone": "Téléphone",
+    "specialties": {
+      "painter": "Peintre",
+      "plumber": "Plombier",
+      "woodworker": "Menuisier",
+      "electrician": "Électricien",
+      "tiler": "Carreleur",
+      "other": "Autre"
+    },
+    "activeContracts": "actif(s)",
+    "totalPaid": "payé",
+    "contractor": "Sous-traitant",
+    "selectContractor": "Sélectionner un sous-traitant",
+    "addContract": "Nouveau contrat",
+    "noContracts": "Aucun contrat",
+    "contractCreated": "Contrat créé",
+    "totalAmount": "Montant de l'accord",
+    "totalAmountPlaceholder": "Laisser vide pour un accord ouvert",
+    "contractDescPlaceholder": "ex: Peindre toutes les pièces du bâtiment A",
+    "remaining": "Restant",
+    "status": {
+      "active": "Actif",
+      "completed": "Terminé",
+      "cancelled": "Annulé"
+    },
+    "contract": "Contrat",
+    "selectContract": "Lier au contrat",
+    "addPayment": "Ajouter paiement",
+    "paymentAdded": "Paiement enregistré",
+    "paymentDeleted": "Paiement supprimé",
+    "noPayments": "Aucun paiement",
+    "paymentType": "Type de paiement",
+    "paymentTypes": {
+      "advance": "Avance",
+      "product": "Produit/Matériel",
+      "work_payment": "Paiement travaux"
+    },
+    "paymentDescPlaceholder": "ex: Pots de peinture, avance main-d'œuvre...",
+    "filterByContractor": "Filtrer par sous-traitant"
   }
 }

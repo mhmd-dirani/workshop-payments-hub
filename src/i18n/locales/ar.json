@@ -77,7 +77,8 @@
     "debts": "الديون",
     "manageUsers": "إدارة",
     "attendance": "الحضور",
-    "workers": "العمال"
+    "workers": "العمال",
+    "contractors": "المقاولون"
   },
   "dashboard": {
     "title": "لوحة المدفوعات",
@@ -603,5 +604,61 @@
     "bonusTotal": "المكافآت",
     "discountTotal": "الخصومات",
     "taxiTotal": "تاكسي"
+  },
+  "contractors": {
+    "title": "المقاولون",
+    "description": "إدارة المقاولين الفرعيين والاتفاقيات وتتبع مدفوعاتهم",
+    "contractorsTab": "المقاولون",
+    "contractorsTabShort": "أشخاص",
+    "contractsTab": "العقود",
+    "contractsTabShort": "اتفاقات",
+    "paymentsTab": "المدفوعات",
+    "paymentsTabShort": "دفع",
+    "add": "إضافة مقاول",
+    "edit": "تعديل المقاول",
+    "noContractors": "لم يتم إضافة مقاولين بعد",
+    "added": "تمت إضافة المقاول",
+    "updated": "تم تحديث المقاول",
+    "namePlaceholder": "مثال: محمود",
+    "specialty": "التخصص",
+    "phone": "الهاتف",
+    "specialties": {
+      "painter": "دهان",
+      "plumber": "سباك",
+      "woodworker": "نجار",
+      "electrician": "كهربائي",
+      "tiler": "بلّاط",
+      "other": "أخرى"
+    },
+    "activeContracts": "نشط",
+    "totalPaid": "مدفوع",
+    "contractor": "المقاول",
+    "selectContractor": "اختر مقاول",
+    "addContract": "عقد جديد",
+    "noContracts": "لا توجد عقود",
+    "contractCreated": "تم إنشاء العقد",
+    "totalAmount": "مبلغ الاتفاق",
+    "totalAmountPlaceholder": "اترك فارغاً لاتفاق مفتوح",
+    "contractDescPlaceholder": "مثال: طلاء جميع الغرف في المبنى أ",
+    "remaining": "المتبقي",
+    "status": {
+      "active": "نشط",
+      "completed": "مكتمل",
+      "cancelled": "ملغى"
+    },
+    "contract": "العقد",
+    "selectContract": "ربط بعقد",
+    "addPayment": "إضافة دفعة",
+    "paymentAdded": "تم تسجيل الدفعة",
+    "paymentDeleted": "تم حذف الدفعة",
+    "noPayments": "لا توجد مدفوعات",
+    "paymentType": "نوع الدفعة",
+    "paymentTypes": {
+      "advance": "سلفة",
+      "product": "منتج/مواد",
+      "work_payment": "دفعة أعمال"
+    },
+    "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
+    "filterByContractor": "تصفية حسب المقاول"
   }
 }
