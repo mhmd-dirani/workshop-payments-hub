@@ -304,6 +304,38 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             .update({ user_id: newCreatorId })
             .eq('payment_id', payment.id);
         }
+
+        // Handle contractor link changes
+        const hadLink = !!existingContractorLink;
+        const wantsLink = selectedContractorId && selectedContractorId !== 'none';
+        
+        if (hadLink && !wantsLink) {
+          // Remove existing link
+          await supabase.from('contractor_payments').delete().eq('id', existingContractorLink.id);
+        } else if (hadLink && wantsLink && existingContractorLink.contractor_id !== selectedContractorId) {
+          // Update existing link to new contractor
+          await supabase.from('contractor_payments')
+            .update({ contractor_id: selectedContractorId, amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .eq('id', existingContractorLink.id);
+        } else if (hadLink && wantsLink) {
+          // Same contractor, update amount/description
+          await supabase.from('contractor_payments')
+            .update({ amount: data.amount, description: data.reason, payment_date: data.payment_date })
+            .eq('id', existingContractorLink.id);
+        } else if (!hadLink && wantsLink) {
+          // Create new link
+          const creatorId = (role === 'admin' && newCreatorId) ? newCreatorId : user?.id;
+          await supabase.from('contractor_payments').insert({
+            contractor_id: selectedContractorId,
+            workshop_id: workshopId,
+            amount: data.amount,
+            payment_type: 'advance',
+            description: data.reason,
+            payment_date: data.payment_date,
+            payment_id: payment.id,
+            created_by: creatorId,
+          });
+        }
         
         if (selectedFile) {
           await uploadFile(payment.id);
