@@ -885,6 +885,8 @@ export default function ContractorPayments() {
               );
             })}
           </div>
+            )}
+          </>
         );
       })()}
     </div>

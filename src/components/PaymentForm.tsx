@@ -127,6 +127,51 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     },
   });
 
+  const [selectedContractId, setSelectedContractId] = useState<string>('none');
+
+  // Fetch active contracts for selected contractor
+  const { data: contractorContracts = [] } = useQuery({
+    queryKey: ['contractor-contracts', selectedContractorId !== 'none' ? selectedContractorId : null, selectedContractorId],
+    queryFn: async () => {
+      if (!selectedContractorId || selectedContractorId === 'none') return [];
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('contractor_id', selectedContractorId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedContractorId && selectedContractorId !== 'none',
+  });
+
+  // Fetch existing contract link for editing
+  const { data: existingContractLink } = useQuery({
+    queryKey: ['payment-contract-link', payment?.id],
+    queryFn: async () => {
+      if (!payment?.id) return null;
+      const { data, error } = await supabase
+        .from('contractor_payments')
+        .select('id, contract_id')
+        .eq('payment_id', payment.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!payment?.id && open,
+  });
+
+  // Fetch workshops for contract display
+  const { data: workshopsList = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workshops').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     const fetchExistingFiles = async () => {
       if (payment?.id) {
