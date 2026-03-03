@@ -11,7 +11,8 @@ import {
   Settings,
   HandCoins,
   Users2,
-  Calendar
+  Calendar,
+  Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LanguageSelector from '@/components/LanguageSelector';
