@@ -599,6 +599,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
               </Label>
               <Select value={selectedContractorId} onValueChange={(val) => {
                 setSelectedContractorId(val);
+                setSelectedContractId('none');
                 if (val !== 'none') {
                   const contractor = contractors.find(c => c.id === val);
                   if (contractor) {
@@ -617,6 +618,26 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
                 </SelectContent>
               </Select>
             </div>
+
+          {/* Contract selector - shown when contractor is selected */}
+          {selectedContractorId && selectedContractorId !== 'none' && contractorContracts.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">{t('contractors.selectContract')} ({t('common.optional')})</Label>
+              <Select value={selectedContractId} onValueChange={setSelectedContractId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('contractors.selectContract')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('common.none')}</SelectItem>
+                  {contractorContracts.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {workshopsList.find(w => w.id === c.workshop_id)?.name || '?'} {c.total_amount ? `(${Number(c.total_amount).toLocaleString('fr-FR')} CFA)` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea
