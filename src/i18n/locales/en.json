@@ -656,8 +656,7 @@
     "paymentType": "Payment Type",
     "paymentTypes": {
       "advance": "Advance",
-      "product": "Product/Material",
-      "work_payment": "Work Payment"
+      "product": "Product/Material"
     },
     "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
     "filterByContractor": "Filter by contractor"

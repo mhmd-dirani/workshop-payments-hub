@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,11 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
-const PAYMENT_TYPES = ['advance', 'product', 'work_payment'];
+const PAYMENT_TYPES = ['advance', 'product'];
 
 export default function ContractorPayments() {
   const { t } = useTranslation();
@@ -31,6 +31,9 @@ export default function ContractorPayments() {
   const [description, setDescription] = useState('');
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterContractor, setFilterContractor] = useState('all');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
@@ -82,6 +85,28 @@ export default function ContractorPayments() {
     },
   });
 
+  const uploadReceipt = async (paymentId: string, workshopForPayment: string, workshopName: string) => {
+    if (!receiptFile) return;
+    const fileExt = receiptFile.name.split('.').pop();
+    const safeName = (workshopName || workshopForPayment).replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
+    const fileName = `${safeName}/receipts/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('workshop-files')
+      .upload(fileName, receiptFile);
+    if (uploadError) throw uploadError;
+
+    const { error: dbError } = await supabase.from('workshop_files').insert({
+      workshop_id: workshopForPayment,
+      file_type: receiptFile.type,
+      file_name: receiptFile.name,
+      file_path: fileName,
+      uploaded_by: user!.id,
+      payment_id: paymentId,
+    });
+    if (dbError) throw dbError;
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const workshopForPayment = workshopId || (contracts.find(c => c.id === contractId)?.workshop_id);
@@ -106,6 +131,12 @@ export default function ContractorPayments() {
         .single();
       if (paymentError) throw paymentError;
 
+      // Upload receipt if product type
+      if (paymentType === 'product' && receiptFile) {
+        const workshopName = workshops.find(w => w.id === workshopForPayment)?.name || '';
+        await uploadReceipt(paymentRecord.id, workshopForPayment, workshopName);
+      }
+
       // Create contractor payment record
       const { error } = await supabase.from('contractor_payments').insert({
         contractor_id: contractorId,
@@ -125,6 +156,7 @@ export default function ContractorPayments() {
       queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       queryClient.invalidateQueries({ queryKey: ['contract-payments-summary'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-files-all'] });
       toast({ title: t('contractors.paymentAdded') });
       resetForm();
     },
@@ -133,8 +165,16 @@ export default function ContractorPayments() {
 
   const deleteMutation = useMutation({
     mutationFn: async (payment: any) => {
-      // Delete the linked main payment too
+      // Delete linked files first
       if (payment.payment_id) {
+        const { data: files } = await supabase
+          .from('workshop_files')
+          .select('*')
+          .eq('payment_id', payment.payment_id);
+        if (files && files.length > 0) {
+          await supabase.storage.from('workshop-files').remove(files.map(f => f.file_path));
+          await supabase.from('workshop_files').delete().eq('payment_id', payment.payment_id);
+        }
         await supabase.from('payments').delete().eq('id', payment.payment_id);
       }
       const { error } = await supabase.from('contractor_payments').delete().eq('id', payment.id);
@@ -145,6 +185,7 @@ export default function ContractorPayments() {
       queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
       queryClient.invalidateQueries({ queryKey: ['contract-payments-summary'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['workshop-files-all'] });
       toast({ title: t('contractors.paymentDeleted') });
     },
   });
@@ -158,12 +199,12 @@ export default function ContractorPayments() {
     setPaymentType('advance');
     setDescription('');
     setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    setReceiptFile(null);
   };
 
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
   const getWorkshopName = (id: string) => workshops.find(w => w.id === id)?.name || '?';
 
-  // When contractor is selected and has contracts, auto-fill workshop
   const handleContractorChange = (id: string) => {
     setContractorId(id);
     setContractId('');
@@ -174,6 +215,21 @@ export default function ContractorPayments() {
     setContractId(id);
     const contract = contracts.find(c => c.id === id);
     if (contract) setWorkshopId(contract.workshop_id);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      toast({ title: t('payments.invalidFileType'), variant: 'destructive' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: t('payments.fileTooLarge'), variant: 'destructive' });
+      return;
+    }
+    setReceiptFile(file);
+    e.target.value = '';
   };
 
   return (
@@ -271,6 +327,35 @@ export default function ContractorPayments() {
                 <Label>{t('common.description')} ({t('common.optional')})</Label>
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={t('contractors.paymentDescPlaceholder')} rows={2} />
               </div>
+
+              {/* Receipt upload for product payments */}
+              {paymentType === 'product' && (
+                <div>
+                  <Label>{t('payments.invoiceReceipt')}</Label>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('payments.fileHint')}</p>
+                  {receiptFile ? (
+                    <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                      <span className="text-xs truncate flex-1">{receiptFile.name}</span>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setReceiptFile(null)}>
+                        {t('common.delete')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileSelect} />
+                      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-3.5 h-3.5" />
+                        {t('payments.uploadFile')}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1" onClick={() => cameraInputRef.current?.click()}>
+                        <Camera className="w-3.5 h-3.5" />
+                        {t('payments.capturePhoto')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Button 
                 className="w-full" 
