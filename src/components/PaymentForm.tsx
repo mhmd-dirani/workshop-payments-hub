@@ -517,7 +517,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
               </Select>
             </div>
           )}
-          
+          <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea
               id="reason"
