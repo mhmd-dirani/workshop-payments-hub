@@ -112,6 +112,21 @@ export default function ContractorPayments() {
     },
   });
 
+  // Fetch approved payments for linking to budget purchases
+  const { data: approvedPayments = [] } = useQuery({
+    queryKey: ['approved-payments-for-budget'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('status', 'approved')
+        .order('payment_date', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch budget purchases for expanded budgets
   const { data: budgetPurchases = [] } = useQuery({
     queryKey: ['budget-purchases', expandedBudget],
