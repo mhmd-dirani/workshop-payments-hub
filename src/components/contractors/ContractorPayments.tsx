@@ -1057,7 +1057,17 @@ export default function ContractorPayments() {
                                 <span className="text-muted-foreground">{purchase.purchase_date}</span>
                                 {purchase.description && <span className="truncate">{purchase.description}</span>}
                                 {purchase.receipt_file_path && (
-                                  <Badge variant="outline" className="text-[10px]">📎</Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-1 text-[10px] gap-0.5"
+                                    onClick={async () => {
+                                      const { data } = await supabase.storage.from('workshop-files').createSignedUrl(purchase.receipt_file_path!, 3600);
+                                      if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                                    }}
+                                  >
+                                    📎 {purchase.receipt_file_name || t('payments.viewReceipt')}
+                                  </Button>
                                 )}
                               </div>
                               <div className="flex items-center gap-1">
