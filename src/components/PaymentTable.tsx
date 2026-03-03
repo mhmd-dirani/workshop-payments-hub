@@ -502,6 +502,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>
                   <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {t(`payments.paymentTypes.${payment.payment_type || 'cash'}`)}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {payment.creator_name}
                   </TableCell>
