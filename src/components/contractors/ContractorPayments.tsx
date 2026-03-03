@@ -669,10 +669,21 @@ export default function ContractorPayments() {
                 <div className="text-sm font-medium">
                   {t('contractors.remaining')}: {remaining.toLocaleString('fr-FR')} CFA
                 </div>
+                <div>
+                  <Label className="text-xs">{t('common.workshop')}</Label>
+                  <Select value={advanceWorkshopId} onValueChange={setAdvanceWorkshopId}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                    <SelectContent>
+                      {workshops.map(w => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   className="w-full"
                   onClick={() => markRemainingAsAdvanceMutation.mutate(markAdvancePayment)}
-                  disabled={remaining <= 0 || markRemainingAsAdvanceMutation.isPending}
+                  disabled={remaining <= 0 || !advanceWorkshopId || markRemainingAsAdvanceMutation.isPending}
                 >
                   {t('common.confirm')}
                 </Button>
