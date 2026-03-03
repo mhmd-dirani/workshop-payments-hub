@@ -72,7 +72,7 @@ export default function ContractorPayments() {
   });
 
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['contractor-payments', filterContractor],
+    queryKey: ['contractor-payments', filterContractor, filterWorkshop],
     queryFn: async () => {
       let query = supabase
         .from('contractor_payments')
@@ -80,6 +80,9 @@ export default function ContractorPayments() {
         .order('payment_date', { ascending: false });
       if (filterContractor !== 'all') {
         query = query.eq('contractor_id', filterContractor);
+      }
+      if (filterWorkshop !== 'all') {
+        query = query.eq('workshop_id', filterWorkshop);
       }
       const { data, error } = await query;
       if (error) throw error;
