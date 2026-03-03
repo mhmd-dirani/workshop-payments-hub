@@ -236,7 +236,8 @@ export default function ContractorPayments() {
 
   const addPurchaseMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
-      const workshopName = workshops.find(w => w.id === budgetPayment.workshop_id)?.name || '';
+      if (!purchaseWorkshopId) throw new Error('No workshop selected');
+      const workshopName = workshops.find(w => w.id === purchaseWorkshopId)?.name || '';
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
@@ -246,7 +247,7 @@ export default function ContractorPayments() {
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: purchaseWorkshopId,
           amount: Number(purchaseAmount),
           payment_date: purchaseDate,
           paid_to: contractorName,
