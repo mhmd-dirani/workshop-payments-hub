@@ -826,7 +826,13 @@ export default function ContractorPayments() {
             || (p.workshop_id && getWorkshopName(p.workshop_id).toLowerCase().includes(q))
             || (p.description || '').toLowerCase().includes(q);
         });
-        const filteredTotal = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const filteredTotal = filteredPayments.reduce((sum, p) => {
+          if (p.payment_type === 'material_budget') {
+            // For budgets, only count the spent amount (purchases), not the budget ceiling
+            return sum + (allBudgetSums[p.id] || 0);
+          }
+          return sum + Number(p.amount);
+        }, 0);
         return (
           <>
             <Card className="bg-destructive/5 border-destructive/20">
