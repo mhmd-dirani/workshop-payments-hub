@@ -816,7 +816,7 @@ export default function ContractorPayments() {
                                 </div>
                               )}
                             </div>
-                            <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
+                            <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
                               {t('common.save')}
                             </Button>
                           </div>
