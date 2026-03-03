@@ -433,8 +433,11 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                     {getStatusBadge(payment.status)}
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {t(`payments.paymentTypes.${payment.payment_type || 'cash'}`)}
+                    </Badge>
                     <span className="text-[10px] text-muted-foreground truncate">{payment.creator_name}</span>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
