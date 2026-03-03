@@ -656,6 +656,22 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             />
           </div>
           
+          {/* Payment Type */}
+          <div className="space-y-2">
+            <Label>{t('payments.paymentType')}</Label>
+            <Select value={formData.payment_type || 'cash'} onValueChange={(val) => setFormData(prev => ({ ...prev, payment_type: val }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">{t('payments.paymentTypes.cash')}</SelectItem>
+                <SelectItem value="check">{t('payments.paymentTypes.check')}</SelectItem>
+                <SelectItem value="bank_transfer">{t('payments.paymentTypes.bank_transfer')}</SelectItem>
+                <SelectItem value="mobile_payment">{t('payments.paymentTypes.mobile_payment')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">{t('common.amount')} *</Label>

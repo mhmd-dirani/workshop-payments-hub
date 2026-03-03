@@ -143,7 +143,17 @@
     "linkToContractor": "ربط بمقاول",
     "selectContractorOptional": "اختر مقاول (اختياري)",
     "noContractor": "بدون مقاول",
-    "linkedToContractor": "تم ربط الدفعة بالمقاول"
+    "linkedToContractor": "تم ربط الدفعة بالمقاول",
+    "paymentType": "نوع الدفع",
+    "allTypes": "جميع الأنواع",
+    "paymentTypes": {
+      "cash": "نقداً",
+      "check": "شيك",
+      "bank_transfer": "تحويل بنكي",
+      "mobile_payment": "دفع إلكتروني"
+    },
+    "filterByType": "تصفية حسب النوع",
+    "totalApproved": "إجمالي الموافق عليه"
   },
   "income": {
     "title": "سجلات الإيرادات",
