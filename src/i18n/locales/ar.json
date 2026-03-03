@@ -77,7 +77,8 @@
     "debts": "الديون",
     "manageUsers": "إدارة",
     "attendance": "الحضور",
-    "workers": "العمال"
+    "workers": "العمال",
+    "contractors": "المقاولون"
   },
   "dashboard": {
     "title": "لوحة المدفوعات",
