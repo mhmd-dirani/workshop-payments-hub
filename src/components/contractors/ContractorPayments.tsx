@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Trash2, Upload, Camera, Search, ChevronDown, ChevronUp, Edit2, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Upload, Camera, Search, ChevronDown, ChevronUp, Edit2, DollarSign, Link } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -55,6 +55,9 @@ export default function ContractorPayments() {
   const [markAdvancePayment, setMarkAdvancePayment] = useState<any>(null);
   const [purchaseWorkshopId, setPurchaseWorkshopId] = useState('');
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState('');
+  const [purchaseMode, setPurchaseMode] = useState<'new' | 'existing'>('new');
+  const [selectedExistingPaymentId, setSelectedExistingPaymentId] = useState('');
+  const [existingPaymentSearch, setExistingPaymentSearch] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
@@ -104,6 +107,21 @@ export default function ContractorPayments() {
         query = query.eq('workshop_id', filterWorkshop);
       }
       const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch approved payments for linking to budget purchases
+  const { data: approvedPayments = [] } = useQuery({
+    queryKey: ['approved-payments-for-budget'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('status', 'approved')
+        .order('payment_date', { ascending: false })
+        .limit(500);
       if (error) throw error;
       return data;
     },
@@ -241,13 +259,32 @@ export default function ContractorPayments() {
 
   const addPurchaseMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
+      if (purchaseMode === 'existing') {
+        // Link an existing payment as a purchase
+        if (!selectedExistingPaymentId) throw new Error('No payment selected');
+        const existingPayment = approvedPayments.find(p => p.id === selectedExistingPaymentId);
+        if (!existingPayment) throw new Error('Payment not found');
+
+        const { error } = await supabase.from('contractor_budget_purchases').insert({
+          contractor_payment_id: budgetPayment.id,
+          amount: Number(existingPayment.amount),
+          purchase_date: existingPayment.payment_date,
+          description: `${existingPayment.paid_to} - ${existingPayment.reason}`,
+          receipt_file_path: null,
+          receipt_file_name: null,
+          created_by: user!.id,
+        });
+        if (error) throw error;
+        return;
+      }
+
+      // New purchase flow
       if (!purchaseWorkshopId) throw new Error('No workshop selected');
       const workshopName = workshops.find(w => w.id === purchaseWorkshopId)?.name || '';
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 
-      // Create main payment record for this purchase
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.product')}${purchaseDescription ? ': ' + purchaseDescription : ''}`;
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
@@ -273,7 +310,6 @@ export default function ContractorPayments() {
         receiptPath = fileName;
         receiptName = purchaseReceipt.name;
 
-        // Link receipt to the payment record
         await supabase.from('workshop_files').insert({
           workshop_id: purchaseWorkshopId,
           file_type: purchaseReceipt.type,
@@ -456,6 +492,9 @@ export default function ContractorPayments() {
     setPurchaseDescription('');
     setPurchaseReceipt(null);
     setPurchaseWorkshopId('');
+    setPurchaseMode('new');
+    setSelectedExistingPaymentId('');
+    setExistingPaymentSearch('');
   };
 
   const getContractorName = (id: string) => contractors.find(c => c.id === id)?.name || '?';
@@ -863,56 +902,126 @@ export default function ContractorPayments() {
                         {/* Purchase form */}
                         {showPurchaseForm === p.id && (
                           <div className="p-2 bg-muted/50 rounded-md space-y-2">
-                            <div>
-                              <Label className="text-xs">{t('common.workshop')}</Label>
-                              <Select value={purchaseWorkshopId} onValueChange={setPurchaseWorkshopId}>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
-                                <SelectContent>
-                                  {workshops.map(w => (
-                                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            {/* Mode toggle */}
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant={purchaseMode === 'new' ? 'default' : 'outline'}
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => { setPurchaseMode('new'); setSelectedExistingPaymentId(''); }}
+                              >
+                                {t('contractors.newPurchase')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={purchaseMode === 'existing' ? 'default' : 'outline'}
+                                className="flex-1 h-7 text-xs gap-1"
+                                onClick={() => { setPurchaseMode('existing'); setPurchaseWorkshopId(''); }}
+                              >
+                                <Link className="w-3 h-3" />
+                                {t('contractors.linkExistingPayment')}
+                              </Button>
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-xs">{t('common.amount')}</Label>
-                                <Input type="number" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="0" className="h-8 text-sm" />
-                              </div>
-                              <div>
-                                <Label className="text-xs">{t('common.date')}</Label>
-                                <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="h-8 text-sm" />
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs">{t('common.description')}</Label>
-                              <Input value={purchaseDescription} onChange={e => setPurchaseDescription(e.target.value)} placeholder={t('contractors.purchaseDescPlaceholder')} className="h-8 text-sm" />
-                            </div>
-                            <div>
-                              <Label className="text-xs">{t('payments.invoiceReceipt')}</Label>
-                              {purchaseReceipt ? (
-                                <div className="flex items-center gap-2 p-1.5 border rounded bg-background">
-                                  <span className="text-xs truncate flex-1">{purchaseReceipt.name}</span>
-                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-xs" onClick={() => setPurchaseReceipt(null)}>✕</Button>
+
+                            {purchaseMode === 'existing' ? (
+                              <div className="space-y-2">
+                                <Input
+                                  value={existingPaymentSearch}
+                                  onChange={e => setExistingPaymentSearch(e.target.value)}
+                                  placeholder={t('contractors.searchExistingPayments')}
+                                  className="h-8 text-sm"
+                                />
+                                <div className="max-h-40 overflow-y-auto space-y-1">
+                                  {approvedPayments
+                                    .filter(ap => {
+                                      if (!existingPaymentSearch) return true;
+                                      const q = existingPaymentSearch.toLowerCase();
+                                      return ap.paid_to.toLowerCase().includes(q)
+                                        || ap.reason.toLowerCase().includes(q)
+                                        || getWorkshopName(ap.workshop_id).toLowerCase().includes(q);
+                                    })
+                                    .slice(0, 20)
+                                    .map(ap => (
+                                      <div
+                                        key={ap.id}
+                                        className={`p-2 rounded text-xs cursor-pointer border transition-colors ${selectedExistingPaymentId === ap.id ? 'border-primary bg-primary/10' : 'border-transparent bg-background hover:bg-muted'}`}
+                                        onClick={() => setSelectedExistingPaymentId(ap.id)}
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-medium">{ap.paid_to}</span>
+                                          <span className="font-bold">{Number(ap.amount).toLocaleString('fr-FR')} CFA</span>
+                                        </div>
+                                        <div className="flex justify-between text-muted-foreground mt-0.5">
+                                          <span className="truncate flex-1">{ap.reason}</span>
+                                          <span className="ml-2 whitespace-nowrap">{ap.payment_date}</span>
+                                        </div>
+                                        <Badge variant="outline" className="text-[10px] mt-1">{getWorkshopName(ap.workshop_id)}</Badge>
+                                      </div>
+                                    ))}
                                 </div>
-                              ) : (
-                                <div className="flex gap-2">
-                                  <input ref={purchaseFileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
-                                  <input ref={purchaseCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
-                                  <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseFileRef.current?.click()}>
-                                    <Upload className="w-3 h-3" />
-                                    {t('payments.uploadFile')}
-                                  </Button>
-                                  <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseCameraRef.current?.click()}>
-                                    <Camera className="w-3 h-3" />
-                                    {t('payments.capturePhoto')}
-                                  </Button>
+                                <Button
+                                  size="sm"
+                                  className="w-full h-8"
+                                  onClick={() => addPurchaseMutation.mutate(p)}
+                                  disabled={!selectedExistingPaymentId || addPurchaseMutation.isPending}
+                                >
+                                  {t('contractors.linkPayment')}
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div>
+                                  <Label className="text-xs">{t('common.workshop')}</Label>
+                                  <Select value={purchaseWorkshopId} onValueChange={setPurchaseWorkshopId}>
+                                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                                    <SelectContent>
+                                      {workshops.map(w => (
+                                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
-                              )}
-                            </div>
-                            <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
-                              {t('common.save')}
-                            </Button>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">{t('common.amount')}</Label>
+                                    <Input type="number" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="0" className="h-8 text-sm" />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">{t('common.date')}</Label>
+                                    <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="h-8 text-sm" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">{t('common.description')}</Label>
+                                  <Input value={purchaseDescription} onChange={e => setPurchaseDescription(e.target.value)} placeholder={t('contractors.purchaseDescPlaceholder')} className="h-8 text-sm" />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">{t('payments.invoiceReceipt')}</Label>
+                                  {purchaseReceipt ? (
+                                    <div className="flex items-center gap-2 p-1.5 border rounded bg-background">
+                                      <span className="text-xs truncate flex-1">{purchaseReceipt.name}</span>
+                                      <Button size="sm" variant="ghost" className="h-5 px-1 text-xs" onClick={() => setPurchaseReceipt(null)}>✕</Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <input ref={purchaseFileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
+                                      <input ref={purchaseCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
+                                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseFileRef.current?.click()}>
+                                        <Upload className="w-3 h-3" />
+                                        {t('payments.uploadFile')}
+                                      </Button>
+                                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseCameraRef.current?.click()}>
+                                        <Camera className="w-3 h-3" />
+                                        {t('payments.capturePhoto')}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
+                                  {t('common.save')}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
 

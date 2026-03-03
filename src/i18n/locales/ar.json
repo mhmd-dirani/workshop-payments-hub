@@ -690,6 +690,10 @@
     "markAsAdvance": "تحويل المتبقي إلى سلفة",
     "markAsAdvanceDesc": "سيتم تسجيل المبلغ المتبقي كسلفة في لوحة المدفوعات الرئيسية.",
     "budgetRemaining": "المتبقي من الميزانية",
-    "advanceCreated": "تم إنشاء سلفة من المتبقي من الميزانية"
+    "advanceCreated": "تم إنشاء سلفة من المتبقي من الميزانية",
+    "newPurchase": "شراء جديد",
+    "linkExistingPayment": "ربط دفعة",
+    "searchExistingPayments": "البحث في المدفوعات بالاسم أو الورشة...",
+    "linkPayment": "ربط هذه الدفعة"
   }
 }
