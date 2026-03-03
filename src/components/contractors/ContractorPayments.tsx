@@ -826,7 +826,13 @@ export default function ContractorPayments() {
             || (p.workshop_id && getWorkshopName(p.workshop_id).toLowerCase().includes(q))
             || (p.description || '').toLowerCase().includes(q);
         });
-        const filteredTotal = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const filteredTotal = filteredPayments.reduce((sum, p) => {
+          if (p.payment_type === 'material_budget') {
+            // For budgets, only count the spent amount (purchases), not the budget ceiling
+            return sum + (allBudgetSums[p.id] || 0);
+          }
+          return sum + Number(p.amount);
+        }, 0);
         return (
           <>
             <Card className="bg-destructive/5 border-destructive/20">
@@ -958,15 +964,17 @@ export default function ContractorPayments() {
                                 <div className="max-h-40 overflow-y-auto space-y-1">
                                   {approvedPayments
                                     .filter(ap => {
-                                      // Only show payments made for this contractor
-                                      const contractorName = getContractorName(p.contractor_id).toLowerCase();
-                                      if (!ap.paid_to.toLowerCase().includes(contractorName) && !ap.reason.toLowerCase().includes(contractorName)) return false;
-                                      if (!existingPaymentSearch) return true;
-                                      const q = existingPaymentSearch.toLowerCase();
-                                      return ap.paid_to.toLowerCase().includes(q)
-                                        || ap.reason.toLowerCase().includes(q)
-                                        || getWorkshopName(ap.workshop_id).toLowerCase().includes(q);
-                                    })
+                                       // Only show payments linked to this contractor via contractor_payments
+                                       const contractorPaymentIds = payments
+                                         .filter(cp => cp.contractor_id === p.contractor_id && cp.payment_id)
+                                         .map(cp => cp.payment_id);
+                                       if (!contractorPaymentIds.includes(ap.id)) return false;
+                                       if (!existingPaymentSearch) return true;
+                                       const q = existingPaymentSearch.toLowerCase();
+                                       return ap.paid_to.toLowerCase().includes(q)
+                                         || ap.reason.toLowerCase().includes(q)
+                                         || getWorkshopName(ap.workshop_id).toLowerCase().includes(q);
+                                     })
                                     .slice(0, 20)
                                     .map(ap => (
                                       <div
