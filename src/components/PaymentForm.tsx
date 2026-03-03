@@ -342,6 +342,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
+            payment_type: data.payment_type || 'cash',
             ...(role === 'admin' && newCreatorId ? { created_by: newCreatorId } : {}),
             ...(role !== 'admin' && { status: 'pending' }),
           })
