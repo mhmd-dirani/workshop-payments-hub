@@ -225,11 +225,12 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
       setSelectedContractId(existingContractLink?.contract_id || 'none');
     } else {
-      setFormData({
+        setFormData({
         paid_to: '',
         reason: '',
         amount: 0,
         payment_date: new Date().toISOString().split('T')[0],
+        payment_type: 'cash',
       });
       setSelectedCreatorId(null);
       setSelectedContractorId('none');
