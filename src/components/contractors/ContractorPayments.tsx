@@ -269,7 +269,7 @@ export default function ContractorPayments() {
 
         // Link receipt to the payment record
         await supabase.from('workshop_files').insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: purchaseWorkshopId,
           file_type: purchaseReceipt.type,
           file_name: purchaseReceipt.name,
           file_path: fileName,
