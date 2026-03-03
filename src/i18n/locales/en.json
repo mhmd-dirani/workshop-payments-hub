@@ -78,7 +78,8 @@
     "debts": "Debts",
     "manageUsers": "Manage Users",
     "attendance": "Attendance",
-    "workers": "Workers"
+    "workers": "Workers",
+    "contractors": "Contractors"
   },
   "dashboard": {
     "title": "Payment Dashboard",
