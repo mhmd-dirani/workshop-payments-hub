@@ -143,7 +143,17 @@
     "linkToContractor": "Lier à un sous-traitant",
     "selectContractorOptional": "Sélectionner un sous-traitant (optionnel)",
     "noContractor": "Aucun sous-traitant",
-    "linkedToContractor": "Paiement lié au sous-traitant"
+    "linkedToContractor": "Paiement lié au sous-traitant",
+    "paymentType": "Type de paiement",
+    "allTypes": "Tous les types",
+    "paymentTypes": {
+      "cash": "Espèces",
+      "check": "Chèque",
+      "bank_transfer": "Virement bancaire",
+      "mobile_payment": "Paiement mobile"
+    },
+    "filterByType": "Filtrer par type",
+    "totalApproved": "Total approuvé"
   },
   "income": {
     "title": "Enregistrements de revenus",

@@ -52,6 +52,7 @@ interface Payment {
   reason: string;
   amount: number;
   payment_date: string;
+  payment_type?: string;
   status?: string;
   created_by?: string;
 }
@@ -92,6 +93,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     reason: '',
     amount: 0,
     payment_date: new Date().toISOString().split('T')[0],
+    payment_type: 'cash',
   });
 
   const { data: previousPayees = [] } = useQuery({
@@ -216,17 +218,19 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         reason: payment.reason,
         amount: payment.amount,
         payment_date: payment.payment_date,
+        payment_type: payment.payment_type || 'cash',
       });
       setSelectedCreatorId(payment.created_by || null);
       // Pre-select contractor if linked
       setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
       setSelectedContractId(existingContractLink?.contract_id || 'none');
     } else {
-      setFormData({
+        setFormData({
         paid_to: '',
         reason: '',
         amount: 0,
         payment_date: new Date().toISOString().split('T')[0],
+        payment_type: 'cash',
       });
       setSelectedCreatorId(null);
       setSelectedContractorId('none');
@@ -338,6 +342,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
+            payment_type: data.payment_type || 'cash',
             ...(role === 'admin' && newCreatorId ? { created_by: newCreatorId } : {}),
             ...(role !== 'admin' && { status: 'pending' }),
           })
@@ -399,6 +404,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             reason: data.reason,
             amount: data.amount,
             payment_date: data.payment_date,
+            payment_type: data.payment_type || 'cash',
             created_by: creatorId,
             status: role === 'admin' ? 'approved' : 'pending',
           }])
@@ -650,6 +656,22 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             />
           </div>
           
+          {/* Payment Type */}
+          <div className="space-y-2">
+            <Label>{t('payments.paymentType')}</Label>
+            <Select value={formData.payment_type || 'cash'} onValueChange={(val) => setFormData(prev => ({ ...prev, payment_type: val }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">{t('payments.paymentTypes.cash')}</SelectItem>
+                <SelectItem value="check">{t('payments.paymentTypes.check')}</SelectItem>
+                <SelectItem value="bank_transfer">{t('payments.paymentTypes.bank_transfer')}</SelectItem>
+                <SelectItem value="mobile_payment">{t('payments.paymentTypes.mobile_payment')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">{t('common.amount')} *</Label>

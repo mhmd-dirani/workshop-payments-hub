@@ -144,7 +144,17 @@
     "linkToContractor": "Link to contractor",
     "selectContractorOptional": "Select contractor (optional)",
     "noContractor": "No contractor",
-    "linkedToContractor": "Payment linked to contractor"
+    "linkedToContractor": "Payment linked to contractor",
+    "paymentType": "Payment Type",
+    "allTypes": "All Types",
+    "paymentTypes": {
+      "cash": "Cash",
+      "check": "Check",
+      "bank_transfer": "Bank Transfer",
+      "mobile_payment": "Mobile Payment"
+    },
+    "filterByType": "Filter by type",
+    "totalApproved": "Total Approved"
   },
   "income": {
     "title": "Income Records",
