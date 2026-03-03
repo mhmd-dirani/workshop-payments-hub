@@ -77,6 +77,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [paidToOpen, setPaidToOpen] = useState(false);
+  const [selectedContractorId, setSelectedContractorId] = useState<string>('none');
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
