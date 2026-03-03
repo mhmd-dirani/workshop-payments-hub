@@ -33,7 +33,10 @@ export default function ContractorPayments() {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterContractor, setFilterContractor] = useState('all');
   const [filterWorkshop, setFilterWorkshop] = useState('all');
+  const [filterPaymentType, setFilterPaymentType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingPaymentType, setEditingPaymentType] = useState<any>(null);
+  const [editPaymentTypeValue, setEditPaymentTypeValue] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -334,6 +337,23 @@ export default function ContractorPayments() {
     onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
   });
 
+  const editPaymentTypeMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPaymentType) return;
+      const { error } = await supabase.from('contractor_payments')
+        .update({ payment_type: editPaymentTypeValue })
+        .eq('id', editingPaymentType.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
+      toast({ title: t('contractors.paymentTypeUpdated') });
+      setEditingPaymentType(null);
+    },
+    onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
+  });
+
   const markRemainingAsAdvanceMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
       const spent = allBudgetSums[budgetPayment.id] || 0;
@@ -506,6 +526,17 @@ export default function ContractorPayments() {
                 <SelectItem value="all">{t('common.all')}</SelectItem>
                 {workshops.map(w => (
                   <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByPaymentType')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {PAYMENT_TYPES.map(pt => (
+                  <SelectItem key={pt} value={pt}>{t(`contractors.paymentTypes.${pt}`)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -696,10 +727,36 @@ export default function ContractorPayments() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Payment Type Dialog */}
+      <Dialog open={!!editingPaymentType} onOpenChange={(open) => { if (!open) setEditingPaymentType(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.changePaymentType')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t('contractors.paymentType')}</Label>
+              <Select value={editPaymentTypeValue} onValueChange={setEditPaymentTypeValue}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TYPES.map(pt => (
+                    <SelectItem key={pt} value={pt}>{t(`contractors.paymentTypes.${pt}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={() => editPaymentTypeMutation.mutate()} disabled={!editPaymentTypeValue || editPaymentTypeMutation.isPending}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? (
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
       ) : (() => {
         const filteredPayments = payments.filter(p => {
+          if (filterPaymentType !== 'all' && p.payment_type !== filterPaymentType) return false;
           if (!searchQuery) return true;
           const q = searchQuery.toLowerCase();
           return getContractorName(p.contractor_id).toLowerCase().includes(q)
@@ -778,6 +835,11 @@ export default function ContractorPayments() {
                               </Button>
                             )}
                           </>
+                        )}
+                        {role === 'admin' && !isBudget && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingPaymentType(p); setEditPaymentTypeValue(p.payment_type); }}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Button>
                         )}
                         {role === 'admin' && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
