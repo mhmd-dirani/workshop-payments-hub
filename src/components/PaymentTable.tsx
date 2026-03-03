@@ -102,6 +102,10 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       filtered = filtered.filter(p => p.created_by === user.id);
     }
     
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(p => (p.payment_type || 'cash') === typeFilter);
+    }
+    
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(p => 
@@ -111,7 +115,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
     }
     
     return filtered;
-  }, [payments, role, user, searchTerm]);
+  }, [payments, role, user, searchTerm, typeFilter]);
 
   const searchTotal = useMemo(() => {
     if (!searchTerm.trim()) return null;
