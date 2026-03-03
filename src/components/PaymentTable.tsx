@@ -478,6 +478,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                 <TableHead>{t('common.reason')}</TableHead>
                 <TableHead className="text-right">{t('common.amount')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
+                <TableHead>{t('payments.paymentType')}</TableHead>
                 <TableHead>{t('payments.addedBy')}</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
