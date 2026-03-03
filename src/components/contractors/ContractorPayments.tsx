@@ -400,11 +400,15 @@ export default function ContractorPayments() {
 
       {isLoading ? (
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
-      ) : payments.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noPayments')}</CardContent></Card>
-      ) : (
-        <div className="grid gap-2">
-          {payments.map(p => (
+      ) : (() => {
+        const filteredPayments = payments.filter(p => {
+          if (!searchQuery) return true;
+          const q = searchQuery.toLowerCase();
+          return getContractorName(p.contractor_id).toLowerCase().includes(q)
+            || getWorkshopName(p.workshop_id).toLowerCase().includes(q)
+            || (p.description || '').toLowerCase().includes(q);
+        });
+        return filteredPayments.length === 0 ? (
             <Card key={p.id}>
               <CardContent className="p-3 flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
