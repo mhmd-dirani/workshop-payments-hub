@@ -23,8 +23,8 @@ export default function Contractors() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
+  if (!user || role !== 'admin') {
+    return <Navigate to={!user ? "/auth" : "/"} replace />;
   }
 
   return (

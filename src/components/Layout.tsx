@@ -36,8 +36,8 @@ export default function Layout({ children }: LayoutProps) {
     { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
     { name: t('nav.attendance'), href: '/attendance', icon: Calendar },
     { name: t('nav.workers'), href: '/workers', icon: Users2 },
-    { name: t('nav.contractors'), href: '/contractors', icon: Wrench },
     ...(role === 'admin' ? [
+      { name: t('nav.contractors'), href: '/contractors', icon: Wrench },
       { name: t('nav.pendingApprovals'), href: '/approvals', icon: ClipboardCheck },
       { name: t('nav.team'), href: '/team', icon: Users2 },
       { name: t('nav.debts'), href: '/debts', icon: HandCoins },
