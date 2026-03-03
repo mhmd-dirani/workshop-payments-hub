@@ -488,8 +488,36 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
               </Popover>
             </div>
           )}
+
+          {/* Contractor selector */}
+          {!payment?.id && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Users2 className="w-3.5 h-3.5" />
+                {t('payments.linkToContractor')}
+              </Label>
+              <Select value={selectedContractorId} onValueChange={(val) => {
+                setSelectedContractorId(val);
+                if (val !== 'none') {
+                  const contractor = contractors.find(c => c.id === val);
+                  if (contractor) {
+                    setFormData(prev => ({ ...prev, paid_to: contractor.name }));
+                  }
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('payments.selectContractorOptional')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('payments.noContractor')}</SelectItem>
+                  {contractors.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} - {c.specialty}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
-          <div className="space-y-2">
             <Label htmlFor="reason">{t('common.reason')} *</Label>
             <Textarea
               id="reason"
