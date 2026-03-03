@@ -236,11 +236,27 @@ export default function ContractorPayments() {
   const addPurchaseMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
       const workshopName = workshops.find(w => w.id === budgetPayment.workshop_id)?.name || '';
+      const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 
+      // Create main payment record for this purchase
+      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.product')}${purchaseDescription ? ': ' + purchaseDescription : ''}`;
+      const { data: paymentRecord, error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          workshop_id: budgetPayment.workshop_id,
+          amount: Number(purchaseAmount),
+          payment_date: purchaseDate,
+          paid_to: contractorName,
+          reason,
+          created_by: user!.id,
+        })
+        .select()
+        .single();
+      if (paymentError) throw paymentError;
+
       if (purchaseReceipt) {
-        // Upload receipt to storage
         const fileExt = purchaseReceipt.name.split('.').pop();
         const safeName = workshopName.replace(/[^a-zA-Z0-9\u0600-\u06FF\s-]/g, '').trim();
         const fileName = `${safeName}/receipts/${Date.now()}.${fileExt}`;
@@ -248,6 +264,16 @@ export default function ContractorPayments() {
         if (uploadError) throw uploadError;
         receiptPath = fileName;
         receiptName = purchaseReceipt.name;
+
+        // Link receipt to the payment record
+        await supabase.from('workshop_files').insert({
+          workshop_id: budgetPayment.workshop_id,
+          file_type: purchaseReceipt.type,
+          file_name: purchaseReceipt.name,
+          file_path: fileName,
+          uploaded_by: user!.id,
+          payment_id: paymentRecord.id,
+        });
       }
 
       const { error } = await supabase.from('contractor_budget_purchases').insert({
@@ -264,6 +290,7 @@ export default function ContractorPayments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
       toast({ title: t('contractors.purchaseAdded') });
       resetPurchaseForm();
     },
