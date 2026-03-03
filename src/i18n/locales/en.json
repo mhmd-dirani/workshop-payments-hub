@@ -691,6 +691,10 @@
     "markAsAdvance": "Mark Remaining as Advance",
     "markAsAdvanceDesc": "The remaining amount will be recorded as an advance payment in the main payments dashboard.",
     "budgetRemaining": "Budget remaining",
-    "advanceCreated": "Advance payment created from budget remaining"
+    "advanceCreated": "Advance payment created from budget remaining",
+    "newPurchase": "New Purchase",
+    "linkExistingPayment": "Link Payment",
+    "searchExistingPayments": "Search payments by name or workshop...",
+    "linkPayment": "Link This Payment"
   }
 }
