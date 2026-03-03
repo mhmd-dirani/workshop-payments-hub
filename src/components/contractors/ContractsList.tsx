@@ -225,7 +225,7 @@ export default function ContractsList() {
                         status: contract.status === 'active' ? 'completed' : 'active',
                       })}
                     >
-                      {contract.status === 'active' ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4" />}
+                      {contract.status === 'active' ? <CheckCircle className="w-4 h-4 text-primary" /> : <XCircle className="w-4 h-4" />}
                     </Button>
                   </div>
                 </CardContent>
