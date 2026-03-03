@@ -388,25 +388,25 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
           </Select>
         </div>
 
-        {searchTerm.trim() && searchTotal !== null && (
-          <Card className="bg-destructive/5 border-destructive/20">
-            <CardContent className="py-3 px-3 md:px-6">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
-                  <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-destructive font-medium">
-                    {t('payments.totalPaidTo')} "{searchTerm}"
-                  </p>
-                  <p className="text-base md:text-xl font-bold font-mono text-destructive">
-                    -{searchTotal.toLocaleString('fr-FR')} CFA
-                  </p>
-                </div>
+        <Card className="bg-destructive/5 border-destructive/20">
+          <CardContent className="py-3 px-3 md:px-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10">
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <p className="text-xs md:text-sm text-destructive font-medium">
+                  {searchTerm.trim() ? `${t('payments.totalPaidTo')} "${searchTerm}"` : t('payments.totalApproved')}
+                  {typeFilter !== 'all' && ` (${t(`payments.paymentTypes.${typeFilter}`)})`}
+                  {' '}<span className="text-muted-foreground">({approvedCount})</span>
+                </p>
+                <p className="text-base md:text-xl font-bold font-mono text-destructive">
+                  -{approvedTotal.toLocaleString('fr-FR')} CFA
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-2">
