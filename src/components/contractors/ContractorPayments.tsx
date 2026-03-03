@@ -361,7 +361,7 @@ export default function ContractorPayments() {
       const { error } = await supabase.from('contractor_payments').insert({
         contractor_id: budgetPayment.contractor_id,
         contract_id: budgetPayment.contract_id || null,
-        workshop_id: budgetPayment.workshop_id,
+        workshop_id: advanceWorkshopId,
         amount: remaining,
         payment_type: 'advance',
         description: `${t('contractors.budgetRemaining')}: ${Number(budgetPayment.amount).toLocaleString('fr-FR')} - ${spent.toLocaleString('fr-FR')} = ${remaining.toLocaleString('fr-FR')} CFA`,
