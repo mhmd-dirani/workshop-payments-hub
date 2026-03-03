@@ -239,18 +239,41 @@ export default function ContractorPayments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Select value={filterContractor} onValueChange={setFilterContractor}>
-          <SelectTrigger className="w-[180px] h-9 text-xs md:text-sm">
-            <SelectValue placeholder={t('contractors.filterByContractor')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('common.all')}</SelectItem>
-            {contractors.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('contractors.searchPayments')}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2">
+            <Select value={filterContractor} onValueChange={setFilterContractor}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByContractor')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {contractors.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterWorkshop} onValueChange={setFilterWorkshop}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByWorkshop')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {workshops.map(w => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
         <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
           <DialogTrigger asChild>
