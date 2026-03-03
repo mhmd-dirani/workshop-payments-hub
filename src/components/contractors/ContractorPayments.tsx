@@ -687,7 +687,7 @@ export default function ContractorPayments() {
           if (!searchQuery) return true;
           const q = searchQuery.toLowerCase();
           return getContractorName(p.contractor_id).toLowerCase().includes(q)
-            || getWorkshopName(p.workshop_id).toLowerCase().includes(q)
+            || (p.workshop_id && getWorkshopName(p.workshop_id).toLowerCase().includes(q))
             || (p.description || '').toLowerCase().includes(q);
         });
         return filteredPayments.length === 0 ? (
