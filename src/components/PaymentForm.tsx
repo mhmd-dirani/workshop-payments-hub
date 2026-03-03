@@ -117,6 +117,16 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     enabled: role === 'admin',
   });
 
+  // Fetch contractors for linking
+  const { data: contractors = [] } = useQuery({
+    queryKey: ['contractors'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contractors').select('*').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     const fetchExistingFiles = async () => {
       if (payment?.id) {
