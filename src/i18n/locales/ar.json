@@ -655,8 +655,7 @@
     "paymentType": "نوع الدفعة",
     "paymentTypes": {
       "advance": "سلفة",
-      "product": "منتج/مواد",
-      "work_payment": "دفعة أعمال"
+      "product": "منتج/مواد"
     },
     "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
     "filterByContractor": "تصفية حسب المقاول"
