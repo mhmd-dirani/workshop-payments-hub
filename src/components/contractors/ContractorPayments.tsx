@@ -828,8 +828,9 @@ export default function ContractorPayments() {
         });
         const filteredTotal = filteredPayments.reduce((sum, p) => {
           if (p.payment_type === 'material_budget') {
-            // For budgets, only count the spent amount (purchases), not the budget ceiling
-            return sum + (allBudgetSums[p.id] || 0);
+            // Material budgets are organizational containers, not actual payments
+            // Their purchases are tracked as separate contractor_payments entries
+            return sum;
           }
           return sum + Number(p.amount);
         }, 0);
