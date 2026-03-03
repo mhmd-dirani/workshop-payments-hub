@@ -409,32 +409,37 @@ export default function ContractorPayments() {
             || (p.description || '').toLowerCase().includes(q);
         });
         return filteredPayments.length === 0 ? (
-            <Card key={p.id}>
-              <CardContent className="p-3 flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
-                    <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
-                    <Badge variant="secondary" className="text-xs">{t(`contractors.paymentTypes.${p.payment_type}`)}</Badge>
+          <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noPayments')}</CardContent></Card>
+        ) : (
+          <div className="grid gap-2">
+            {filteredPayments.map(p => (
+              <Card key={p.id}>
+                <CardContent className="p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
+                      <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
+                      <Badge variant="secondary" className="text-xs">{t(`contractors.paymentTypes.${p.payment_type}`)}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <span>{p.payment_date}</span>
+                      {p.description && <span>· {p.description}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <span>{p.payment_date}</span>
-                    {p.description && <span>· {p.description}</span>}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm whitespace-nowrap">{Number(p.amount).toLocaleString('fr-FR')} CFA</span>
+                    {role === 'admin' && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm whitespace-nowrap">{Number(p.amount).toLocaleString('fr-FR')} CFA</span>
-                  {role === 'admin' && (
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
