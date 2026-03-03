@@ -265,16 +265,34 @@ export default function ContractorPayments() {
         const existingPayment = approvedPayments.find(p => p.id === selectedExistingPaymentId);
         if (!existingPayment) throw new Error('Payment not found');
 
+        const workshopName = getWorkshopName(existingPayment.workshop_id);
+
+        // Check for receipt files attached to this payment
+        const { data: receiptFiles } = await supabase
+          .from('workshop_files')
+          .select('file_path, file_name')
+          .eq('payment_id', existingPayment.id)
+          .limit(1);
+        const receiptPath = receiptFiles?.[0]?.file_path || null;
+        const receiptName = receiptFiles?.[0]?.file_name || null;
+
         const { error } = await supabase.from('contractor_budget_purchases').insert({
           contractor_payment_id: budgetPayment.id,
           amount: Number(existingPayment.amount),
           purchase_date: existingPayment.payment_date,
-          description: `${existingPayment.paid_to} - ${existingPayment.reason}`,
-          receipt_file_path: null,
-          receipt_file_name: null,
+          description: `[${workshopName}] ${existingPayment.paid_to} - ${existingPayment.reason}`,
+          receipt_file_path: receiptPath,
+          receipt_file_name: receiptName,
           created_by: user!.id,
         });
         if (error) throw error;
+
+        // Remove duplicate contractor_payments record if it exists (prevents double-counting)
+        await supabase
+          .from('contractor_payments')
+          .delete()
+          .eq('payment_id', existingPayment.id);
+
         return;
       }
 
