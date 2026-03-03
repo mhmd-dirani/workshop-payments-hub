@@ -529,6 +529,17 @@ export default function ContractorPayments() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByPaymentType')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {PAYMENT_TYPES.map(pt => (
+                  <SelectItem key={pt} value={pt}>{t(`contractors.paymentTypes.${pt}`)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
