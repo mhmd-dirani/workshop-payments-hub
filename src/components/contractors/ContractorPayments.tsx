@@ -341,11 +341,12 @@ export default function ContractorPayments() {
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.advance')} (${t('contractors.budgetRemaining')})`;
 
+      if (!advanceWorkshopId) throw new Error('No workshop selected');
       // Create main payment for the remaining as advance
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
-          workshop_id: budgetPayment.workshop_id,
+          workshop_id: advanceWorkshopId,
           amount: remaining,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           paid_to: contractorName,
