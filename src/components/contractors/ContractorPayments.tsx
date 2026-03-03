@@ -120,8 +120,7 @@ export default function ContractorPayments() {
         .from('payments')
         .select('*')
         .eq('status', 'approved')
-        .order('payment_date', { ascending: false })
-        .limit(500);
+        .order('payment_date', { ascending: false });
       if (error) throw error;
       return data;
     },
