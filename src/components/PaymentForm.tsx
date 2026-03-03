@@ -220,6 +220,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       setSelectedCreatorId(payment.created_by || null);
       // Pre-select contractor if linked
       setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
+      setSelectedContractId(existingContractLink?.contract_id || 'none');
     } else {
       setFormData({
         paid_to: '',
@@ -229,10 +230,11 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       });
       setSelectedCreatorId(null);
       setSelectedContractorId('none');
+      setSelectedContractId('none');
     }
     setSelectedFile(null);
     setPreviewUrl(null);
-  }, [payment, open, existingContractorLink]);
+  }, [payment, open, existingContractorLink, existingContractLink]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
