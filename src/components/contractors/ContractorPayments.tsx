@@ -337,6 +337,23 @@ export default function ContractorPayments() {
     onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
   });
 
+  const editPaymentTypeMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPaymentType) return;
+      const { error } = await supabase.from('contractor_payments')
+        .update({ payment_type: editPaymentTypeValue })
+        .eq('id', editingPaymentType.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-summaries'] });
+      toast({ title: t('contractors.paymentTypeUpdated') });
+      setEditingPaymentType(null);
+    },
+    onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
+  });
+
   const markRemainingAsAdvanceMutation = useMutation({
     mutationFn: async (budgetPayment: any) => {
       const spent = allBudgetSums[budgetPayment.id] || 0;
