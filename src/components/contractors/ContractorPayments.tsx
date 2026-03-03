@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Upload, Camera } from 'lucide-react';
+import { Plus, Trash2, Upload, Camera, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -31,6 +31,8 @@ export default function ContractorPayments() {
   const [description, setDescription] = useState('');
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterContractor, setFilterContractor] = useState('all');
+  const [filterWorkshop, setFilterWorkshop] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +72,7 @@ export default function ContractorPayments() {
   });
 
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['contractor-payments', filterContractor],
+    queryKey: ['contractor-payments', filterContractor, filterWorkshop],
     queryFn: async () => {
       let query = supabase
         .from('contractor_payments')
@@ -78,6 +80,9 @@ export default function ContractorPayments() {
         .order('payment_date', { ascending: false });
       if (filterContractor !== 'all') {
         query = query.eq('contractor_id', filterContractor);
+      }
+      if (filterWorkshop !== 'all') {
+        query = query.eq('workshop_id', filterWorkshop);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -234,18 +239,41 @@ export default function ContractorPayments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Select value={filterContractor} onValueChange={setFilterContractor}>
-          <SelectTrigger className="w-[180px] h-9 text-xs md:text-sm">
-            <SelectValue placeholder={t('contractors.filterByContractor')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('common.all')}</SelectItem>
-            {contractors.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('contractors.searchPayments')}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2">
+            <Select value={filterContractor} onValueChange={setFilterContractor}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByContractor')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {contractors.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterWorkshop} onValueChange={setFilterWorkshop}>
+              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+                <SelectValue placeholder={t('contractors.filterByWorkshop')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                {workshops.map(w => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
         <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
           <DialogTrigger asChild>
@@ -367,41 +395,51 @@ export default function ContractorPayments() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
-      ) : payments.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noPayments')}</CardContent></Card>
-      ) : (
-        <div className="grid gap-2">
-          {payments.map(p => (
-            <Card key={p.id}>
-              <CardContent className="p-3 flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
-                    <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
-                    <Badge variant="secondary" className="text-xs">{t(`contractors.paymentTypes.${p.payment_type}`)}</Badge>
+      ) : (() => {
+        const filteredPayments = payments.filter(p => {
+          if (!searchQuery) return true;
+          const q = searchQuery.toLowerCase();
+          return getContractorName(p.contractor_id).toLowerCase().includes(q)
+            || getWorkshopName(p.workshop_id).toLowerCase().includes(q)
+            || (p.description || '').toLowerCase().includes(q);
+        });
+        return filteredPayments.length === 0 ? (
+          <Card><CardContent className="py-8 text-center text-muted-foreground">{t('contractors.noPayments')}</CardContent></Card>
+        ) : (
+          <div className="grid gap-2">
+            {filteredPayments.map(p => (
+              <Card key={p.id}>
+                <CardContent className="p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
+                      <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>
+                      <Badge variant="secondary" className="text-xs">{t(`contractors.paymentTypes.${p.payment_type}`)}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <span>{p.payment_date}</span>
+                      {p.description && <span>· {p.description}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <span>{p.payment_date}</span>
-                    {p.description && <span>· {p.description}</span>}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm whitespace-nowrap">{Number(p.amount).toLocaleString('fr-FR')} CFA</span>
+                    {role === 'admin' && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm whitespace-nowrap">{Number(p.amount).toLocaleString('fr-FR')} CFA</span>
-                  {role === 'admin' && (
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(p)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
