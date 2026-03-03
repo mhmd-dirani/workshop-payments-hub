@@ -29,8 +29,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image, Users2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
 
 const paymentSchema = z.object({
