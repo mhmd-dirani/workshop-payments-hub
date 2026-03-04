@@ -491,7 +491,21 @@
     "trackAsDebtDesc": "The excess {{amount}} CFA will be recorded as a debt on this worker. You can manually track repayments.",
     "advanceDebtReason": "Advance debt for worker",
     "creditLabel": "credit",
-    "appliedToBalance": "applied to balance"
+    "appliedToBalance": "applied to balance",
+    "workerDebts": "Worker Debts",
+    "workerDebt": "Debt",
+    "noWorkerDebts": "No active debts for this worker",
+    "addDebt": "Add Debt",
+    "addDebtDesc": "Add a debt on {{name}} that can be repaid over time",
+    "debtDescPlaceholder": "e.g., Advance of 50,000 CFA",
+    "debtAdded": "Debt added",
+    "debtAddedDesc": "The debt has been recorded on the worker",
+    "repayDebt": "Repay Debt",
+    "repayDebtDesc": "Deduct an amount from this debt. This will reduce the worker's salary and appear in payments.",
+    "repayDebtNote": "This amount will be deducted from the worker's salary and recorded as a payment in the dashboard.",
+    "confirmRepayment": "Confirm Repayment",
+    "debtRepaymentCreated": "Debt repayment recorded",
+    "debtRepaymentCreatedDesc": "The amount has been deducted from salary and recorded as payment"
   },
   "personalPayments": {
     "title": "Personal Payments",

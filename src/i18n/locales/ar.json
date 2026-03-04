@@ -490,7 +490,21 @@
     "trackAsDebtDesc": "سيتم تسجيل الفائض {{amount}} CFA كدين على هذا العامل. يمكنك تتبع المدفوعات يدوياً.",
     "advanceDebtReason": "دين سلفة للعامل",
     "creditLabel": "رصيد",
-    "appliedToBalance": "تم تطبيقه على الرصيد"
+    "appliedToBalance": "تم تطبيقه على الرصيد",
+    "workerDebts": "ديون العامل",
+    "workerDebt": "دين",
+    "noWorkerDebts": "لا توجد ديون نشطة لهذا العامل",
+    "addDebt": "إضافة دين",
+    "addDebtDesc": "إضافة دين على {{name}} يمكن سداده تدريجياً",
+    "debtDescPlaceholder": "مثال: سلفة 50,000 CFA",
+    "debtAdded": "تمت إضافة الدين",
+    "debtAddedDesc": "تم تسجيل الدين على العامل",
+    "repayDebt": "سداد الدين",
+    "repayDebtDesc": "خصم مبلغ من هذا الدين. سيتم تقليل راتب العامل وسيظهر في المدفوعات.",
+    "repayDebtNote": "سيتم خصم هذا المبلغ من راتب العامل وتسجيله كدفعة في لوحة التحكم.",
+    "confirmRepayment": "تأكيد السداد",
+    "debtRepaymentCreated": "تم تسجيل سداد الدين",
+    "debtRepaymentCreatedDesc": "تم خصم المبلغ من الراتب وتسجيله كدفعة"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",
