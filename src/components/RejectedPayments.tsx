@@ -264,8 +264,8 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                       <TableCell className="font-mono text-sm">
                         {format(new Date(payment.payment_date), 'MMM d, yyyy')}
                       </TableCell>
-                      <TableCell className="font-medium">{payment.paid_to}</TableCell>
-                      <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
+                      <TableCell className="font-medium">{translatePaidTo(payment.paid_to, t)}</TableCell>
+                      <TableCell className="max-w-xs truncate">{translateReason(payment.reason, t)}</TableCell>
                       <TableCell className="text-right font-mono font-medium">
                         {Number(payment.amount).toLocaleString('fr-FR')} CFA
                       </TableCell>
