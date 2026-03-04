@@ -606,8 +606,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(advanceAmount);
       if (!amount || amount <= 0 || !advanceWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const categoryLabel = t('workers.categories.travailleur');
-      const reason = `${worker.name} - ${t('workers.advancePaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = 'Travailleur';
+      const reason = `${worker.name} - Advance payment (${amount.toLocaleString('fr-FR')} CFA)`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
