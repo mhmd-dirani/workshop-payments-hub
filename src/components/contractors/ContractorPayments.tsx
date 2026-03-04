@@ -104,7 +104,9 @@ export default function ContractorPayments() {
         query = query.eq('contractor_id', filterContractor);
       }
       if (filterWorkshop !== 'all') {
-        query = query.eq('workshop_id', filterWorkshop);
+        // Don't filter material_budgets by workshop (they have null workshop_id)
+        // We'll filter them client-side based on their purchases
+        query = query.or(`workshop_id.eq.${filterWorkshop},payment_type.eq.material_budget`);
       }
       const { data, error } = await query;
       if (error) throw error;
