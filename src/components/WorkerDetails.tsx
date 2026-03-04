@@ -1676,6 +1676,30 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     </div>
                   );
                 })()}
+                {/* Debt tracking option */}
+                {advanceWorkshopId && (() => {
+                  const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
+                  const advAmt = parseFloat(advanceAmount) || 0;
+                  const excess = advAmt - workshopOwed;
+                  if (excess <= 0) return null;
+                  return (
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20">
+                      <input
+                        type="checkbox"
+                        id="advance-debt"
+                        checked={advanceCreateDebt}
+                        onChange={(e) => setAdvanceCreateDebt(e.target.checked)}
+                        className="mt-0.5 rounded border-warning"
+                      />
+                      <label htmlFor="advance-debt" className="text-xs cursor-pointer">
+                        <span className="font-medium">{t('workers.trackAsDebt')}</span>
+                        <p className="text-muted-foreground mt-0.5">
+                          {t('workers.trackAsDebtDesc', { amount: excess.toLocaleString('fr-FR') })}
+                        </p>
+                      </label>
+                    </div>
+                  );
+                })()}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
