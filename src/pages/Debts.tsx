@@ -57,7 +57,7 @@ export default function Debts() {
       let theyOweTotal = 0;
       let theyOweRemaining = 0;
 
-      debts?.filter(debt => !debt.description?.includes('[WORKER_DEBT]')).forEach(debt => {
+      debts?.filter(debt => !debt.description?.includes('[WORKER_DEBT]') && (debt as any).status !== 'pending').forEach(debt => {
         const paid = paymentsByDebt[debt.id] || 0;
         const remaining = Number(debt.amount) - paid;
 
