@@ -238,8 +238,9 @@ export default function ContractorPayments() {
       if (!workshopForPayment) throw new Error('No workshop');
 
       const contractorName = contractors.find(c => c.id === contractorId)?.name || '';
-      const typeLabel = t(`contractors.paymentTypes.${paymentType}`);
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
+      const typeLabelMap: Record<string, string> = { advance: 'Advance', product: 'Product/Material', material_budget: 'Material Budget' };
+      const typeLabel = typeLabelMap[paymentType] || paymentType;
+      const reason = `[Contractor] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
 
       if (paymentType === 'material_budget') {
         // Material budget does NOT go to main payments dashboard, no workshop needed
