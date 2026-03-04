@@ -52,10 +52,29 @@ export default function ContractorsList() {
   const { data: summaries = {} } = useQuery({
     queryKey: ['contractor-summaries'],
     queryFn: async () => {
-      const { data: payments, error } = await supabase.from('contractor_payments').select('contractor_id, amount');
+      const { data: payments, error } = await supabase.from('contractor_payments').select('contractor_id, amount, payment_type, id');
       if (error) throw error;
+      // Get budget purchases to calculate remaining for material_budget
+      const budgetIds = payments?.filter(p => p.payment_type === 'material_budget').map(p => p.id) || [];
+      let budgetSpentMap: Record<string, number> = {};
+      if (budgetIds.length > 0) {
+        const { data: purchases } = await supabase
+          .from('contractor_budget_purchases')
+          .select('contractor_payment_id, amount')
+          .in('contractor_payment_id', budgetIds);
+        purchases?.forEach(pu => {
+          budgetSpentMap[pu.contractor_payment_id] = (budgetSpentMap[pu.contractor_payment_id] || 0) + Number(pu.amount);
+        });
+      }
       const map: Record<string, number> = {};
-      payments?.forEach(p => { map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount); });
+      payments?.forEach(p => {
+        if (p.payment_type === 'material_budget') {
+          const spent = budgetSpentMap[p.id] || 0;
+          map[p.contractor_id] = (map[p.contractor_id] || 0) + Math.max(0, Number(p.amount) - spent);
+        } else {
+          map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount);
+        }
+      });
       return map;
     },
   });
