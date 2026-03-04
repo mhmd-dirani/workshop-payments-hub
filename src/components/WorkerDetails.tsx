@@ -661,7 +661,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!workshopAdj || workshopAdj.items.length === 0) throw new Error('No adjustments');
       if (workshopAdj.bonuses <= 0) throw new Error('No bonus/taxi to pay');
 
-      const categoryLabel = t('workers.categories.travailleur');
+      const categoryLabel = 'Travailleur';
       
       // Only pay bonuses + taxi, NOT discounts
       const bonusItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
@@ -670,7 +670,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
       
-      const reason = `${worker.name} - ${t('workers.bonusPaymentReason', { defaultValue: 'Bonus/Taxi payment' })}`;
+      const reason = `${worker.name} - Bonus/Discount payment`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
