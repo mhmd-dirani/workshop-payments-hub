@@ -1671,6 +1671,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               <Input
                 type="number"
                 min="1"
+                max={(() => {
+                  const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+                  const paid = workerDebtPayments
+                    .filter(p => p.debt_id === workerDebtRepayId)
+                    .reduce((s, p) => s + Number(p.amount), 0);
+                  return debt ? Math.max(0, Number(debt.amount) - paid) : undefined;
+                })()}
                 value={workerDebtRepayAmount}
                 onChange={(e) => setWorkerDebtRepayAmount(e.target.value)}
                 placeholder="0"
