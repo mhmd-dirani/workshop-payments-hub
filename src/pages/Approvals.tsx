@@ -145,8 +145,8 @@ export default function Approvals() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{payment.paid_to}</CardTitle>
-                      <CardDescription>{payment.reason}</CardDescription>
+                      <CardTitle className="text-lg">{translatePaidTo(payment.paid_to, t)}</CardTitle>
+                      <CardDescription>{translateReason(payment.reason, t)}</CardDescription>
                     </div>
                     <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                       {t('payments.pending')}

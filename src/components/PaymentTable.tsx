@@ -453,7 +453,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-[300px] whitespace-pre-line break-words">{payment.reason}</TableCell>
+                  <TableCell className="max-w-[300px] whitespace-pre-line break-words">{translateReason(payment.reason, t)}</TableCell>
                   <TableCell className="text-right font-mono font-medium text-destructive">
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>
