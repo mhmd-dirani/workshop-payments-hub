@@ -805,6 +805,131 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     setIsPayChoiceOpen(true);
   };
 
+  // Worker debts - separate from main debts page
+  const WORKER_DEBT_TAG = '[WORKER_DEBT]';
+  
+  const { data: workerDebts = [] } = useQuery({
+    queryKey: ['worker-debts', worker.name],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('person_name', worker.name)
+        .eq('debt_type', 'they_owe')
+        .ilike('description', `%${WORKER_DEBT_TAG}%`)
+        .eq('is_settled', false)
+        .order('debt_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: workerDebtPayments = [] } = useQuery({
+    queryKey: ['worker-debt-payments', workerDebts.map(d => d.id)],
+    queryFn: async () => {
+      if (workerDebts.length === 0) return [];
+      const { data, error } = await supabase
+        .from('debt_payments')
+        .select('*')
+        .in('debt_id', workerDebts.map(d => d.id))
+        .order('payment_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: workerDebts.length > 0,
+  });
+
+  const addWorkerDebt = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(workerDebtAmount);
+      if (!amount || amount <= 0) throw new Error('Invalid amount');
+      const { error } = await supabase.from('debts').insert({
+        person_name: worker.name,
+        amount,
+        debt_type: 'they_owe',
+        debt_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
+        created_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      setIsWorkerDebtFormOpen(false);
+      setWorkerDebtAmount('');
+      setWorkerDebtDescription('');
+      toast({ title: t('workers.debtAdded'), description: t('workers.debtAddedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const repayWorkerDebt = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(workerDebtRepayAmount);
+      if (!amount || amount <= 0 || !workerDebtRepayId || !workerDebtRepayWorkshopId) throw new Error('Invalid data');
+
+      // 1. Record debt payment
+      const { error: dpError } = await supabase.from('debt_payments').insert({
+        debt_id: workerDebtRepayId,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `Debt repayment deducted from salary`,
+        created_by: user?.id,
+      });
+      if (dpError) throw dpError;
+
+      // 2. Create a discount adjustment to reduce the worker's salary
+      const { error: adjError } = await supabase.from('worker_adjustments').insert({
+        worker_id: worker.id,
+        workshop_id: workerDebtRepayWorkshopId,
+        work_date: format(new Date(), 'yyyy-MM-dd'),
+        adjustment_type: 'discount',
+        amount,
+        reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
+        is_paid: false,
+        created_by: user?.id,
+      });
+      if (adjError) throw adjError;
+
+      // 3. Create a payment record for the dashboard
+      const { error: payError } = await supabase.from('payments').insert({
+        workshop_id: workerDebtRepayWorkshopId,
+        paid_to: 'Travailleur',
+        reason: `${worker.name} - Debt repayment (${amount.toLocaleString('fr-FR')} CFA)`,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        created_by: user?.id,
+        status: 'pending',
+      });
+      if (payError) throw payError;
+
+      // 4. Check if debt is fully paid and settle it
+      const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+      if (debt) {
+        const existingPayments = workerDebtPayments
+          .filter(p => p.debt_id === workerDebtRepayId)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        if (existingPayments + amount >= Number(debt.amount)) {
+          await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
+      setWorkerDebtRepayId(null);
+      setWorkerDebtRepayAmount('');
+      setWorkerDebtRepayWorkshopId('');
+      toast({ title: t('workers.debtRepaymentCreated'), description: t('workers.debtRepaymentCreatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
