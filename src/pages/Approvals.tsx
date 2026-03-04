@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Check, X, Loader2, ClipboardCheck } from 'lucide-react';
+import { Check, X, Loader2, ClipboardCheck, ArrowUpCircle } from 'lucide-react';
 
 export default function Approvals() {
   const { t } = useTranslation();
@@ -31,16 +31,16 @@ export default function Approvals() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectDebtDialogOpen, setRejectDebtDialogOpen] = useState(false);
+  const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null);
 
+  // Pending payments query
   const { data: pendingPayments, isLoading } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: async () => {
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select(`
-          *,
-          workshops(name)
-        `)
+        .select(`*, workshops(name)`)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       if (paymentsError) throw paymentsError;
@@ -58,16 +58,33 @@ export default function Approvals() {
     },
   });
 
+  // Pending debts query
+  const { data: pendingDebts = [], isLoading: loadingDebts } = useQuery({
+    queryKey: ['pending-debts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('status' as any, 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
+      
+      return (data || []).map((debt: any) => ({
+        ...debt,
+        creator_name: profileMap.get(debt.created_by) || 'Unknown'
+      }));
+    },
+  });
+
+  // Payment status mutation
   const updateStatus = useMutation({
-    mutationFn: async ({ 
-      paymentId, 
-      status, 
-      rejectionReason 
-    }: { 
-      paymentId: string; 
-      status: 'approved' | 'rejected';
-      rejectionReason?: string;
-    }) => {
+    mutationFn: async ({ paymentId, status, rejectionReason }: { paymentId: string; status: 'approved' | 'rejected'; rejectionReason?: string }) => {
       const { error } = await supabase
         .from('payments')
         .update({ 
@@ -92,11 +109,39 @@ export default function Approvals() {
       setRejectionReason('');
     },
     onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Debt status mutation
+  const updateDebtStatus = useMutation({
+    mutationFn: async ({ debtId, status }: { debtId: string; status: 'approved' | 'rejected' }) => {
+      if (status === 'rejected') {
+        // Delete the rejected debt
+        const { error } = await supabase.from('debts').delete().eq('id', debtId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('debts')
+          .update({ status } as any)
+          .eq('id', debtId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ['pending-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+      queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       toast({
-        title: t('errors.error'),
-        description: error.message,
-        variant: 'destructive',
+        title: status === 'approved' ? t('approvals.debtApproved') : t('approvals.debtRejected'),
+        description: status === 'approved' ? t('approvals.debtHasBeenApproved') : t('approvals.debtHasBeenRejected'),
       });
+      setRejectDebtDialogOpen(false);
+      setSelectedDebtId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
@@ -108,29 +153,31 @@ export default function Approvals() {
 
   const handleConfirmReject = () => {
     if (selectedPaymentId) {
-      updateStatus.mutate({ 
-        paymentId: selectedPaymentId, 
-        status: 'rejected',
-        rejectionReason: rejectionReason.trim() || undefined
-      });
+      updateStatus.mutate({ paymentId: selectedPaymentId, status: 'rejected', rejectionReason: rejectionReason.trim() || undefined });
     }
   };
+
+  const handleRejectDebtClick = (debtId: string) => {
+    setSelectedDebtId(debtId);
+    setRejectDebtDialogOpen(true);
+  };
+
+  const totalPending = (pendingPayments?.length || 0) + pendingDebts.length;
+  const allLoading = isLoading || loadingDebts;
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t('approvals.title')}</h2>
-          <p className="text-muted-foreground">
-            {t('approvals.description')}
-          </p>
+          <p className="text-muted-foreground">{t('approvals.description')}</p>
         </div>
 
-        {isLoading ? (
+        {allLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
-        ) : !pendingPayments || pendingPayments.length === 0 ? (
+        ) : totalPending === 0 ? (
           <Card className="shadow-card">
             <CardContent className="py-12 text-center">
               <ClipboardCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -139,80 +186,155 @@ export default function Approvals() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {pendingPayments.map((payment) => (
-              <Card key={payment.id} className="shadow-card animate-fade-in">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{translatePaidTo(payment.paid_to, t)}</CardTitle>
-                      <CardDescription>{translateReason(payment.reason, t)}</CardDescription>
-                    </div>
-                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                      {t('payments.pending')}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">{t('common.amount')}:</span>{' '}
-                        <span className="font-mono font-medium">
-                          {Number(payment.amount).toLocaleString('fr-FR')} CFA
-                        </span>
+          <div className="space-y-6">
+            {/* Pending Debts */}
+            {pendingDebts.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <ArrowUpCircle className="w-4 h-4 text-warning" />
+                  {t('approvals.pendingDebts')}
+                  <Badge variant="secondary" className="text-xs">{pendingDebts.length}</Badge>
+                </h3>
+                <div className="grid gap-3">
+                  {pendingDebts.map((debt: any) => (
+                    <Card key={debt.id} className="shadow-card animate-fade-in border-warning/20">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">
+                              {t('approvals.debtFor')} {debt.person_name}
+                            </CardTitle>
+                            <CardDescription>
+                              {debt.description?.replace('[WORKER_DEBT]', '').replace('[ADVANCE_DEBT]', '').trim()}
+                            </CardDescription>
+                          </div>
+                          <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                            {t('payments.pending')}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex flex-wrap gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">{t('common.amount')}:</span>{' '}
+                              <span className="font-mono font-medium">
+                                {Number(debt.amount).toLocaleString('fr-FR')} CFA
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">{t('common.date')}:</span>{' '}
+                              <span className="font-mono">{format(new Date(debt.debt_date), 'MMM d, yyyy')}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">{t('approvals.submittedBy')}:</span>{' '}
+                              <span>{debt.creator_name}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRejectDebtClick(debt.id)}
+                              disabled={updateDebtStatus.isPending}
+                              className="gap-2 text-destructive hover:text-destructive"
+                            >
+                              <X className="w-4 h-4" />
+                              {t('approvals.reject')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => updateDebtStatus.mutate({ debtId: debt.id, status: 'approved' })}
+                              disabled={updateDebtStatus.isPending}
+                              className="gap-2 bg-success hover:bg-success/90 text-success-foreground"
+                            >
+                              <Check className="w-4 h-4" />
+                              {t('approvals.approve')}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Payments */}
+            {pendingPayments && pendingPayments.length > 0 && (
+              <div className="grid gap-4">
+                {pendingPayments.map((payment) => (
+                  <Card key={payment.id} className="shadow-card animate-fade-in">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{translatePaidTo(payment.paid_to, t)}</CardTitle>
+                          <CardDescription>{translateReason(payment.reason, t)}</CardDescription>
+                        </div>
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                          {t('payments.pending')}
+                        </Badge>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">{t('common.date')}:</span>{' '}
-                        <span className="font-mono">{format(new Date(payment.payment_date), 'MMM d, yyyy')}</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">{t('common.amount')}:</span>{' '}
+                            <span className="font-mono font-medium">
+                              {Number(payment.amount).toLocaleString('fr-FR')} CFA
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">{t('common.date')}:</span>{' '}
+                            <span className="font-mono">{format(new Date(payment.payment_date), 'MMM d, yyyy')}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">{t('approvals.workshop')}:</span>{' '}
+                            <span>{(payment.workshops as any)?.name}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">{t('approvals.submittedBy')}:</span>{' '}
+                            <span>{payment.creator_name}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRejectClick(payment.id)}
+                            disabled={updateStatus.isPending}
+                            className="gap-2 text-destructive hover:text-destructive"
+                          >
+                            <X className="w-4 h-4" />
+                            {t('approvals.reject')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => updateStatus.mutate({ paymentId: payment.id, status: 'approved' })}
+                            disabled={updateStatus.isPending}
+                            className="gap-2 bg-success hover:bg-success/90 text-success-foreground"
+                          >
+                            <Check className="w-4 h-4" />
+                            {t('approvals.approve')}
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">{t('approvals.workshop')}:</span>{' '}
-                        <span>{(payment.workshops as any)?.name}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">{t('approvals.submittedBy')}:</span>{' '}
-                        <span>{payment.creator_name}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRejectClick(payment.id)}
-                        disabled={updateStatus.isPending}
-                        className="gap-2 text-destructive hover:text-destructive"
-                      >
-                        <X className="w-4 h-4" />
-                        {t('approvals.reject')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => updateStatus.mutate({ paymentId: payment.id, status: 'approved' })}
-                        disabled={updateStatus.isPending}
-                        className="gap-2 bg-success hover:bg-success/90 text-success-foreground"
-                      >
-                        <Check className="w-4 h-4" />
-                        {t('approvals.approve')}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Rejection Dialog */}
+      {/* Payment Rejection Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('approvals.rejectPayment')}</DialogTitle>
-            <DialogDescription>
-              {t('approvals.rejectConfirmation')}
-            </DialogDescription>
+            <DialogDescription>{t('approvals.rejectConfirmation')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -227,20 +349,35 @@ export default function Approvals() {
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setRejectDialogOpen(false)}
-              disabled={updateStatus.isPending}
-            >
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)} disabled={updateStatus.isPending}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmReject} disabled={updateStatus.isPending} className="gap-2">
+              {updateStatus.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t('approvals.confirmReject')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Debt Rejection Dialog */}
+      <Dialog open={rejectDebtDialogOpen} onOpenChange={setRejectDebtDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('approvals.rejectPayment')}</DialogTitle>
+            <DialogDescription>{t('approvals.rejectConfirmation')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDebtDialogOpen(false)} disabled={updateDebtStatus.isPending}>
               {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
-              onClick={handleConfirmReject}
-              disabled={updateStatus.isPending}
+              onClick={() => selectedDebtId && updateDebtStatus.mutate({ debtId: selectedDebtId, status: 'rejected' })}
+              disabled={updateDebtStatus.isPending}
               className="gap-2"
             >
-              {updateStatus.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {updateDebtStatus.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('approvals.confirmReject')}
             </Button>
           </DialogFooter>
