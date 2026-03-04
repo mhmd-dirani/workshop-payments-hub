@@ -144,23 +144,31 @@ export default function ContractorPayments() {
 
   // Fetch all budget purchase sums for display
   const budgetPaymentIds = payments.filter(p => p.payment_type === 'material_budget').map(p => p.id);
-  const { data: allBudgetSums = {} } = useQuery({
+  const { data: budgetSumsData = { allBudgetSums: {}, advanceBudgetSums: {} } } = useQuery({
     queryKey: ['budget-sums', budgetPaymentIds.join(',')],
     queryFn: async () => {
-      if (budgetPaymentIds.length === 0) return {};
+      if (budgetPaymentIds.length === 0) return { allBudgetSums: {}, advanceBudgetSums: {} };
       const { data, error } = await supabase
         .from('contractor_budget_purchases')
-        .select('contractor_payment_id, amount')
+        .select('contractor_payment_id, amount, description')
         .in('contractor_payment_id', budgetPaymentIds);
       if (error) throw error;
-      const map: Record<string, number> = {};
+      const allMap: Record<string, number> = {};
+      const advanceMap: Record<string, number> = {};
       data?.forEach(p => {
-        map[p.contractor_payment_id] = (map[p.contractor_payment_id] || 0) + Number(p.amount);
+        allMap[p.contractor_payment_id] = (allMap[p.contractor_payment_id] || 0) + Number(p.amount);
+        // Purchases from "mark remaining as advance" contain budget remaining text
+        const isAdvancePurchase = (p.description || '').includes(t('contractors.budgetRemaining'));
+        if (isAdvancePurchase) {
+          advanceMap[p.contractor_payment_id] = (advanceMap[p.contractor_payment_id] || 0) + Number(p.amount);
+        }
       });
-      return map;
+      return { allBudgetSums: allMap, advanceBudgetSums: advanceMap };
     },
     enabled: budgetPaymentIds.length > 0,
   });
+  const allBudgetSums = budgetSumsData.allBudgetSums;
+  const advanceBudgetSums = budgetSumsData.advanceBudgetSums;
 
   const uploadReceipt = async (paymentId: string, workshopForPayment: string, workshopName: string, file: File) => {
     const fileExt = file.name.split('.').pop();
@@ -878,17 +886,21 @@ export default function ContractorPayments() {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
             } else if (filterPaymentType === 'advance') {
-              // In advance filter, only the remaining balance counts
+              // In advance filter, remaining balance + advance purchases from budget
               const spent = allBudgetSums[p.id] || 0;
-              return sum + Math.max(0, Number(p.amount) - spent);
+              const advanceFromBudget = advanceBudgetSums[p.id] || 0;
+              return sum + Math.max(0, Number(p.amount) - spent) + advanceFromBudget;
             }
             return sum;
           }
           return sum + Number(p.amount);
         }, 0);
-        // When filtering by product, also add budget purchase totals
+        // When filtering by product, also add budget purchase totals (excluding advance purchases)
         const productBudgetTotal = filterPaymentType === 'product'
-          ? Object.values(allBudgetSums as Record<string, number>).reduce((s, v) => s + v, 0)
+          ? Object.entries(allBudgetSums as Record<string, number>).reduce((s, [id, v]) => {
+              const advanceAmount = (advanceBudgetSums as Record<string, number>)[id] || 0;
+              return s + v - advanceAmount;
+            }, 0)
           : 0;
         const displayTotal = filteredTotal + productBudgetTotal;
         return (
