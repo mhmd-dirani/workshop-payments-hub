@@ -351,6 +351,19 @@ export default function ContractorPayments() {
         created_by: user!.id,
       });
       if (error) throw error;
+
+      // Link the payment to the contractor (so it shows linked in main dashboard)
+      await supabase.from('contractor_payments').insert({
+        contractor_id: budgetPayment.contractor_id,
+        contract_id: budgetPayment.contract_id || null,
+        workshop_id: purchaseWorkshopId,
+        amount: Number(purchaseAmount),
+        payment_type: 'budget_purchase',
+        description: purchaseDesc,
+        payment_date: purchaseDate,
+        payment_id: paymentRecord.id,
+        created_by: user!.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
