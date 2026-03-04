@@ -456,7 +456,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         
         const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         
-        const categoryLabel = t('workers.categories.travailleur');
+        const categoryLabel = 'Travailleur';
 
         const { data: payment, error: paymentError } = await supabase
           .from('payments')
