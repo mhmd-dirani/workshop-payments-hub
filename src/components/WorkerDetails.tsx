@@ -104,7 +104,7 @@ function groupByWorkWeek(entries: any[]): Record<string, any[]> {
 
 export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
