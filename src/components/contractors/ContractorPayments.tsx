@@ -840,6 +840,8 @@ export default function ContractorPayments() {
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
       ) : (() => {
         const filteredPayments = payments.filter(p => {
+          // Hide budget_purchase entries - they are shown under their parent budget
+          if (p.payment_type === 'budget_purchase') return false;
           if (filterPaymentType !== 'all') {
             if (filterPaymentType === 'advance') {
               // Show advance payments + material_budgets (remaining counts as advance)
