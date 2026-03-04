@@ -902,6 +902,11 @@ export default function ContractorPayments() {
         const filteredPayments = payments.filter(p => {
           // Hide budget_purchase entries - they are shown under their parent budget
           if (p.payment_type === 'budget_purchase') return false;
+          // When filtering by workshop, only show material_budgets that have purchases in that workshop
+          if (p.payment_type === 'material_budget' && filterWorkshop !== 'all') {
+            const wsIds = budgetWorkshops[p.id] || [];
+            if (!wsIds.includes(filterWorkshop)) return false;
+          }
           if (filterPaymentType !== 'all') {
             if (filterPaymentType === 'advance') {
               // Show advance payments + material_budgets (remaining counts as advance)
