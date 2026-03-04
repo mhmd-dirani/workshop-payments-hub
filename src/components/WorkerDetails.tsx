@@ -117,7 +117,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState<string>('');
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
-  const [advanceCreateDebt, setAdvanceCreateDebt] = useState(false);
+  const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
+  const [workerDebtAmount, setWorkerDebtAmount] = useState('');
+  const [workerDebtDescription, setWorkerDebtDescription] = useState('');
+  const [workerDebtRepayId, setWorkerDebtRepayId] = useState<string | null>(null);
+  const [workerDebtRepayAmount, setWorkerDebtRepayAmount] = useState('');
+  const [workerDebtRepayWorkshopId, setWorkerDebtRepayWorkshopId] = useState('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
@@ -639,33 +644,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         throw err;
       }
 
-      // Create debt record if requested
-      if (advanceCreateDebt) {
-        const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
-        const excessAmount = Math.max(0, amount - workshopOwed);
-        if (excessAmount > 0) {
-          const { error: debtError } = await supabase.from('debts').insert({
-            person_name: worker.name,
-            amount: excessAmount,
-            debt_type: 'they_owe',
-            debt_date: format(new Date(), 'yyyy-MM-dd'),
-            description: `Advance debt for worker - Advance payment (${amount.toLocaleString('fr-FR')} CFA) [ADVANCE_DEBT]`,
-            created_by: user?.id,
-          });
-          if (debtError) throw debtError;
-        }
-      }
-
       return payment;
     },
     onSuccess: () => {
       invalidateAll();
-      queryClient.invalidateQueries({ queryKey: ['debts'] });
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setAdvanceAmount('');
       setAdvanceWorkshopId('');
-      setAdvanceCreateDebt(false);
       toast({ title: t('workers.advancePaymentCreated'), description: t('workers.advancePaymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -818,6 +804,131 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     setAdvanceWorkshopId(firstWorkshopId);
     setIsPayChoiceOpen(true);
   };
+
+  // Worker debts - separate from main debts page
+  const WORKER_DEBT_TAG = '[WORKER_DEBT]';
+  
+  const { data: workerDebts = [] } = useQuery({
+    queryKey: ['worker-debts', worker.name],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('person_name', worker.name)
+        .eq('debt_type', 'they_owe')
+        .ilike('description', `%${WORKER_DEBT_TAG}%`)
+        .eq('is_settled', false)
+        .order('debt_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: workerDebtPayments = [] } = useQuery({
+    queryKey: ['worker-debt-payments', workerDebts.map(d => d.id)],
+    queryFn: async () => {
+      if (workerDebts.length === 0) return [];
+      const { data, error } = await supabase
+        .from('debt_payments')
+        .select('*')
+        .in('debt_id', workerDebts.map(d => d.id))
+        .order('payment_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: workerDebts.length > 0,
+  });
+
+  const addWorkerDebt = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(workerDebtAmount);
+      if (!amount || amount <= 0) throw new Error('Invalid amount');
+      const { error } = await supabase.from('debts').insert({
+        person_name: worker.name,
+        amount,
+        debt_type: 'they_owe',
+        debt_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
+        created_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      setIsWorkerDebtFormOpen(false);
+      setWorkerDebtAmount('');
+      setWorkerDebtDescription('');
+      toast({ title: t('workers.debtAdded'), description: t('workers.debtAddedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const repayWorkerDebt = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(workerDebtRepayAmount);
+      if (!amount || amount <= 0 || !workerDebtRepayId || !workerDebtRepayWorkshopId) throw new Error('Invalid data');
+
+      // 1. Record debt payment
+      const { error: dpError } = await supabase.from('debt_payments').insert({
+        debt_id: workerDebtRepayId,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `Debt repayment deducted from salary`,
+        created_by: user?.id,
+      });
+      if (dpError) throw dpError;
+
+      // 2. Create a discount adjustment to reduce the worker's salary
+      const { error: adjError } = await supabase.from('worker_adjustments').insert({
+        worker_id: worker.id,
+        workshop_id: workerDebtRepayWorkshopId,
+        work_date: format(new Date(), 'yyyy-MM-dd'),
+        adjustment_type: 'discount',
+        amount,
+        reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
+        is_paid: false,
+        created_by: user?.id,
+      });
+      if (adjError) throw adjError;
+
+      // 3. Create a payment record for the dashboard
+      const { error: payError } = await supabase.from('payments').insert({
+        workshop_id: workerDebtRepayWorkshopId,
+        paid_to: 'Travailleur',
+        reason: `${worker.name} - Debt repayment (${amount.toLocaleString('fr-FR')} CFA)`,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        created_by: user?.id,
+        status: 'pending',
+      });
+      if (payError) throw payError;
+
+      // 4. Check if debt is fully paid and settle it
+      const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+      if (debt) {
+        const existingPayments = workerDebtPayments
+          .filter(p => p.debt_id === workerDebtRepayId)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        if (existingPayments + amount >= Number(debt.amount)) {
+          await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
+      setWorkerDebtRepayId(null);
+      setWorkerDebtRepayAmount('');
+      setWorkerDebtRepayWorkshopId('');
+      toast({ title: t('workers.debtRepaymentCreated'), description: t('workers.debtRepaymentCreatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -1413,6 +1524,206 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </TabsContent>
       </Tabs>
 
+      {/* Worker Debts Section */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-2 px-3 pt-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ArrowUpCircle className="w-4 h-4 text-destructive" />
+              {t('workers.workerDebts')}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1"
+              onClick={() => setIsWorkerDebtFormOpen(true)}
+            >
+              <DollarSign className="w-3 h-3" />
+              {t('workers.addDebt')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          {workerDebts.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4 text-xs">
+              {t('workers.noWorkerDebts')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {workerDebts.map(debt => {
+                const paid = workerDebtPayments
+                  .filter(p => p.debt_id === debt.id)
+                  .reduce((s, p) => s + Number(p.amount), 0);
+                const remaining = Math.max(0, Number(debt.amount) - paid);
+                const debtPaymentsForThis = workerDebtPayments.filter(p => p.debt_id === debt.id);
+                return (
+                  <div key={debt.id} className="border rounded-lg p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium">
+                          {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {format(new Date(debt.debt_date), 'dd/MM/yyyy')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-mono font-bold text-destructive">
+                          {remaining.toLocaleString('fr-FR')} CFA
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {t('common.of')} {Number(debt.amount).toLocaleString('fr-FR')}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Repayment history */}
+                    {debtPaymentsForThis.length > 0 && (
+                      <div className="space-y-1 border-t pt-1">
+                        {debtPaymentsForThis.map(dp => (
+                          <div key={dp.id} className="flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground font-mono">
+                              {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
+                            </span>
+                            <span className="text-success font-mono">
+                              -{Number(dp.amount).toLocaleString('fr-FR')} CFA
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Repay button */}
+                    {remaining > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-7 text-xs gap-1"
+                        onClick={() => {
+                          setWorkerDebtRepayId(debt.id);
+                          setWorkerDebtRepayAmount('');
+                          const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                          setWorkerDebtRepayWorkshopId(firstWs);
+                        }}
+                      >
+                        <DollarSign className="w-3 h-3" />
+                        {t('workers.repayDebt')}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Worker Debt Dialog */}
+      <Dialog open={isWorkerDebtFormOpen} onOpenChange={setIsWorkerDebtFormOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.addDebt')}</DialogTitle>
+            <DialogDescription>{t('workers.addDebtDesc', { name: worker.name })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={workerDebtAmount}
+                onChange={(e) => setWorkerDebtAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.description')} ({t('common.optional')})</Label>
+              <Input
+                value={workerDebtDescription}
+                onChange={(e) => setWorkerDebtDescription(e.target.value)}
+                placeholder={t('workers.debtDescPlaceholder')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsWorkerDebtFormOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => addWorkerDebt.mutate()}
+              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0}
+            >
+              {addWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Repay Worker Debt Dialog */}
+      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => !open && setWorkerDebtRepayId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.repayDebt')}</DialogTitle>
+            <DialogDescription>{t('workers.repayDebtDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {workerDebtRepayId && (() => {
+              const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+              const paid = workerDebtPayments
+                .filter(p => p.debt_id === workerDebtRepayId)
+                .reduce((s, p) => s + Number(p.amount), 0);
+              const remaining = debt ? Math.max(0, Number(debt.amount) - paid) : 0;
+              return (
+                <div className="text-xs p-2 rounded-lg bg-muted space-y-1">
+                  <div className="flex justify-between">
+                    <span>{t('debts.remaining')}:</span>
+                    <span className="font-mono font-bold text-destructive">{remaining.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={workerDebtRepayAmount}
+                onChange={(e) => setWorkerDebtRepayAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('workers.selectWorkshop')}</Label>
+              <Select value={workerDebtRepayWorkshopId} onValueChange={setWorkerDebtRepayWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshops.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {t('workers.repayDebtNote')}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkerDebtRepayId(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => repayWorkerDebt.mutate()}
+              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              {repayWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('workers.confirmRepayment')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Pay Choice Dialog */}
       <Dialog open={isPayChoiceOpen} onOpenChange={(open) => { setIsPayChoiceOpen(open); if (!open) setPayMode(null); }}>
         <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
@@ -1673,30 +1984,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           {newBalance.toLocaleString('fr-FR')} CFA
                         </span>
                       </div>
-                    </div>
-                  );
-                })()}
-                {/* Debt tracking option */}
-                {advanceWorkshopId && (() => {
-                  const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
-                  const advAmt = parseFloat(advanceAmount) || 0;
-                  const excess = advAmt - workshopOwed;
-                  if (excess <= 0) return null;
-                  return (
-                    <div className="flex items-start gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20">
-                      <input
-                        type="checkbox"
-                        id="advance-debt"
-                        checked={advanceCreateDebt}
-                        onChange={(e) => setAdvanceCreateDebt(e.target.checked)}
-                        className="mt-0.5 rounded border-warning"
-                      />
-                      <label htmlFor="advance-debt" className="text-xs cursor-pointer">
-                        <span className="font-medium">{t('workers.trackAsDebt')}</span>
-                        <p className="text-muted-foreground mt-0.5">
-                          {t('workers.trackAsDebtDesc', { amount: excess.toLocaleString('fr-FR') })}
-                        </p>
-                      </label>
                     </div>
                   );
                 })()}

@@ -490,7 +490,21 @@
     "trackAsDebtDesc": "L'excédent de {{amount}} CFA sera enregistré comme dette sur ce travailleur. Vous pouvez suivre les remboursements manuellement.",
     "advanceDebtReason": "Dette d'avance pour travailleur",
     "creditLabel": "crédit",
-    "appliedToBalance": "appliqué au solde"
+    "appliedToBalance": "appliqué au solde",
+    "workerDebts": "Dettes du travailleur",
+    "workerDebt": "Dette",
+    "noWorkerDebts": "Aucune dette active pour ce travailleur",
+    "addDebt": "Ajouter dette",
+    "addDebtDesc": "Ajouter une dette sur {{name}} remboursable progressivement",
+    "debtDescPlaceholder": "ex: Avance de 50 000 CFA",
+    "debtAdded": "Dette ajoutée",
+    "debtAddedDesc": "La dette a été enregistrée sur le travailleur",
+    "repayDebt": "Rembourser dette",
+    "repayDebtDesc": "Déduire un montant de cette dette. Cela réduira le salaire du travailleur et apparaîtra dans les paiements.",
+    "repayDebtNote": "Ce montant sera déduit du salaire du travailleur et enregistré comme paiement dans le tableau de bord.",
+    "confirmRepayment": "Confirmer remboursement",
+    "debtRepaymentCreated": "Remboursement enregistré",
+    "debtRepaymentCreatedDesc": "Le montant a été déduit du salaire et enregistré comme paiement"
   },
   "personalPayments": {
     "title": "Paiements personnels",

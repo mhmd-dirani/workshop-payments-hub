@@ -34,7 +34,7 @@ export default function Debts() {
       // Fetch all debts
       const { data: debts, error: debtsError } = await supabase
         .from('debts')
-        .select('id, amount, debt_type, is_settled');
+        .select('id, amount, debt_type, is_settled, description');
       
       if (debtsError) throw debtsError;
 
@@ -57,7 +57,7 @@ export default function Debts() {
       let theyOweTotal = 0;
       let theyOweRemaining = 0;
 
-      debts?.forEach(debt => {
+      debts?.filter(debt => !debt.description?.includes('[WORKER_DEBT]')).forEach(debt => {
         const paid = paymentsByDebt[debt.id] || 0;
         const remaining = Number(debt.amount) - paid;
 
