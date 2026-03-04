@@ -64,10 +64,11 @@ export default function Approvals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('debts')
-        .select('*')
-        .eq('status' as any, 'pending')
-        .order('created_at', { ascending: false });
+        .select('*');
       if (error) throw error;
+      
+      // Filter pending on client side since status column is new
+      const pendingData = (data || []).filter((d: any) => d.status === 'pending');
       
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -75,7 +76,7 @@ export default function Approvals() {
       
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
       
-      return (data || []).map((debt: any) => ({
+      return pendingData.map((debt: any) => ({
         ...debt,
         creator_name: profileMap.get(debt.created_by) || 'Unknown'
       }));
