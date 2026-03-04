@@ -1706,7 +1706,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             </Button>
             <Button
               onClick={() => repayWorkerDebt.mutate()}
-              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId}
+              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId || (() => {
+                const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+                const paid = workerDebtPayments
+                  .filter(p => p.debt_id === workerDebtRepayId)
+                  .reduce((s, p) => s + Number(p.amount), 0);
+                const remaining = debt ? Math.max(0, Number(debt.amount) - paid) : 0;
+                return parseFloat(workerDebtRepayAmount) > remaining;
+              })()}
               className="bg-success text-success-foreground hover:bg-success/90"
             >
               {repayWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
