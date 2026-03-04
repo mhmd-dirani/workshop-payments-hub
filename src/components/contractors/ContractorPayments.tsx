@@ -363,7 +363,7 @@ export default function ContractorPayments() {
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.product')}${purchaseDescription ? ': ' + purchaseDescription : ''}`;
+      const reason = `[Contractor] ${contractorName} - Product/Material${purchaseDescription ? ': ' + purchaseDescription : ''}`;
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
