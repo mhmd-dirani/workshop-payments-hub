@@ -286,11 +286,24 @@ export default function ContractorPayments() {
         });
         if (error) throw error;
 
-        // Remove duplicate contractor_payments record if it exists (prevents double-counting)
+        // Remove standalone contractor_payments record if it exists, replace with budget_purchase link
         await supabase
           .from('contractor_payments')
           .delete()
           .eq('payment_id', existingPayment.id);
+
+        // Create a budget_purchase link so the payment stays linked to the contractor
+        await supabase.from('contractor_payments').insert({
+          contractor_id: budgetPayment.contractor_id,
+          contract_id: budgetPayment.contract_id || null,
+          workshop_id: existingPayment.workshop_id,
+          amount: Number(existingPayment.amount),
+          payment_type: 'budget_purchase',
+          description: `[${workshopName}] ${existingPayment.paid_to} - ${existingPayment.reason}`,
+          payment_date: existingPayment.payment_date,
+          payment_id: existingPayment.id,
+          created_by: user!.id,
+        });
 
         return;
       }
@@ -351,6 +364,19 @@ export default function ContractorPayments() {
         created_by: user!.id,
       });
       if (error) throw error;
+
+      // Link the payment to the contractor (so it shows linked in main dashboard)
+      await supabase.from('contractor_payments').insert({
+        contractor_id: budgetPayment.contractor_id,
+        contract_id: budgetPayment.contract_id || null,
+        workshop_id: purchaseWorkshopId,
+        amount: Number(purchaseAmount),
+        payment_type: 'budget_purchase',
+        description: purchaseDesc,
+        payment_date: purchaseDate,
+        payment_id: paymentRecord.id,
+        created_by: user!.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
@@ -451,6 +477,19 @@ export default function ContractorPayments() {
         created_by: user!.id,
       });
       if (error) throw error;
+
+      // Link the payment to the contractor (so it shows linked in main dashboard)
+      await supabase.from('contractor_payments').insert({
+        contractor_id: budgetPayment.contractor_id,
+        contract_id: budgetPayment.contract_id || null,
+        workshop_id: advanceWorkshopId,
+        amount: remaining,
+        payment_type: 'budget_purchase',
+        description: `[${workshopName}] ${t('contractors.budgetRemaining')}`,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        payment_id: paymentRecord.id,
+        created_by: user!.id,
+      });
       
       // Do NOT change the material budget amount - the advance is part of it
     },
@@ -814,6 +853,8 @@ export default function ContractorPayments() {
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
       ) : (() => {
         const filteredPayments = payments.filter(p => {
+          // Hide budget_purchase entries - they are shown under their parent budget
+          if (p.payment_type === 'budget_purchase') return false;
           if (filterPaymentType !== 'all') {
             if (filterPaymentType === 'advance') {
               // Show advance payments + material_budgets (remaining counts as advance)
