@@ -376,12 +376,12 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="font-medium text-sm truncate">{payment.paid_to}</p>
+                    <p className="font-medium text-sm truncate">{translatePaidTo(payment.paid_to, t)}</p>
                       {payment.files?.length > 0 && (
                         <Paperclip className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{payment.reason}</p>
+                    <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{translateReason(payment.reason, t)}</p>
                   </div>
                   <div className="text-right ml-2 flex-shrink-0">
                     <p className="font-mono font-bold text-sm text-destructive">
