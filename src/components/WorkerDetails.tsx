@@ -553,8 +553,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
-      const categoryLabel = t('workers.categories.travailleur');
+      const reason = `${worker.name} - Partial salary payment (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = 'Travailleur';
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
