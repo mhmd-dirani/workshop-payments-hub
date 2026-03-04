@@ -882,9 +882,14 @@ export default function ContractorPayments() {
         });
         const filteredTotal = filteredPayments.reduce((sum, p) => {
           if (p.payment_type === 'material_budget') {
-            if (filterPaymentType === 'all' || filterPaymentType === 'material_budget') {
+            if (filterPaymentType === 'all') {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
+            } else if (filterPaymentType === 'material_budget') {
+              // When filtering by material_budget, only show actual product purchases (not advance, not remaining)
+              const spent = allBudgetSums[p.id] || 0;
+              const advanceFromBudget = advanceBudgetSums[p.id] || 0;
+              return sum + Math.max(0, spent - advanceFromBudget);
             } else if (filterPaymentType === 'advance') {
               // In advance filter, remaining balance + advance purchases from budget
               const spent = allBudgetSums[p.id] || 0;
