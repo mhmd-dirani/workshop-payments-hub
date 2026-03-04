@@ -886,17 +886,21 @@ export default function ContractorPayments() {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
             } else if (filterPaymentType === 'advance') {
-              // In advance filter, only the remaining balance counts
+              // In advance filter, remaining balance + advance purchases from budget
               const spent = allBudgetSums[p.id] || 0;
-              return sum + Math.max(0, Number(p.amount) - spent);
+              const advanceFromBudget = advanceBudgetSums[p.id] || 0;
+              return sum + Math.max(0, Number(p.amount) - spent) + advanceFromBudget;
             }
             return sum;
           }
           return sum + Number(p.amount);
         }, 0);
-        // When filtering by product, also add budget purchase totals
+        // When filtering by product, also add budget purchase totals (excluding advance purchases)
         const productBudgetTotal = filterPaymentType === 'product'
-          ? Object.values(allBudgetSums as Record<string, number>).reduce((s, v) => s + v, 0)
+          ? Object.entries(allBudgetSums as Record<string, number>).reduce((s, [id, v]) => {
+              const advanceAmount = (advanceBudgetSums as Record<string, number>)[id] || 0;
+              return s + v - advanceAmount;
+            }, 0)
           : 0;
         const displayTotal = filteredTotal + productBudgetTotal;
         return (
