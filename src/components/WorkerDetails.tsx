@@ -104,7 +104,7 @@ function groupByWorkWeek(entries: any[]): Record<string, any[]> {
 
 export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -820,7 +820,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('is_settled', false)
         .order('debt_date', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as (typeof data extends (infer T)[] ? T & { status?: string } : never)[];
     },
   });
 
@@ -850,7 +850,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         debt_date: format(new Date(), 'yyyy-MM-dd'),
         description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
         created_by: user?.id,
-      });
+        status: role === 'admin' ? 'approved' : 'pending',
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1557,12 +1558,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 const remaining = Math.max(0, Number(debt.amount) - paid);
                 const debtPaymentsForThis = workerDebtPayments.filter(p => p.debt_id === debt.id);
                 return (
-                  <div key={debt.id} className="border rounded-lg p-2 space-y-2">
+                  <div key={debt.id} className={cn("border rounded-lg p-2 space-y-2", (debt as any).status === 'pending' && "border-warning/40 bg-warning/5")}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium">
-                          {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-medium">
+                            {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')}
+                          </p>
+                          {(debt as any).status === 'pending' && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 bg-warning/10 text-warning border-warning/20">
+                              {t('payments.pending')}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-[10px] text-muted-foreground font-mono">
                           {format(new Date(debt.debt_date), 'dd/MM/yyyy')}
                         </p>
@@ -1591,8 +1599,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         ))}
                       </div>
                     )}
-                    {/* Repay button */}
-                    {remaining > 0 && (
+                    {/* Repay button - only for approved debts */}
+                    {remaining > 0 && (debt as any).status === 'approved' && (
                       <Button
                         size="sm"
                         variant="outline"

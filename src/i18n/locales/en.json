@@ -182,7 +182,13 @@
     "rejectPayment": "Reject Payment",
     "rejectConfirmation": "Are you sure you want to reject this payment? You can optionally provide a reason.",
     "workshop": "Workshop",
-    "submittedBy": "Submitted by"
+    "submittedBy": "Submitted by",
+    "debtApproved": "Debt Approved",
+    "debtRejected": "Debt Rejected",
+    "debtHasBeenApproved": "The debt has been approved",
+    "debtHasBeenRejected": "The debt has been rejected",
+    "pendingDebts": "Pending Debts",
+    "debtFor": "Debt for"
   },
   "rejectedPayments": {
     "title": "Rejected Payments",
@@ -498,8 +504,8 @@
     "addDebt": "Add Debt",
     "addDebtDesc": "Add a debt on {{name}} that can be repaid over time",
     "debtDescPlaceholder": "e.g., Advance of 50,000 CFA",
-    "debtAdded": "Debt added",
-    "debtAddedDesc": "The debt has been recorded on the worker",
+    "debtAdded": "Debt submitted",
+    "debtAddedDesc": "The debt is pending admin approval",
     "repayDebt": "Repay Debt",
     "repayDebtDesc": "Deduct an amount from this debt. This will reduce the worker's salary and appear in payments.",
     "repayDebtNote": "This amount will be deducted from the worker's salary and recorded as a payment in the dashboard.",

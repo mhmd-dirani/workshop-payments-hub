@@ -56,7 +56,8 @@ export default function DebtTable({ debtType, onAddPayment, onEdit, onAddDebtFor
   // Group debts by person name
   const groupedDebts = new Map<string, any[]>();
   debts?.forEach(debt => {
-    if (!debt.is_settled && !debt.description?.includes('[WORKER_DEBT]')) {
+    const debtAny = debt as any;
+    if (!debt.is_settled && !debt.description?.includes('[WORKER_DEBT]') && debtAny.status !== 'pending') {
       const existing = groupedDebts.get(debt.person_name) || [];
       existing.push(debt);
       groupedDebts.set(debt.person_name, existing);

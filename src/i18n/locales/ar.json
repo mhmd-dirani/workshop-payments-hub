@@ -181,7 +181,13 @@
     "rejectPayment": "رفض الدفعة",
     "rejectConfirmation": "هل أنت متأكد من رفض هذه الدفعة؟",
     "workshop": "الورشة",
-    "submittedBy": "مقدم من"
+    "submittedBy": "مقدم من",
+    "debtApproved": "تمت الموافقة على الدين",
+    "debtRejected": "تم رفض الدين",
+    "debtHasBeenApproved": "تمت الموافقة على الدين",
+    "debtHasBeenRejected": "تم رفض الدين",
+    "pendingDebts": "ديون في الانتظار",
+    "debtFor": "دين لـ"
   },
   "rejectedPayments": {
     "title": "المدفوعات المرفوضة",
@@ -497,8 +503,8 @@
     "addDebt": "إضافة دين",
     "addDebtDesc": "إضافة دين على {{name}} يمكن سداده تدريجياً",
     "debtDescPlaceholder": "مثال: سلفة 50,000 CFA",
-    "debtAdded": "تمت إضافة الدين",
-    "debtAddedDesc": "تم تسجيل الدين على العامل",
+    "debtAdded": "تم تقديم الدين",
+    "debtAddedDesc": "الدين في انتظار موافقة المسؤول",
     "repayDebt": "سداد الدين",
     "repayDebtDesc": "خصم مبلغ من هذا الدين. سيتم تقليل راتب العامل وسيظهر في المدفوعات.",
     "repayDebtNote": "سيتم خصم هذا المبلغ من راتب العامل وتسجيله كدفعة في لوحة التحكم.",
