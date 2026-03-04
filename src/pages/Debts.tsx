@@ -34,7 +34,7 @@ export default function Debts() {
       // Fetch all debts
       const { data: debts, error: debtsError } = await supabase
         .from('debts')
-        .select('id, amount, debt_type, is_settled');
+        .select('id, amount, debt_type, is_settled, description');
       
       if (debtsError) throw debtsError;
 
