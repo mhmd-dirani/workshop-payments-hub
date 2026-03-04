@@ -286,11 +286,24 @@ export default function ContractorPayments() {
         });
         if (error) throw error;
 
-        // Remove duplicate contractor_payments record if it exists (prevents double-counting)
+        // Remove standalone contractor_payments record if it exists, replace with budget_purchase link
         await supabase
           .from('contractor_payments')
           .delete()
           .eq('payment_id', existingPayment.id);
+
+        // Create a budget_purchase link so the payment stays linked to the contractor
+        await supabase.from('contractor_payments').insert({
+          contractor_id: budgetPayment.contractor_id,
+          contract_id: budgetPayment.contract_id || null,
+          workshop_id: existingPayment.workshop_id,
+          amount: Number(existingPayment.amount),
+          payment_type: 'budget_purchase',
+          description: `[${workshopName}] ${existingPayment.paid_to} - ${existingPayment.reason}`,
+          payment_date: existingPayment.payment_date,
+          payment_id: existingPayment.id,
+          created_by: user!.id,
+        });
 
         return;
       }
