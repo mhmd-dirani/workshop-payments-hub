@@ -529,10 +529,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     // We do NOT modify attendance rows for partial/advance payments.
     // Instead, we create an "unpaid" discount adjustment that represents a credit already given.
     // This reduces the owed balance (and can make it negative).
-    const reason = `${t('workers.paymentCreditReason', {
-      mode: t(mode === 'partial' ? 'workers.payPartial' : 'workers.payAdvance'),
-      amount: amount.toLocaleString('fr-FR'),
-    })} ${PAYMENT_CREDIT_TAG}`;
+    const modeLabel = mode === 'partial' ? 'Partial Pay' : 'Advance Payment';
+    const reason = `${modeLabel} credit: ${amount.toLocaleString('fr-FR')} CFA applied to balance. ${PAYMENT_CREDIT_TAG}`;
 
     const { error } = await supabase.from('worker_adjustments').insert({
       worker_id: worker.id,
