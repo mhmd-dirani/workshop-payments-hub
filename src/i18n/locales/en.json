@@ -182,7 +182,13 @@
     "rejectPayment": "Reject Payment",
     "rejectConfirmation": "Are you sure you want to reject this payment? You can optionally provide a reason.",
     "workshop": "Workshop",
-    "submittedBy": "Submitted by"
+    "submittedBy": "Submitted by",
+    "debtApproved": "Debt Approved",
+    "debtRejected": "Debt Rejected",
+    "debtHasBeenApproved": "The debt has been approved",
+    "debtHasBeenRejected": "The debt has been rejected",
+    "pendingDebts": "Pending Debts",
+    "debtFor": "Debt for"
   },
   "rejectedPayments": {
     "title": "Rejected Payments",

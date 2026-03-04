@@ -1599,8 +1599,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         ))}
                       </div>
                     )}
-                    {/* Repay button */}
-                    {remaining > 0 && (
+                    {/* Repay button - only for approved debts */}
+                    {remaining > 0 && (debt as any).status === 'approved' && (
                       <Button
                         size="sm"
                         variant="outline"
