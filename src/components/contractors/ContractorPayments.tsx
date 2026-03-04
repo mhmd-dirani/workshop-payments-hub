@@ -424,7 +424,8 @@ export default function ContractorPayments() {
       const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.advance')} (${t('contractors.budgetRemaining')})`;
 
       if (!advanceWorkshopId) throw new Error('No workshop selected');
-      // Create main payment for the remaining as advance
+      
+      // Create main dashboard payment for the advance
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
@@ -440,24 +441,18 @@ export default function ContractorPayments() {
         .single();
       if (paymentError) throw paymentError;
 
-      // Create contractor advance payment record
-      const { error } = await supabase.from('contractor_payments').insert({
-        contractor_id: budgetPayment.contractor_id,
-        contract_id: budgetPayment.contract_id || null,
-        workshop_id: advanceWorkshopId,
+      // Add as a purchase within the budget (NOT a separate contractor_payment)
+      const workshopName = workshops.find(w => w.id === advanceWorkshopId)?.name || '';
+      const { error } = await supabase.from('contractor_budget_purchases').insert({
+        contractor_payment_id: budgetPayment.id,
         amount: remaining,
-        payment_type: 'advance',
-        description: `${t('contractors.budgetRemaining')}: ${Number(budgetPayment.amount).toLocaleString('fr-FR')} - ${spent.toLocaleString('fr-FR')} = ${remaining.toLocaleString('fr-FR')} CFA`,
-        payment_date: format(new Date(), 'yyyy-MM-dd'),
-        payment_id: paymentRecord.id,
+        purchase_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `[${workshopName}] ${t('contractors.budgetRemaining')}: ${remaining.toLocaleString('fr-FR')} CFA`,
         created_by: user!.id,
       });
       if (error) throw error;
-
-      // Update budget amount to match spent (so remaining becomes 0)
-      await supabase.from('contractor_payments')
-        .update({ amount: spent })
-        .eq('id', budgetPayment.id);
+      
+      // Do NOT change the material budget amount - the advance is part of it
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
