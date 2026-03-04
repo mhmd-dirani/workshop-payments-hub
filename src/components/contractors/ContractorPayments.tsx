@@ -464,6 +464,19 @@ export default function ContractorPayments() {
         created_by: user!.id,
       });
       if (error) throw error;
+
+      // Link the payment to the contractor (so it shows linked in main dashboard)
+      await supabase.from('contractor_payments').insert({
+        contractor_id: budgetPayment.contractor_id,
+        contract_id: budgetPayment.contract_id || null,
+        workshop_id: advanceWorkshopId,
+        amount: remaining,
+        payment_type: 'budget_purchase',
+        description: `[${workshopName}] ${t('contractors.budgetRemaining')}`,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        payment_id: paymentRecord.id,
+        created_by: user!.id,
+      });
       
       // Do NOT change the material budget amount - the advance is part of it
     },
