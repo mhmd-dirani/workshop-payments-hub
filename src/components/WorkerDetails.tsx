@@ -850,7 +850,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         debt_date: format(new Date(), 'yyyy-MM-dd'),
         description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
         created_by: user?.id,
-      });
+        status: 'pending',
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
