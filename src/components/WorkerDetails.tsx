@@ -644,23 +644,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         throw err;
       }
 
-      // Create debt record if requested
-      if (advanceCreateDebt) {
-        const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
-        const excessAmount = Math.max(0, amount - workshopOwed);
-        if (excessAmount > 0) {
-          const { error: debtError } = await supabase.from('debts').insert({
-            person_name: worker.name,
-            amount: excessAmount,
-            debt_type: 'they_owe',
-            debt_date: format(new Date(), 'yyyy-MM-dd'),
-            description: `Advance debt for worker - Advance payment (${amount.toLocaleString('fr-FR')} CFA) [ADVANCE_DEBT]`,
-            created_by: user?.id,
-          });
-          if (debtError) throw debtError;
-        }
-      }
-
       return payment;
     },
     onSuccess: () => {
