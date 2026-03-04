@@ -122,7 +122,8 @@ export default function DebtForm({
             debt_type: data.debt_type,
             description: data.description || null,
             created_by: user?.id,
-          }]);
+            status: 'approved',
+          } as any]);
         if (error) throw error;
       }
     },
