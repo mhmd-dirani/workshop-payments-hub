@@ -1524,6 +1524,206 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </TabsContent>
       </Tabs>
 
+      {/* Worker Debts Section */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-2 px-3 pt-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ArrowUpCircle className="w-4 h-4 text-destructive" />
+              {t('workers.workerDebts')}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1"
+              onClick={() => setIsWorkerDebtFormOpen(true)}
+            >
+              <DollarSign className="w-3 h-3" />
+              {t('workers.addDebt')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          {workerDebts.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4 text-xs">
+              {t('workers.noWorkerDebts')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {workerDebts.map(debt => {
+                const paid = workerDebtPayments
+                  .filter(p => p.debt_id === debt.id)
+                  .reduce((s, p) => s + Number(p.amount), 0);
+                const remaining = Math.max(0, Number(debt.amount) - paid);
+                const debtPaymentsForThis = workerDebtPayments.filter(p => p.debt_id === debt.id);
+                return (
+                  <div key={debt.id} className="border rounded-lg p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium">
+                          {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {format(new Date(debt.debt_date), 'dd/MM/yyyy')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-mono font-bold text-destructive">
+                          {remaining.toLocaleString('fr-FR')} CFA
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {t('common.of')} {Number(debt.amount).toLocaleString('fr-FR')}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Repayment history */}
+                    {debtPaymentsForThis.length > 0 && (
+                      <div className="space-y-1 border-t pt-1">
+                        {debtPaymentsForThis.map(dp => (
+                          <div key={dp.id} className="flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground font-mono">
+                              {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
+                            </span>
+                            <span className="text-success font-mono">
+                              -{Number(dp.amount).toLocaleString('fr-FR')} CFA
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Repay button */}
+                    {remaining > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-7 text-xs gap-1"
+                        onClick={() => {
+                          setWorkerDebtRepayId(debt.id);
+                          setWorkerDebtRepayAmount('');
+                          const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                          setWorkerDebtRepayWorkshopId(firstWs);
+                        }}
+                      >
+                        <DollarSign className="w-3 h-3" />
+                        {t('workers.repayDebt')}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Worker Debt Dialog */}
+      <Dialog open={isWorkerDebtFormOpen} onOpenChange={setIsWorkerDebtFormOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.addDebt')}</DialogTitle>
+            <DialogDescription>{t('workers.addDebtDesc', { name: worker.name })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={workerDebtAmount}
+                onChange={(e) => setWorkerDebtAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.description')} ({t('common.optional')})</Label>
+              <Input
+                value={workerDebtDescription}
+                onChange={(e) => setWorkerDebtDescription(e.target.value)}
+                placeholder={t('workers.debtDescPlaceholder')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsWorkerDebtFormOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => addWorkerDebt.mutate()}
+              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0}
+            >
+              {addWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Repay Worker Debt Dialog */}
+      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => !open && setWorkerDebtRepayId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.repayDebt')}</DialogTitle>
+            <DialogDescription>{t('workers.repayDebtDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {workerDebtRepayId && (() => {
+              const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+              const paid = workerDebtPayments
+                .filter(p => p.debt_id === workerDebtRepayId)
+                .reduce((s, p) => s + Number(p.amount), 0);
+              const remaining = debt ? Math.max(0, Number(debt.amount) - paid) : 0;
+              return (
+                <div className="text-xs p-2 rounded-lg bg-muted space-y-1">
+                  <div className="flex justify-between">
+                    <span>{t('debts.remaining')}:</span>
+                    <span className="font-mono font-bold text-destructive">{remaining.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={workerDebtRepayAmount}
+                onChange={(e) => setWorkerDebtRepayAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('workers.selectWorkshop')}</Label>
+              <Select value={workerDebtRepayWorkshopId} onValueChange={setWorkerDebtRepayWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshops.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {t('workers.repayDebtNote')}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkerDebtRepayId(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => repayWorkerDebt.mutate()}
+              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              {repayWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('workers.confirmRepayment')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Pay Choice Dialog */}
       <Dialog open={isPayChoiceOpen} onOpenChange={(open) => { setIsPayChoiceOpen(open); if (!open) setPayMode(null); }}>
         <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
