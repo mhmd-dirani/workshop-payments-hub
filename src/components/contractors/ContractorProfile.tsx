@@ -101,7 +101,14 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
     ...payments.filter(p => p.workshop_id).map(p => p.workshop_id),
   ])];
 
-  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const totalPaid = payments.reduce((s, p) => {
+    if (p.payment_type === 'material_budget') {
+      const purchases = budgetPurchasesMap[p.id] || [];
+      const spent = purchases.reduce((ps: number, pu: any) => ps + Number(pu.amount), 0);
+      return s + Math.max(0, Number(p.amount) - spent);
+    }
+    return s + Number(p.amount);
+  }, 0);
 
   return (
     <div className="space-y-4">
@@ -133,7 +140,14 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
       {workshopIds.map(wId => {
         const wContracts = contracts.filter(c => c.workshop_id === wId);
         const wPayments = payments.filter(p => p.workshop_id === wId);
-        const wTotal = wPayments.reduce((s, p) => s + Number(p.amount), 0);
+        const wTotal = wPayments.reduce((s, p) => {
+          if (p.payment_type === 'material_budget') {
+            const purchases = budgetPurchasesMap[p.id] || [];
+            const spent = purchases.reduce((ps: number, pu: any) => ps + Number(pu.amount), 0);
+            return s + Math.max(0, Number(p.amount) - spent);
+          }
+          return s + Number(p.amount);
+        }, 0);
 
         return (
           <Card key={wId}>
