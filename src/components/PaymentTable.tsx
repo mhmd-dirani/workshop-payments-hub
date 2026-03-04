@@ -447,7 +447,7 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
-                      {payment.paid_to}
+                      {translatePaidTo(payment.paid_to, t)}
                       {payment.files?.length > 0 && (
                         <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
