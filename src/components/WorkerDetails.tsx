@@ -820,7 +820,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('is_settled', false)
         .order('debt_date', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as (typeof data extends (infer T)[] ? T & { status?: string } : never)[];
     },
   });
 
