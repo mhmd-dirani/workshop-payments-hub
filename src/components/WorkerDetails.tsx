@@ -726,8 +726,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const workshopOt = unpaidOvertimeByWorkshop[overtimeWorkshopId];
       if (!workshopOt || workshopOt.entries.length === 0) throw new Error('No overtime entries');
 
-      const categoryLabel = t('workers.categories.travailleur');
-      const reason = `${worker.name} - ${t('workers.overtimePaymentReason', { defaultValue: 'Overtime payment' })}`;
+      const categoryLabel = 'Travailleur';
+      const reason = `${worker.name} - Overtime payment`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')

@@ -495,7 +495,7 @@ export default function ContractorPayments() {
       if (remaining <= 0) return;
 
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.advance')} (${t('contractors.budgetRemaining')})`;
+      const reason = `[Contractor] ${contractorName} - Advance (Budget remaining)`;
 
       if (!advanceWorkshopId) throw new Error('No workshop selected');
       
