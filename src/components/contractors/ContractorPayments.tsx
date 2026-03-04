@@ -865,7 +865,7 @@ export default function ContractorPayments() {
                   </div>
                   <div>
                     <p className="text-xs text-destructive font-medium">{t('common.total')} ({filteredPayments.length})</p>
-                    <p className="text-base font-bold font-mono text-destructive">{filteredTotal.toLocaleString('fr-FR')} CFA</p>
+                    <p className="text-base font-bold font-mono text-destructive">{displayTotal.toLocaleString('fr-FR')} CFA</p>
                   </div>
                 </div>
               </CardContent>
