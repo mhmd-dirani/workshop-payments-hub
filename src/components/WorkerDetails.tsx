@@ -648,12 +648,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
     onSuccess: () => {
       invalidateAll();
-      queryClient.invalidateQueries({ queryKey: ['debts'] });
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setAdvanceAmount('');
       setAdvanceWorkshopId('');
-      setAdvanceCreateDebt(false);
       toast({ title: t('workers.advancePaymentCreated'), description: t('workers.advancePaymentCreatedDesc') });
     },
     onError: (error: Error) => {
