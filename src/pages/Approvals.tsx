@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { translatePaidTo, translateReason } from '@/lib/payment-display-utils';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -144,8 +145,8 @@ export default function Approvals() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{payment.paid_to}</CardTitle>
-                      <CardDescription>{payment.reason}</CardDescription>
+                      <CardTitle className="text-lg">{translatePaidTo(payment.paid_to, t)}</CardTitle>
+                      <CardDescription>{translateReason(payment.reason, t)}</CardDescription>
                     </div>
                     <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                       {t('payments.pending')}

@@ -117,6 +117,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState<string>('');
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
+  const [advanceCreateDebt, setAdvanceCreateDebt] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
@@ -456,7 +457,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         
         const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         
-        const categoryLabel = t('workers.categories.travailleur');
+        const categoryLabel = 'Travailleur';
 
         const { data: payment, error: paymentError } = await supabase
           .from('payments')
@@ -529,10 +530,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     // We do NOT modify attendance rows for partial/advance payments.
     // Instead, we create an "unpaid" discount adjustment that represents a credit already given.
     // This reduces the owed balance (and can make it negative).
-    const reason = `${t('workers.paymentCreditReason', {
-      mode: t(mode === 'partial' ? 'workers.payPartial' : 'workers.payAdvance'),
-      amount: amount.toLocaleString('fr-FR'),
-    })} ${PAYMENT_CREDIT_TAG}`;
+    const modeLabel = mode === 'partial' ? 'Partial Pay' : 'Advance Payment';
+    const reason = `${modeLabel} credit: ${amount.toLocaleString('fr-FR')} CFA applied to balance. ${PAYMENT_CREDIT_TAG}`;
 
     const { error } = await supabase.from('worker_adjustments').insert({
       worker_id: worker.id,
@@ -555,8 +554,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(partialAmount);
       if (!amount || amount <= 0 || !partialWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const reason = `${worker.name} - ${t('workers.partialPaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
-      const categoryLabel = t('workers.categories.travailleur');
+      const reason = `${worker.name} - Partial salary payment (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = 'Travailleur';
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -608,8 +607,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(advanceAmount);
       if (!amount || amount <= 0 || !advanceWorkshopId) throw new Error('Invalid amount or workshop');
 
-      const categoryLabel = t('workers.categories.travailleur');
-      const reason = `${worker.name} - ${t('workers.advancePaymentReason')} (${amount.toLocaleString('fr-FR')} CFA)`;
+      const categoryLabel = 'Travailleur';
+      const reason = `${worker.name} - Advance payment (${amount.toLocaleString('fr-FR')} CFA)`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -640,14 +639,33 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         throw err;
       }
 
+      // Create debt record if requested
+      if (advanceCreateDebt) {
+        const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
+        const excessAmount = Math.max(0, amount - workshopOwed);
+        if (excessAmount > 0) {
+          const { error: debtError } = await supabase.from('debts').insert({
+            person_name: worker.name,
+            amount: excessAmount,
+            debt_type: 'they_owe',
+            debt_date: format(new Date(), 'yyyy-MM-dd'),
+            description: `Advance debt for worker - Advance payment (${amount.toLocaleString('fr-FR')} CFA) [ADVANCE_DEBT]`,
+            created_by: user?.id,
+          });
+          if (debtError) throw debtError;
+        }
+      }
+
       return payment;
     },
     onSuccess: () => {
       invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setAdvanceAmount('');
       setAdvanceWorkshopId('');
+      setAdvanceCreateDebt(false);
       toast({ title: t('workers.advancePaymentCreated'), description: t('workers.advancePaymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -663,7 +681,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!workshopAdj || workshopAdj.items.length === 0) throw new Error('No adjustments');
       if (workshopAdj.bonuses <= 0) throw new Error('No bonus/taxi to pay');
 
-      const categoryLabel = t('workers.categories.travailleur');
+      const categoryLabel = 'Travailleur';
       
       // Only pay bonuses + taxi, NOT discounts
       const bonusItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
@@ -672,7 +690,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
       
-      const reason = `${worker.name} - ${t('workers.bonusPaymentReason', { defaultValue: 'Bonus/Taxi payment' })}`;
+      const reason = `${worker.name} - Bonus/Discount payment`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -728,8 +746,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const workshopOt = unpaidOvertimeByWorkshop[overtimeWorkshopId];
       if (!workshopOt || workshopOt.entries.length === 0) throw new Error('No overtime entries');
 
-      const categoryLabel = t('workers.categories.travailleur');
-      const reason = `${worker.name} - ${t('workers.overtimePaymentReason', { defaultValue: 'Overtime payment' })}`;
+      const categoryLabel = 'Travailleur';
+      const reason = `${worker.name} - Overtime payment`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -1655,6 +1673,30 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                           {newBalance.toLocaleString('fr-FR')} CFA
                         </span>
                       </div>
+                    </div>
+                  );
+                })()}
+                {/* Debt tracking option */}
+                {advanceWorkshopId && (() => {
+                  const workshopOwed = unpaidByWorkshop[advanceWorkshopId]?.total || 0;
+                  const advAmt = parseFloat(advanceAmount) || 0;
+                  const excess = advAmt - workshopOwed;
+                  if (excess <= 0) return null;
+                  return (
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20">
+                      <input
+                        type="checkbox"
+                        id="advance-debt"
+                        checked={advanceCreateDebt}
+                        onChange={(e) => setAdvanceCreateDebt(e.target.checked)}
+                        className="mt-0.5 rounded border-warning"
+                      />
+                      <label htmlFor="advance-debt" className="text-xs cursor-pointer">
+                        <span className="font-medium">{t('workers.trackAsDebt')}</span>
+                        <p className="text-muted-foreground mt-0.5">
+                          {t('workers.trackAsDebtDesc', { amount: excess.toLocaleString('fr-FR') })}
+                        </p>
+                      </label>
                     </div>
                   );
                 })()}

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { translatePaidTo, translateReason } from '@/lib/payment-display-utils';
 import {
   Accordion,
   AccordionContent,
@@ -208,8 +209,8 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                 <div key={payment.id} className="p-3 rounded-lg border bg-destructive/5 border-destructive/20">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{payment.paid_to}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{payment.reason}</p>
+                      <p className="font-medium text-sm truncate">{translatePaidTo(payment.paid_to, t)}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{translateReason(payment.reason, t)}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">
                         {format(new Date(payment.payment_date), 'MMM d, yyyy')}
                       </p>
@@ -263,8 +264,8 @@ export default function RejectedPayments({ workshopId }: RejectedPaymentsProps) 
                       <TableCell className="font-mono text-sm">
                         {format(new Date(payment.payment_date), 'MMM d, yyyy')}
                       </TableCell>
-                      <TableCell className="font-medium">{payment.paid_to}</TableCell>
-                      <TableCell className="max-w-xs truncate">{payment.reason}</TableCell>
+                      <TableCell className="font-medium">{translatePaidTo(payment.paid_to, t)}</TableCell>
+                      <TableCell className="max-w-xs truncate">{translateReason(payment.reason, t)}</TableCell>
                       <TableCell className="text-right font-mono font-medium">
                         {Number(payment.amount).toLocaleString('fr-FR')} CFA
                       </TableCell>

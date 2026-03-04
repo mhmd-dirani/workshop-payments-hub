@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { translatePaidTo, translateReason } from '@/lib/payment-display-utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import {
@@ -374,12 +375,12 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="font-medium text-sm truncate">{payment.paid_to}</p>
+                    <p className="font-medium text-sm truncate">{translatePaidTo(payment.paid_to, t)}</p>
                       {payment.files?.length > 0 && (
                         <Paperclip className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{payment.reason}</p>
+                    <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{translateReason(payment.reason, t)}</p>
                   </div>
                   <div className="text-right ml-2 flex-shrink-0">
                     <p className="font-mono font-bold text-sm text-destructive">
@@ -445,13 +446,13 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
-                      {payment.paid_to}
+                      {translatePaidTo(payment.paid_to, t)}
                       {payment.files?.length > 0 && (
                         <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-[300px] whitespace-pre-line break-words">{payment.reason}</TableCell>
+                  <TableCell className="max-w-[300px] whitespace-pre-line break-words">{translateReason(payment.reason, t)}</TableCell>
                   <TableCell className="text-right font-mono font-medium text-destructive">
                     -{Number(payment.amount).toLocaleString('fr-FR')} CFA
                   </TableCell>

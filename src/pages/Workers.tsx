@@ -418,7 +418,7 @@ export default function Workers() {
           .insert([
             {
               workshop_id: workshopId,
-              paid_to: t('workers.categories.travailleur'),
+              paid_to: 'Travailleur',
               reason,
               amount: Math.max(finalTotal, 0),
               payment_date: format(new Date(), "yyyy-MM-dd"),

@@ -238,8 +238,9 @@ export default function ContractorPayments() {
       if (!workshopForPayment) throw new Error('No workshop');
 
       const contractorName = contractors.find(c => c.id === contractorId)?.name || '';
-      const typeLabel = t(`contractors.paymentTypes.${paymentType}`);
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
+      const typeLabelMap: Record<string, string> = { advance: 'Advance', product: 'Product/Material', material_budget: 'Material Budget' };
+      const typeLabel = typeLabelMap[paymentType] || paymentType;
+      const reason = `[Contractor] ${contractorName} - ${typeLabel}${description ? ': ' + description : ''}`;
 
       if (paymentType === 'material_budget') {
         // Material budget does NOT go to main payments dashboard, no workshop needed
@@ -362,7 +363,7 @@ export default function ContractorPayments() {
       let receiptPath: string | null = null;
       let receiptName: string | null = null;
 
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.product')}${purchaseDescription ? ': ' + purchaseDescription : ''}`;
+      const reason = `[Contractor] ${contractorName} - Product/Material${purchaseDescription ? ': ' + purchaseDescription : ''}`;
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .insert({
@@ -494,7 +495,7 @@ export default function ContractorPayments() {
       if (remaining <= 0) return;
 
       const contractorName = contractors.find(c => c.id === budgetPayment.contractor_id)?.name || '';
-      const reason = `[${t('contractors.contractor')}] ${contractorName} - ${t('contractors.paymentTypes.advance')} (${t('contractors.budgetRemaining')})`;
+      const reason = `[Contractor] ${contractorName} - Advance (Budget remaining)`;
 
       if (!advanceWorkshopId) throw new Error('No workshop selected');
       
