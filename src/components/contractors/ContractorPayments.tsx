@@ -819,7 +819,17 @@ export default function ContractorPayments() {
         <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
       ) : (() => {
         const filteredPayments = payments.filter(p => {
-          if (filterPaymentType !== 'all' && p.payment_type !== filterPaymentType) return false;
+          if (filterPaymentType !== 'all') {
+            if (filterPaymentType === 'advance') {
+              // Show advance payments + material_budgets (remaining counts as advance)
+              if (p.payment_type !== 'advance' && p.payment_type !== 'material_budget') return false;
+            } else if (filterPaymentType === 'product') {
+              // Only show product payments, not material_budgets
+              if (p.payment_type !== 'product') return false;
+            } else {
+              if (p.payment_type !== filterPaymentType) return false;
+            }
+          }
           if (!searchQuery) return true;
           const q = searchQuery.toLowerCase();
           return getContractorName(p.contractor_id).toLowerCase().includes(q)
@@ -828,12 +838,23 @@ export default function ContractorPayments() {
         });
         const filteredTotal = filteredPayments.reduce((sum, p) => {
           if (p.payment_type === 'material_budget') {
-            // Material budgets are organizational containers, not actual payments
-            // Their purchases are tracked as separate contractor_payments entries
+            if (filterPaymentType === 'all' || filterPaymentType === 'material_budget') {
+              // In overall view, budget amount is added to total (the given amount)
+              return sum + Number(p.amount);
+            } else if (filterPaymentType === 'advance') {
+              // In advance filter, only the remaining balance counts
+              const spent = allBudgetSums[p.id] || 0;
+              return sum + Math.max(0, Number(p.amount) - spent);
+            }
             return sum;
           }
           return sum + Number(p.amount);
         }, 0);
+        // When filtering by product, also add budget purchase totals
+        const productBudgetTotal = filterPaymentType === 'product'
+          ? Object.values(allBudgetSums as Record<string, number>).reduce((s, v) => s + v, 0)
+          : 0;
+        const displayTotal = filteredTotal + productBudgetTotal;
         return (
           <>
             <Card className="bg-destructive/5 border-destructive/20">
