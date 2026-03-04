@@ -181,7 +181,13 @@
     "rejectPayment": "Refuser le paiement",
     "rejectConfirmation": "Êtes-vous sûr de vouloir refuser ce paiement ?",
     "workshop": "Atelier",
-    "submittedBy": "Soumis par"
+    "submittedBy": "Soumis par",
+    "debtApproved": "Dette approuvée",
+    "debtRejected": "Dette refusée",
+    "debtHasBeenApproved": "La dette a été approuvée",
+    "debtHasBeenRejected": "La dette a été refusée",
+    "pendingDebts": "Dettes en attente",
+    "debtFor": "Dette pour"
   },
   "rejectedPayments": {
     "title": "Paiements refusés",

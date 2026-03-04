@@ -181,7 +181,13 @@
     "rejectPayment": "رفض الدفعة",
     "rejectConfirmation": "هل أنت متأكد من رفض هذه الدفعة؟",
     "workshop": "الورشة",
-    "submittedBy": "مقدم من"
+    "submittedBy": "مقدم من",
+    "debtApproved": "تمت الموافقة على الدين",
+    "debtRejected": "تم رفض الدين",
+    "debtHasBeenApproved": "تمت الموافقة على الدين",
+    "debtHasBeenRejected": "تم رفض الدين",
+    "pendingDebts": "ديون في الانتظار",
+    "debtFor": "دين لـ"
   },
   "rejectedPayments": {
     "title": "المدفوعات المرفوضة",
