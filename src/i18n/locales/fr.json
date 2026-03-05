@@ -507,7 +507,7 @@
     "debtAddedDesc": "La dette est en attente d'approbation de l'administrateur",
     "repayDebt": "Rembourser dette",
     "repayDebtDesc": "Déduire un montant de cette dette. Cela réduira le salaire du travailleur et apparaîtra dans les paiements.",
-    "repayDebtNote": "Ce montant sera déduit du salaire du travailleur et enregistré comme paiement dans le tableau de bord.",
+    "repayDebtNote": "Ce montant sera déduit du salaire du travailleur lors du paiement.",
     "confirmRepayment": "Confirmer remboursement",
     "debtRepaymentCreated": "Remboursement enregistré",
     "debtRepaymentCreatedDesc": "Le remboursement est en attente d'approbation avant d'affecter le salaire",
