@@ -510,7 +510,7 @@
     "repayDebtNote": "Ce montant sera déduit du salaire du travailleur lors du paiement.",
     "confirmRepayment": "Confirmer remboursement",
     "debtRepaymentCreated": "Remboursement enregistré",
-    "debtRepaymentCreatedDesc": "Le remboursement est en attente d'approbation avant d'affecter le salaire",
+    "debtRepaymentCreatedDesc": "Le remboursement sera déduit du prochain paiement de salaire",
     "repayExceedsDebt": "Le montant du remboursement dépasse la dette restante"
   },
   "personalPayments": {
