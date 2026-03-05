@@ -473,7 +473,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             amount: Math.max(finalTotal, 0),
             payment_date: format(new Date(), 'yyyy-MM-dd'),
             created_by: user?.id,
-            status: 'pending',
+            status: role === 'admin' ? 'approved' : 'pending',
           }])
           .select()
           .single();
@@ -572,7 +572,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             amount,
             payment_date: format(new Date(), 'yyyy-MM-dd'),
             created_by: user?.id,
-            status: 'pending',
+            status: role === 'admin' ? 'approved' : 'pending',
           },
         ])
         .select()
@@ -625,7 +625,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             amount,
             payment_date: format(new Date(), 'yyyy-MM-dd'),
             created_by: user?.id,
-            status: 'pending',
+            status: role === 'admin' ? 'approved' : 'pending',
           },
         ])
         .select()
@@ -687,7 +687,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           amount: payableAmount,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
-          status: 'pending',
+          status: role === 'admin' ? 'approved' : 'pending',
         }])
         .select()
         .single();
@@ -744,7 +744,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           amount: workshopOt.total,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
-          status: 'pending',
+          status: role === 'admin' ? 'approved' : 'pending',
         }])
         .select()
         .single();
@@ -881,8 +881,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Only create a pending payment. The debt_payment and worker_adjustment
-      // will be created when admin approves this payment.
+      // Create payment - auto-approved for admin, pending for others
+      const isAdmin = role === 'admin';
       const { error: payError } = await supabase.from('payments').insert({
         workshop_id: workerDebtRepayWorkshopId,
         paid_to: 'Travailleur',
@@ -890,9 +890,41 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
         created_by: user?.id,
-        status: 'pending',
+        status: isAdmin ? 'approved' : 'pending',
       });
       if (payError) throw payError;
+
+      // If admin, immediately apply debt payment and salary deduction
+      if (isAdmin) {
+        await supabase.from('debt_payments').insert({
+          debt_id: workerDebtRepayId,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Debt repayment deducted from salary`,
+          created_by: user?.id,
+        });
+
+        await supabase.from('worker_adjustments').insert({
+          worker_id: worker.id,
+          workshop_id: workerDebtRepayWorkshopId,
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          adjustment_type: 'discount',
+          amount,
+          reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
+          is_paid: false,
+          created_by: user?.id,
+        });
+
+        // Check if debt is fully paid
+        if (debt) {
+          const existingPayments = workerDebtPayments
+            .filter(p => p.debt_id === workerDebtRepayId)
+            .reduce((s, p) => s + Number(p.amount), 0);
+          if (existingPayments + amount >= Number(debt.amount)) {
+            await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
+          }
+        }
+      }
     },
     onSuccess: () => {
       invalidateAll();
