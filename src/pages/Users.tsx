@@ -43,6 +43,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import WorkshopAssignments from '@/components/WorkshopAssignments';
+import { useAuth } from '@/lib/auth';
 import { z } from 'zod';
 
 // Validation schema
