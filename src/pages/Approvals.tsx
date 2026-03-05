@@ -25,8 +25,22 @@ import { Check, X, Loader2, ClipboardCheck, ArrowUpCircle } from 'lucide-react';
 
 export default function Approvals() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, role, loading } = useAuth();
   const { toast } = useToast();
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user || role !== 'admin') {
+    return <Navigate to={!user ? "/auth" : "/"} replace />;
+  }
   const queryClient = useQueryClient();
   
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
