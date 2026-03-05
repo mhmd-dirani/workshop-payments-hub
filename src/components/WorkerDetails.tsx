@@ -120,7 +120,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
   const [workerDebtDescription, setWorkerDebtDescription] = useState('');
-  const [workerDebtRepayId, setWorkerDebtRepayId] = useState<string | null>(null);
+  const [workerDebtWorkshopId, setWorkerDebtWorkshopId] = useState('');
   const [workerDebtRepayAmount, setWorkerDebtRepayAmount] = useState('');
   const [workerDebtRepayWorkshopId, setWorkerDebtRepayWorkshopId] = useState('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
