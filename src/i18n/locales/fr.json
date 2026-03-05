@@ -510,7 +510,8 @@
     "repayDebtNote": "Ce montant sera déduit du salaire du travailleur et enregistré comme paiement dans le tableau de bord.",
     "confirmRepayment": "Confirmer remboursement",
     "debtRepaymentCreated": "Remboursement enregistré",
-    "debtRepaymentCreatedDesc": "Le montant a été déduit du salaire et enregistré comme paiement"
+    "debtRepaymentCreatedDesc": "Le remboursement est en attente d'approbation avant d'affecter le salaire",
+    "repayExceedsDebt": "Le montant du remboursement dépasse la dette restante"
   },
   "personalPayments": {
     "title": "Paiements personnels",

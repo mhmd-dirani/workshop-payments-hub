@@ -511,7 +511,8 @@
     "repayDebtNote": "This amount will be deducted from the worker's salary and recorded as a payment in the dashboard.",
     "confirmRepayment": "Confirm Repayment",
     "debtRepaymentCreated": "Debt repayment recorded",
-    "debtRepaymentCreatedDesc": "The amount has been deducted from salary and recorded as payment"
+    "debtRepaymentCreatedDesc": "The repayment is pending admin approval before it affects the salary",
+    "repayExceedsDebt": "Repayment amount exceeds remaining debt"
   },
   "personalPayments": {
     "title": "Personal Payments",

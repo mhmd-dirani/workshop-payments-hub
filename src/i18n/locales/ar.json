@@ -510,7 +510,8 @@
     "repayDebtNote": "سيتم خصم هذا المبلغ من راتب العامل وتسجيله كدفعة في لوحة التحكم.",
     "confirmRepayment": "تأكيد السداد",
     "debtRepaymentCreated": "تم تسجيل سداد الدين",
-    "debtRepaymentCreatedDesc": "تم خصم المبلغ من الراتب وتسجيله كدفعة"
+    "debtRepaymentCreatedDesc": "السداد في انتظار موافقة المسؤول قبل التأثير على الراتب",
+    "repayExceedsDebt": "مبلغ السداد يتجاوز الدين المتبقي"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",
