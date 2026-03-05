@@ -1679,6 +1679,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 placeholder={t('workers.debtDescPlaceholder')}
               />
             </div>
+            <div className="space-y-2">
+              <Label>{t('workers.selectWorkshop')}</Label>
+              <Select value={workerDebtWorkshopId} onValueChange={setWorkerDebtWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshops.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsWorkerDebtFormOpen(false)}>
@@ -1686,7 +1699,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             </Button>
             <Button
               onClick={() => addWorkerDebt.mutate()}
-              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0}
+              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0 || !workerDebtWorkshopId}
             >
               {addWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {t('common.add')}
