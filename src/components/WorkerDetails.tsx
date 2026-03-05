@@ -871,51 +871,28 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const amount = parseFloat(workerDebtRepayAmount);
       if (!amount || amount <= 0 || !workerDebtRepayId || !workerDebtRepayWorkshopId) throw new Error('Invalid data');
 
-      // 1. Record debt payment
-      const { error: dpError } = await supabase.from('debt_payments').insert({
-        debt_id: workerDebtRepayId,
-        amount,
-        payment_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `Debt repayment deducted from salary`,
-        created_by: user?.id,
-      });
-      if (dpError) throw dpError;
+      // Validate amount doesn't exceed remaining debt
+      const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+      if (debt) {
+        const existingPayments = workerDebtPayments
+          .filter(p => p.debt_id === workerDebtRepayId)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        const remaining = Math.max(0, Number(debt.amount) - existingPayments);
+        if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
+      }
 
-      // 2. Create a discount adjustment to reduce the worker's salary
-      const { error: adjError } = await supabase.from('worker_adjustments').insert({
-        worker_id: worker.id,
-        workshop_id: workerDebtRepayWorkshopId,
-        work_date: format(new Date(), 'yyyy-MM-dd'),
-        adjustment_type: 'discount',
-        amount,
-        reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
-        is_paid: false,
-        created_by: user?.id,
-      });
-      if (adjError) throw adjError;
-
-      // 3. Create a payment record for the dashboard
+      // Only create a pending payment. The debt_payment and worker_adjustment
+      // will be created when admin approves this payment.
       const { error: payError } = await supabase.from('payments').insert({
         workshop_id: workerDebtRepayWorkshopId,
         paid_to: 'Travailleur',
-        reason: `${worker.name} - Debt repayment (${amount.toLocaleString('fr-FR')} CFA)`,
+        reason: `${worker.name} - Debt repayment (${amount.toLocaleString('fr-FR')} CFA) [DEBT_REPAYMENT:${workerDebtRepayId}]`,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
         created_by: user?.id,
         status: 'pending',
       });
       if (payError) throw payError;
-
-      // 4. Check if debt is fully paid and settle it
-      const debt = workerDebts.find(d => d.id === workerDebtRepayId);
-      if (debt) {
-        const existingPayments = workerDebtPayments
-          .filter(p => p.debt_id === workerDebtRepayId)
-          .reduce((s, p) => s + Number(p.amount), 0);
-        if (existingPayments + amount >= Number(debt.amount)) {
-          await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
-        }
-      }
     },
     onSuccess: () => {
       invalidateAll();
@@ -1694,6 +1671,13 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               <Input
                 type="number"
                 min="1"
+                max={(() => {
+                  const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+                  const paid = workerDebtPayments
+                    .filter(p => p.debt_id === workerDebtRepayId)
+                    .reduce((s, p) => s + Number(p.amount), 0);
+                  return debt ? Math.max(0, Number(debt.amount) - paid) : undefined;
+                })()}
                 value={workerDebtRepayAmount}
                 onChange={(e) => setWorkerDebtRepayAmount(e.target.value)}
                 placeholder="0"
@@ -1722,7 +1706,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             </Button>
             <Button
               onClick={() => repayWorkerDebt.mutate()}
-              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId}
+              disabled={repayWorkerDebt.isPending || !workerDebtRepayAmount || parseFloat(workerDebtRepayAmount) <= 0 || !workerDebtRepayWorkshopId || (() => {
+                const debt = workerDebts.find(d => d.id === workerDebtRepayId);
+                const paid = workerDebtPayments
+                  .filter(p => p.debt_id === workerDebtRepayId)
+                  .reduce((s, p) => s + Number(p.amount), 0);
+                const remaining = debt ? Math.max(0, Number(debt.amount) - paid) : 0;
+                return parseFloat(workerDebtRepayAmount) > remaining;
+              })()}
               className="bg-success text-success-foreground hover:bg-success/90"
             >
               {repayWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
