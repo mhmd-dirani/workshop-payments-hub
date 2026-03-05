@@ -240,7 +240,7 @@ export default function Users() {
     },
   });
 
-
+  const getRoleBadge = (roles: UserRole[]) => {
     const role = roles?.[0]?.role;
     if (role === 'admin') {
       return (
