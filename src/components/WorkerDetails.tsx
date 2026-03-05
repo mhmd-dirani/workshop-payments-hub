@@ -120,6 +120,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
   const [workerDebtDescription, setWorkerDebtDescription] = useState('');
+  const [workerDebtWorkshopId, setWorkerDebtWorkshopId] = useState('');
   const [workerDebtRepayId, setWorkerDebtRepayId] = useState<string | null>(null);
   const [workerDebtRepayAmount, setWorkerDebtRepayAmount] = useState('');
   const [workerDebtRepayWorkshopId, setWorkerDebtRepayWorkshopId] = useState('');
@@ -842,7 +843,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const addWorkerDebt = useMutation({
     mutationFn: async () => {
       const amount = parseFloat(workerDebtAmount);
-      if (!amount || amount <= 0) throw new Error('Invalid amount');
+      if (!amount || amount <= 0 || !workerDebtWorkshopId) throw new Error('Invalid amount or workshop');
+      
+      const isAdmin = role === 'admin';
+      
+      // 1. Create debt record
       const { error } = await supabase.from('debts').insert({
         person_name: worker.name,
         amount,
@@ -850,15 +855,30 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         debt_date: format(new Date(), 'yyyy-MM-dd'),
         description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
         created_by: user?.id,
-        status: role === 'admin' ? 'approved' : 'pending',
+        status: isAdmin ? 'approved' : 'pending',
       } as any);
       if (error) throw error;
+
+      // 2. Create payment record so it shows in user's spending/balance
+      const { error: payError } = await supabase.from('payments').insert({
+        workshop_id: workerDebtWorkshopId,
+        paid_to: 'Travailleur',
+        reason: `${worker.name} - ${workerDebtDescription || 'Worker debt'} [WORKER_DEBT]`,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        created_by: user?.id,
+        status: isAdmin ? 'approved' : 'pending',
+      });
+      if (payError) throw payError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       setIsWorkerDebtFormOpen(false);
       setWorkerDebtAmount('');
       setWorkerDebtDescription('');
+      setWorkerDebtWorkshopId('');
       toast({ title: t('workers.debtAdded'), description: t('workers.debtAddedDesc') });
     },
     onError: (error: Error) => {
@@ -1546,7 +1566,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               size="sm"
               variant="outline"
               className="h-7 text-xs gap-1"
-              onClick={() => setIsWorkerDebtFormOpen(true)}
+              onClick={() => {
+                const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                setWorkerDebtWorkshopId(firstWs);
+                setIsWorkerDebtFormOpen(true);
+              }}
             >
               <DollarSign className="w-3 h-3" />
               {t('workers.addDebt')}
@@ -1659,6 +1683,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 placeholder={t('workers.debtDescPlaceholder')}
               />
             </div>
+            <div className="space-y-2">
+              <Label>{t('workers.selectWorkshop')}</Label>
+              <Select value={workerDebtWorkshopId} onValueChange={setWorkerDebtWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshops.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsWorkerDebtFormOpen(false)}>
@@ -1666,7 +1703,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             </Button>
             <Button
               onClick={() => addWorkerDebt.mutate()}
-              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0}
+              disabled={addWorkerDebt.isPending || !workerDebtAmount || parseFloat(workerDebtAmount) <= 0 || !workerDebtWorkshopId}
             >
               {addWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {t('common.add')}
