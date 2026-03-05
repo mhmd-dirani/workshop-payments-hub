@@ -561,6 +561,58 @@ export default function Users() {
           onOpenChange={(open) => !open && setAssignmentUser(null)}
         />
       )}
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('users.editUser')}</DialogTitle>
+            <DialogDescription>{t('users.editUserDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit_name">{t('auth.fullName')}</Label>
+              <Input
+                id="edit_name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={t('users.enterFullName')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>{t('common.cancel')}</Button>
+            <Button
+              onClick={() => editingUser && editUser.mutate({ userId: editingUser.userId, fullName: editName })}
+              disabled={editUser.isPending || !editName.trim()}
+            >
+              {editUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('users.deleteUserConfirm')} ({userToDelete?.name})
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUser.mutate(userToDelete.userId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
