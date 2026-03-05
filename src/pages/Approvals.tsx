@@ -86,6 +86,9 @@ export default function Approvals() {
   // Payment status mutation
   const updateStatus = useMutation({
     mutationFn: async ({ paymentId, status, rejectionReason }: { paymentId: string; status: 'approved' | 'rejected'; rejectionReason?: string }) => {
+      // Find the payment to check for debt repayment
+      const payment = pendingPayments?.find(p => p.id === paymentId);
+      
       const { error } = await supabase
         .from('payments')
         .update({ 
@@ -96,11 +99,66 @@ export default function Approvals() {
         })
         .eq('id', paymentId);
       if (error) throw error;
+
+      // If approved and this is a debt repayment, create the debt_payment and worker_adjustment
+      if (status === 'approved' && payment) {
+        const debtMatch = payment.reason?.match(/\[DEBT_REPAYMENT:([^\]]+)\]/);
+        if (debtMatch) {
+          const debtId = debtMatch[1];
+          const amount = Number(payment.amount);
+          
+          // Find worker name from reason
+          const workerName = payment.reason?.split(' - Debt repayment')[0] || '';
+
+          // 1. Record debt payment
+          await supabase.from('debt_payments').insert({
+            debt_id: debtId,
+            amount,
+            payment_date: payment.payment_date,
+            description: `Debt repayment deducted from salary`,
+            created_by: payment.created_by,
+          });
+
+          // 2. Find worker to get worker_id
+          const { data: workerData } = await supabase
+            .from('workers')
+            .select('id')
+            .eq('name', workerName)
+            .single();
+
+          if (workerData) {
+            // 3. Create discount adjustment to reduce salary
+            await supabase.from('worker_adjustments').insert({
+              worker_id: workerData.id,
+              workshop_id: payment.workshop_id,
+              work_date: payment.payment_date,
+              adjustment_type: 'discount',
+              amount,
+              reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
+              is_paid: false,
+              created_by: payment.created_by,
+            });
+          }
+
+          // 4. Check if debt is fully paid
+          const { data: debtData } = await supabase.from('debts').select('amount').eq('id', debtId).single();
+          const { data: allDebtPayments } = await supabase.from('debt_payments').select('amount').eq('debt_id', debtId);
+          if (debtData && allDebtPayments) {
+            const totalPaid = allDebtPayments.reduce((s, p) => s + Number(p.amount), 0);
+            if (totalPaid >= Number(debtData.amount)) {
+              await supabase.from('debts').update({ is_settled: true }).eq('id', debtId);
+            }
+          }
+        }
+      }
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['rejected-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
       toast({
         title: status === 'approved' ? t('approvals.paymentApproved') : t('approvals.paymentRejected'),
         description: status === 'approved' ? t('approvals.hasBeenApproved') : t('approvals.hasBeenRejected'),
