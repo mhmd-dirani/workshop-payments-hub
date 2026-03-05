@@ -69,10 +69,14 @@ interface ProfileWithRoles {
 export default function Users() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ userId: string; fullName: string } | null>(null);
+  const [editName, setEditName] = useState('');
+  const [userToDelete, setUserToDelete] = useState<{ userId: string; name: string } | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     full_name: '',
     email: '',
