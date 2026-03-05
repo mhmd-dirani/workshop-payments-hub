@@ -1566,7 +1566,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               size="sm"
               variant="outline"
               className="h-7 text-xs gap-1"
-              onClick={() => setIsWorkerDebtFormOpen(true)}
+              onClick={() => {
+                const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                setWorkerDebtWorkshopId(firstWs);
+                setIsWorkerDebtFormOpen(true);
+              }}
             >
               <DollarSign className="w-3 h-3" />
               {t('workers.addDebt')}
