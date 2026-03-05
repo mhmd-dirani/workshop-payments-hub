@@ -101,7 +101,9 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
     ...payments.filter(p => p.workshop_id).map(p => p.workshop_id),
   ])];
 
-  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const totalPaid = payments
+    .filter(p => p.payment_type !== 'budget_purchase')
+    .reduce((s, p) => s + Number(p.amount), 0);
 
   return (
     <div className="space-y-4">
@@ -132,7 +134,7 @@ export default function ContractorProfile({ contractor, onBack }: Props) {
 
       {workshopIds.map(wId => {
         const wContracts = contracts.filter(c => c.workshop_id === wId);
-        const wPayments = payments.filter(p => p.workshop_id === wId);
+        const wPayments = payments.filter(p => p.workshop_id === wId && p.payment_type !== 'budget_purchase');
         const wTotal = wPayments.reduce((s, p) => s + Number(p.amount), 0);
 
         return (

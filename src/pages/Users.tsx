@@ -34,8 +34,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff, Trash2, Edit, MoreVertical } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import WorkshopAssignments from '@/components/WorkshopAssignments';
+import { useAuth } from '@/lib/auth';
 import { z } from 'zod';
 
 // Validation schema
@@ -61,10 +69,14 @@ interface ProfileWithRoles {
 export default function Users() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ userId: string; fullName: string } | null>(null);
+  const [editName, setEditName] = useState('');
+  const [userToDelete, setUserToDelete] = useState<{ userId: string; name: string } | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     full_name: '',
     email: '',
@@ -188,6 +200,43 @@ export default function Users() {
         description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+
+  const editUser = useMutation({
+    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'update', user_id: userId, full_name: fullName },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditingUser(null);
+      toast({ title: t('users.userUpdated'), description: t('users.userUpdatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      if (userId === currentUser?.id) throw new Error(t('users.cannotDeleteSelf'));
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'delete', user_id: userId },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setUserToDelete(null);
+      toast({ title: t('users.userDeleted'), description: t('users.userDeletedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
     },
   });
 
@@ -346,7 +395,26 @@ export default function Users() {
                               {t('users.joined')} {format(new Date(user.created_at), 'MMM d, yyyy')}
                             </p>
                           </div>
-                          {getRoleBadge(user.user_roles)}
+                          <div className="flex items-center gap-1">
+                            {getRoleBadge(user.user_roles)}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingUser({ userId: user.user_id, fullName: user.full_name || '' }); setEditName(user.full_name || ''); }}>
+                                  <Edit className="w-3.5 h-3.5 mr-2" /> {t('users.editUser')}
+                                </DropdownMenuItem>
+                                {user.user_id !== currentUser?.id && (
+                                  <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete({ userId: user.user_id, name: user.full_name || '' })}>
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" /> {t('users.deleteUser')}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -453,6 +521,23 @@ export default function Users() {
                                     <SelectItem value="admin">{t('roles.admin')}</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => { setEditingUser({ userId: user.user_id, fullName: user.full_name || '' }); setEditName(user.full_name || ''); }}>
+                                      <Edit className="w-3.5 h-3.5 mr-2" /> {t('users.editUser')}
+                                    </DropdownMenuItem>
+                                    {user.user_id !== currentUser?.id && (
+                                      <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete({ userId: user.user_id, name: user.full_name || '' })}>
+                                        <Trash2 className="w-3.5 h-3.5 mr-2" /> {t('users.deleteUser')}
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -476,6 +561,58 @@ export default function Users() {
           onOpenChange={(open) => !open && setAssignmentUser(null)}
         />
       )}
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('users.editUser')}</DialogTitle>
+            <DialogDescription>{t('users.editUserDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit_name">{t('auth.fullName')}</Label>
+              <Input
+                id="edit_name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={t('users.enterFullName')}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>{t('common.cancel')}</Button>
+            <Button
+              onClick={() => editingUser && editUser.mutate({ userId: editingUser.userId, fullName: editName })}
+              disabled={editUser.isPending || !editName.trim()}
+            >
+              {editUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('users.deleteUserConfirm')} ({userToDelete?.name})
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUser.mutate(userToDelete.userId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

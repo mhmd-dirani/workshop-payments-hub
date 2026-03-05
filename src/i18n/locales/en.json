@@ -230,7 +230,20 @@
     "enterEmail": "Enter email address",
     "enterPassword": "Enter password (min 6 characters)",
     "enterFullName": "Enter full name",
-    "role": "Role"
+    "role": "Role",
+    "editUser": "Edit User",
+    "editUserDesc": "Update user details",
+    "deleteUser": "Delete User",
+    "deleteUserConfirm": "Are you sure you want to delete this user? This action cannot be undone.",
+    "userUpdated": "User Updated",
+    "userUpdatedDesc": "User details have been updated",
+    "userDeleted": "User Deleted",
+    "userDeletedDesc": "The user has been removed",
+    "cannotDeleteSelf": "You cannot delete your own account",
+    "editDebt": "Edit Debt",
+    "deleteDebt": "Delete Debt",
+    "debtEditedDesc": "The worker debt has been updated",
+    "debtDeletedDesc": "The worker debt has been removed"
   },
   "team": {
     "title": "Team Finances",
@@ -688,7 +701,8 @@
     "paymentTypes": {
       "advance": "Advance",
       "product": "Product/Material",
-      "material_budget": "Material Budget"
+      "material_budget": "Material Budget",
+      "budget_purchase": "Budget Purchase"
     },
     "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
     "filterByContractor": "Filter by contractor",

@@ -52,10 +52,14 @@ export default function ContractorsList() {
   const { data: summaries = {} } = useQuery({
     queryKey: ['contractor-summaries'],
     queryFn: async () => {
-      const { data: payments, error } = await supabase.from('contractor_payments').select('contractor_id, amount');
+      const { data: payments, error } = await supabase.from('contractor_payments').select('contractor_id, amount, payment_type');
       if (error) throw error;
       const map: Record<string, number> = {};
-      payments?.forEach(p => { map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount); });
+      payments?.forEach(p => {
+        // Exclude budget_purchase to avoid double-counting with material_budget
+        if (p.payment_type === 'budget_purchase') return;
+        map[p.contractor_id] = (map[p.contractor_id] || 0) + Number(p.amount);
+      });
       return map;
     },
   });

@@ -229,7 +229,20 @@
     "enterEmail": "أدخل البريد الإلكتروني",
     "enterPassword": "أدخل كلمة المرور (6 أحرف على الأقل)",
     "enterFullName": "أدخل الاسم الكامل",
-    "role": "الدور"
+    "role": "الدور",
+    "editUser": "تعديل المستخدم",
+    "editUserDesc": "تحديث بيانات المستخدم",
+    "deleteUser": "حذف المستخدم",
+    "deleteUserConfirm": "هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.",
+    "userUpdated": "تم تحديث المستخدم",
+    "userUpdatedDesc": "تم تحديث بيانات المستخدم",
+    "userDeleted": "تم حذف المستخدم",
+    "userDeletedDesc": "تم إزالة المستخدم",
+    "cannotDeleteSelf": "لا يمكنك حذف حسابك الخاص",
+    "editDebt": "تعديل الدين",
+    "deleteDebt": "حذف الدين",
+    "debtEditedDesc": "تم تحديث دين العامل",
+    "debtDeletedDesc": "تم حذف دين العامل"
   },
   "team": {
     "title": "ماليات الفريق",
@@ -687,7 +700,8 @@
     "paymentTypes": {
       "advance": "سلفة",
       "product": "منتج/مواد",
-      "material_budget": "ميزانية مواد"
+      "material_budget": "ميزانية مواد",
+      "budget_purchase": "شراء من الميزانية"
     },
     "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
     "filterByContractor": "تصفية حسب المقاول",

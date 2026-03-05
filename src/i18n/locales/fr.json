@@ -229,7 +229,20 @@
     "enterEmail": "Entrez l'adresse email",
     "enterPassword": "Entrez le mot de passe (min 6 caractères)",
     "enterFullName": "Entrez le nom complet",
-    "role": "Rôle"
+    "role": "Rôle",
+    "editUser": "Modifier l'utilisateur",
+    "editUserDesc": "Mettre à jour les détails de l'utilisateur",
+    "deleteUser": "Supprimer l'utilisateur",
+    "deleteUserConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.",
+    "userUpdated": "Utilisateur mis à jour",
+    "userUpdatedDesc": "Les détails ont été mis à jour",
+    "userDeleted": "Utilisateur supprimé",
+    "userDeletedDesc": "L'utilisateur a été supprimé",
+    "cannotDeleteSelf": "Vous ne pouvez pas supprimer votre propre compte",
+    "editDebt": "Modifier la dette",
+    "deleteDebt": "Supprimer la dette",
+    "debtEditedDesc": "La dette du travailleur a été mise à jour",
+    "debtDeletedDesc": "La dette du travailleur a été supprimée"
   },
   "team": {
     "title": "Finances de l'équipe",
@@ -687,7 +700,8 @@
     "paymentTypes": {
       "advance": "Avance",
       "product": "Produit/Matériel",
-      "material_budget": "Budget matériel"
+      "material_budget": "Budget matériel",
+      "budget_purchase": "Achat budget"
     },
     "paymentDescPlaceholder": "ex: Pots de peinture, avance main-d'œuvre...",
     "filterByContractor": "Filtrer par sous-traitant",
