@@ -1665,20 +1665,70 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     )}
                     {/* Repay button - only for approved debts */}
                     {remaining > 0 && (debt as any).status === 'approved' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-7 text-xs gap-1"
-                        onClick={() => {
-                          setWorkerDebtRepayId(debt.id);
-                          setWorkerDebtRepayAmount('');
-                          const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
-                          setWorkerDebtRepayWorkshopId(firstWs);
-                        }}
-                      >
-                        <DollarSign className="w-3 h-3" />
-                        {t('workers.repayDebt')}
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-7 text-xs gap-1"
+                          onClick={() => {
+                            setWorkerDebtRepayId(debt.id);
+                            setWorkerDebtRepayAmount('');
+                            const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                            setWorkerDebtRepayWorkshopId(firstWs);
+                          }}
+                        >
+                          <DollarSign className="w-3 h-3" />
+                          {t('workers.repayDebt')}
+                        </Button>
+                        {role === 'admin' && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => {
+                                setEditingWorkerDebt(debt);
+                                setEditDebtAmount(String(debt.amount));
+                                setEditDebtDescription(debt.description?.replace(WORKER_DEBT_TAG, '').trim() || '');
+                              }}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => setWorkerDebtToDelete(debt)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {role === 'admin' && (remaining <= 0 || (debt as any).status !== 'approved') && (
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setEditingWorkerDebt(debt);
+                            setEditDebtAmount(String(debt.amount));
+                            setEditDebtDescription(debt.description?.replace(WORKER_DEBT_TAG, '').trim() || '');
+                          }}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => setWorkerDebtToDelete(debt)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
