@@ -48,5 +48,9 @@ export function translateReason(reason: string, t: TFunction): string {
   result = result.replace(/Advance Payment credit:/g, `${t('workers.payAdvance')} ${t('workers.creditLabel', { defaultValue: 'credit' })}:`);
   result = result.replace(/CFA applied to balance\./g, `CFA ${t('workers.appliedToBalance', { defaultValue: 'applied to balance' })}.`);
   
+  // Debt repayment - strip the internal tag with UUID
+  result = result.replace(/\s*\[DEBT_REPAYMENT:[^\]]+\]/g, '');
+  result = result.replace(/- Debt repayment/g, `- ${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })}`);
+  
   return result.trim();
 }
