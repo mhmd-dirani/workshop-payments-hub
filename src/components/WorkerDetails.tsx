@@ -2250,6 +2250,47 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Edit Worker Debt Dialog */}
+      <Dialog open={!!editingWorkerDebt} onOpenChange={(open) => !open && setEditingWorkerDebt(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('users.editDebt')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input type="number" min="1" value={editDebtAmount} onChange={(e) => setEditDebtAmount(e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.description')} ({t('common.optional')})</Label>
+              <Input value={editDebtDescription} onChange={(e) => setEditDebtDescription(e.target.value)} placeholder={t('workers.debtDescPlaceholder')} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingWorkerDebt(null)}>{t('common.cancel')}</Button>
+            <Button onClick={() => editWorkerDebt.mutate()} disabled={editWorkerDebt.isPending || !editDebtAmount || parseFloat(editDebtAmount) <= 0}>
+              {editWorkerDebt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Worker Debt Confirmation */}
+      <AlertDialog open={!!workerDebtToDelete} onOpenChange={(open) => !open && setWorkerDebtToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('confirmDelete.debt')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => workerDebtToDelete && deleteWorkerDebt.mutate(workerDebtToDelete)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
