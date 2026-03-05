@@ -687,7 +687,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           amount: payableAmount,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
-          status: 'pending',
+          status: role === 'admin' ? 'approved' : 'pending',
         }])
         .select()
         .single();
