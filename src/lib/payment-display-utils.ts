@@ -39,7 +39,8 @@ export function translateReason(reason: string, t: TFunction): string {
   // Contractor advance - only match "- Advance" NOT followed by " payment" (already handled above)
   result = result.replace(/- Advance(?! payment)/g, `- ${t('contractors.paymentTypes.advance')}`);
   
-  // Worker advance debt reason
+  // Worker debt tags - strip internal markers
+  result = result.replace(/\s*\[WORKER_DEBT\]/g, '');
   result = result.replace(/\[ADVANCE_DEBT\]/g, '');
   result = result.replace(/Advance debt for worker/g, t('workers.advanceDebtReason', { defaultValue: 'Advance debt for worker' }));
   

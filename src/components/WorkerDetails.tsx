@@ -901,48 +901,38 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Create payment - auto-approved for admin, pending for others
+      // Debt repayment is NOT a spending - no payment record needed.
+      // It only records the debt_payment + a discount adjustment on salary.
       const isAdmin = role === 'admin';
-      const { error: payError } = await supabase.from('payments').insert({
-        workshop_id: workerDebtRepayWorkshopId,
-        paid_to: 'Travailleur',
-        reason: `${worker.name} - Debt repayment (${amount.toLocaleString('fr-FR')} CFA) [DEBT_REPAYMENT:${workerDebtRepayId}]`,
+
+      // Record the debt payment
+      await supabase.from('debt_payments').insert({
+        debt_id: workerDebtRepayId,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `Debt repayment deducted from salary`,
         created_by: user?.id,
-        status: isAdmin ? 'approved' : 'pending',
       });
-      if (payError) throw payError;
 
-      // If admin, immediately apply debt payment and salary deduction
-      if (isAdmin) {
-        await supabase.from('debt_payments').insert({
-          debt_id: workerDebtRepayId,
-          amount,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          description: `Debt repayment deducted from salary`,
-          created_by: user?.id,
-        });
+      // Create a discount adjustment so it's deducted from salary when paying
+      await supabase.from('worker_adjustments').insert({
+        worker_id: worker.id,
+        workshop_id: workerDebtRepayWorkshopId,
+        work_date: format(new Date(), 'yyyy-MM-dd'),
+        adjustment_type: 'discount',
+        amount,
+        reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA [DEBT_REPAYMENT]`,
+        is_paid: false,
+        created_by: user?.id,
+      });
 
-        await supabase.from('worker_adjustments').insert({
-          worker_id: worker.id,
-          workshop_id: workerDebtRepayWorkshopId,
-          work_date: format(new Date(), 'yyyy-MM-dd'),
-          adjustment_type: 'discount',
-          amount,
-          reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA deducted [DEBT_REPAYMENT]`,
-          is_paid: false,
-          created_by: user?.id,
-        });
-
-        // Check if debt is fully paid
-        if (debt) {
-          const existingPayments = workerDebtPayments
-            .filter(p => p.debt_id === workerDebtRepayId)
-            .reduce((s, p) => s + Number(p.amount), 0);
-          if (existingPayments + amount >= Number(debt.amount)) {
-            await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
-          }
+      // Check if debt is fully paid
+      if (debt) {
+        const existingPayments = workerDebtPayments
+          .filter(p => p.debt_id === workerDebtRepayId)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        if (existingPayments + amount >= Number(debt.amount)) {
+          await supabase.from('debts').update({ is_settled: true }).eq('id', workerDebtRepayId);
         }
       }
     },
