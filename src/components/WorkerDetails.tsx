@@ -121,6 +121,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
   const [workerDebtDescription, setWorkerDebtDescription] = useState('');
   const [workerDebtWorkshopId, setWorkerDebtWorkshopId] = useState('');
+  const [workerDebtRepayId, setWorkerDebtRepayId] = useState<string | null>(null);
   const [workerDebtRepayAmount, setWorkerDebtRepayAmount] = useState('');
   const [workerDebtRepayWorkshopId, setWorkerDebtRepayWorkshopId] = useState('');
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
