@@ -27,6 +27,7 @@ export default function Approvals() {
   const { t } = useTranslation();
   const { user, role, loading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   if (loading) {
     return (
@@ -41,7 +42,6 @@ export default function Approvals() {
   if (!user || role !== 'admin') {
     return <Navigate to={!user ? "/auth" : "/"} replace />;
   }
-  const queryClient = useQueryClient();
   
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
