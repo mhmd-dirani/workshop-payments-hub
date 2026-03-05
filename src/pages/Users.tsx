@@ -203,7 +203,44 @@ export default function Users() {
     },
   });
 
-  const getRoleBadge = (roles: UserRole[]) => {
+  const editUser = useMutation({
+    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'update', user_id: userId, full_name: fullName },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditingUser(null);
+      toast({ title: t('users.userUpdated'), description: t('users.userUpdatedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      if (userId === currentUser?.id) throw new Error(t('users.cannotDeleteSelf'));
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'delete', user_id: userId },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setUserToDelete(null);
+      toast({ title: t('users.userDeleted'), description: t('users.userDeletedDesc') });
+    },
+    onError: (error: Error) => {
+      toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
+    },
+  });
+
+
     const role = roles?.[0]?.role;
     if (role === 'admin') {
       return (
