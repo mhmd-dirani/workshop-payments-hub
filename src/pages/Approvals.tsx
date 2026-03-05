@@ -28,6 +28,12 @@ export default function Approvals() {
   const { user, role, loading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectDebtDialogOpen, setRejectDebtDialogOpen] = useState(false);
+  const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -42,12 +48,6 @@ export default function Approvals() {
   if (!user || role !== 'admin') {
     return <Navigate to={!user ? "/auth" : "/"} replace />;
   }
-  
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [rejectDebtDialogOpen, setRejectDebtDialogOpen] = useState(false);
-  const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null);
 
   // Pending payments query
   const { data: pendingPayments, isLoading } = useQuery({
