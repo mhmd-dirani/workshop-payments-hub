@@ -521,6 +521,23 @@ export default function Users() {
                                     <SelectItem value="admin">{t('roles.admin')}</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => { setEditingUser({ userId: user.user_id, fullName: user.full_name || '' }); setEditName(user.full_name || ''); }}>
+                                      <Edit className="w-3.5 h-3.5 mr-2" /> {t('users.editUser')}
+                                    </DropdownMenuItem>
+                                    {user.user_id !== currentUser?.id && (
+                                      <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete({ userId: user.user_id, name: user.full_name || '' })}>
+                                        <Trash2 className="w-3.5 h-3.5 mr-2" /> {t('users.deleteUser')}
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </TableCell>
                           </TableRow>
