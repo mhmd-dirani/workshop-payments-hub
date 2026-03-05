@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { translatePaidTo, translateReason } from '@/lib/payment-display-utils';
@@ -24,7 +25,7 @@ import { Check, X, Loader2, ClipboardCheck, ArrowUpCircle } from 'lucide-react';
 
 export default function Approvals() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, role, loading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -33,6 +34,20 @@ export default function Approvals() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectDebtDialogOpen, setRejectDebtDialogOpen] = useState(false);
   const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user || role !== 'admin') {
+    return <Navigate to={!user ? "/auth" : "/"} replace />;
+  }
 
   // Pending payments query
   const { data: pendingPayments, isLoading } = useQuery({
