@@ -954,6 +954,43 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  const editWorkerDebt = useMutation({
+    mutationFn: async () => {
+      if (!editingWorkerDebt) return;
+      const amount = parseFloat(editDebtAmount);
+      if (!amount || amount <= 0) throw new Error('Invalid amount');
+      await supabase.from('debts').update({
+        amount,
+        description: `${editDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
+      }).eq('id', editingWorkerDebt.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      setEditingWorkerDebt(null);
+      toast({ title: t('users.editDebt'), description: t('users.debtEditedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
+  const deleteWorkerDebt = useMutation({
+    mutationFn: async (debt: any) => {
+      // Delete associated debt payments first
+      await supabase.from('debt_payments').delete().eq('debt_id', debt.id);
+      // Delete associated worker adjustments with DEBT_REPAYMENT tag
+      await supabase.from('worker_adjustments').delete().eq('worker_id', worker.id).ilike('reason', '%DEBT_REPAYMENT%');
+      // Delete the debt
+      await supabase.from('debts').delete().eq('id', debt.id);
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
+      setWorkerDebtToDelete(null);
+      toast({ title: t('users.deleteDebt'), description: t('users.debtDeletedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
