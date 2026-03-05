@@ -688,7 +688,8 @@
     "paymentTypes": {
       "advance": "Advance",
       "product": "Product/Material",
-      "material_budget": "Material Budget"
+      "material_budget": "Material Budget",
+      "budget_purchase": "Budget Purchase"
     },
     "paymentDescPlaceholder": "e.g., Paint cans, advance for labor...",
     "filterByContractor": "Filter by contractor",

@@ -687,7 +687,8 @@
     "paymentTypes": {
       "advance": "سلفة",
       "product": "منتج/مواد",
-      "material_budget": "ميزانية مواد"
+      "material_budget": "ميزانية مواد",
+      "budget_purchase": "شراء من الميزانية"
     },
     "paymentDescPlaceholder": "مثال: علب طلاء، سلفة عمالة...",
     "filterByContractor": "تصفية حسب المقاول",

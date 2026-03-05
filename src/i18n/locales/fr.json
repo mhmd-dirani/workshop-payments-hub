@@ -687,7 +687,8 @@
     "paymentTypes": {
       "advance": "Avance",
       "product": "Produit/Matériel",
-      "material_budget": "Budget matériel"
+      "material_budget": "Budget matériel",
+      "budget_purchase": "Achat budget"
     },
     "paymentDescPlaceholder": "ex: Pots de peinture, avance main-d'œuvre...",
     "filterByContractor": "Filtrer par sous-traitant",
