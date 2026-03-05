@@ -395,7 +395,26 @@ export default function Users() {
                               {t('users.joined')} {format(new Date(user.created_at), 'MMM d, yyyy')}
                             </p>
                           </div>
-                          {getRoleBadge(user.user_roles)}
+                          <div className="flex items-center gap-1">
+                            {getRoleBadge(user.user_roles)}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingUser({ userId: user.user_id, fullName: user.full_name || '' }); setEditName(user.full_name || ''); }}>
+                                  <Edit className="w-3.5 h-3.5 mr-2" /> {t('users.editUser')}
+                                </DropdownMenuItem>
+                                {user.user_id !== currentUser?.id && (
+                                  <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete({ userId: user.user_id, name: user.full_name || '' })}>
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" /> {t('users.deleteUser')}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between pt-2 border-t">
