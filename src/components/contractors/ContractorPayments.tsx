@@ -650,10 +650,10 @@ export default function ContractorPayments() {
             className="pl-8 h-9 text-sm"
           />
         </div>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex gap-2">
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-1.5 md:flex md:gap-2">
             <Select value={filterContractor} onValueChange={setFilterContractor}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByContractor')} />
               </SelectTrigger>
               <SelectContent>
@@ -664,7 +664,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
             <Select value={filterWorkshop} onValueChange={setFilterWorkshop}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByWorkshop')} />
               </SelectTrigger>
               <SelectContent>
@@ -675,7 +675,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
             <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByPaymentType')} />
               </SelectTrigger>
               <SelectContent>
@@ -686,7 +686,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
           </div>
-
+          <div className="flex justify-end">
           <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1">
