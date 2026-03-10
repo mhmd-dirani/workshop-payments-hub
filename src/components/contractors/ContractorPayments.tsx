@@ -812,8 +812,8 @@ export default function ContractorPayments() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
-      </div>
 
       {/* Edit Budget Amount Dialog */}
       <Dialog open={!!editingBudget} onOpenChange={(open) => { if (!open) setEditingBudget(null); }}>

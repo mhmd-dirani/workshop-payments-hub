@@ -190,16 +190,54 @@ export default function Approvals() {
   // Debt status mutation
   const updateDebtStatus = useMutation({
     mutationFn: async ({ debtId, status }: { debtId: string; status: 'approved' | 'rejected' }) => {
+      // Find the debt to get person_name for matching the payment
+      const debt = pendingDebts.find((d: any) => d.id === debtId);
+      
       if (status === 'rejected') {
-        // Delete the rejected debt
+        // Delete the rejected debt and its associated pending payment
+        if (debt) {
+          // Find and delete the associated pending payment (same creator, WORKER_DEBT tag, pending)
+          const { data: matchingPayments } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('created_by', debt.created_by)
+            .eq('status', 'pending')
+            .ilike('reason', `%${debt.person_name}%[WORKER_DEBT]%`);
+          
+          if (matchingPayments && matchingPayments.length > 0) {
+            await supabase.from('payments').delete().in('id', matchingPayments.map((p: any) => p.id));
+          }
+        }
         const { error } = await supabase.from('debts').delete().eq('id', debtId);
         if (error) throw error;
       } else {
+        // Approve the debt
         const { error } = await supabase
           .from('debts')
           .update({ status } as any)
           .eq('id', debtId);
         if (error) throw error;
+        
+        // Also approve the associated pending payment so it shows in dashboard and deducts from user balance
+        if (debt) {
+          const { data: matchingPayments } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('created_by', debt.created_by)
+            .eq('status', 'pending')
+            .ilike('reason', `%${debt.person_name}%[WORKER_DEBT]%`);
+          
+          if (matchingPayments && matchingPayments.length > 0) {
+            await supabase
+              .from('payments')
+              .update({ 
+                status: 'approved',
+                approved_by: user?.id,
+                approved_at: new Date().toISOString(),
+              })
+              .in('id', matchingPayments.map((p: any) => p.id));
+          }
+        }
       }
     },
     onSuccess: (_, { status }) => {
@@ -207,6 +245,8 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       toast({
         title: status === 'approved' ? t('approvals.debtApproved') : t('approvals.debtRejected'),
         description: status === 'approved' ? t('approvals.debtHasBeenApproved') : t('approvals.debtHasBeenRejected'),
