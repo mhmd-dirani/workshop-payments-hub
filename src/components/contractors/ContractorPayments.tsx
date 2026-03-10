@@ -146,42 +146,18 @@ export default function ContractorPayments() {
 
   // Fetch all budget purchase sums for display
   const budgetPaymentIds = payments.filter(p => p.payment_type === 'material_budget').map(p => p.id);
-  const { data: budgetSumsData = { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {} } } = useQuery({
+  const { data: budgetSumsData = { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {}, advanceBudgetWorkshops: {} } } = useQuery({
     queryKey: ['budget-sums', budgetPaymentIds.join(',')],
     queryFn: async () => {
-      if (budgetPaymentIds.length === 0) return { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {} };
+      if (budgetPaymentIds.length === 0) return { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {}, advanceBudgetWorkshops: {} };
       const { data, error } = await supabase
         .from('contractor_budget_purchases')
         .select('contractor_payment_id, amount, description')
         .in('contractor_payment_id', budgetPaymentIds);
       if (error) throw error;
-      
-      // Also fetch budget_purchase links to know which workshops each budget has activity in
-      const { data: budgetLinks } = await supabase
-        .from('contractor_payments')
-        .select('contractor_payment_id:contract_id, workshop_id, amount, description')
-        .eq('payment_type', 'budget_purchase')
-        .in('contractor_id', [...new Set(payments.filter(p => p.payment_type === 'material_budget').map(p => p.contractor_id))]);
-      
-      // Build a map of budget_id -> set of workshop_ids from the budget_purchase links
-      // We need to match via the original budget's contractor + contract
-      const workshopMap: Record<string, Set<string>> = {};
-      
-      // Get workshop info from budget_purchase records that reference our budgets
-      const { data: purchaseLinks } = await supabase
-        .from('contractor_payments')
-        .select('id, workshop_id')
-        .eq('payment_type', 'budget_purchase');
-      
-      // Match purchases to their parent budgets via description containing workshop names
-      // Simpler: check budget_purchase contractor_payments that share contractor_id with material_budgets
-      const budgetsByContractor = new Map<string, string[]>();
-      payments.filter(p => p.payment_type === 'material_budget').forEach(p => {
-        const list = budgetsByContractor.get(p.contractor_id) || [];
-        list.push(p.id);
-        budgetsByContractor.set(p.contractor_id, list);
-      });
 
+      const workshopMap: Record<string, Set<string>> = {};
+      const advanceWorkshopMap: Record<string, Set<string>> = {};
       const allMap: Record<string, number> = {};
       const advanceMap: Record<string, number> = {};
       data?.forEach(p => {
@@ -198,16 +174,26 @@ export default function ContractorPayments() {
           if (ws) {
             if (!workshopMap[p.contractor_payment_id]) workshopMap[p.contractor_payment_id] = new Set();
             workshopMap[p.contractor_payment_id].add(ws.id);
+            if (isAdvancePurchase) {
+              if (!advanceWorkshopMap[p.contractor_payment_id]) advanceWorkshopMap[p.contractor_payment_id] = new Set();
+              advanceWorkshopMap[p.contractor_payment_id].add(ws.id);
+            }
           }
         }
       });
-      return { allBudgetSums: allMap, advanceBudgetSums: advanceMap, budgetWorkshops: Object.fromEntries(Object.entries(workshopMap).map(([k, v]) => [k, [...v]])) };
+      return { 
+        allBudgetSums: allMap, 
+        advanceBudgetSums: advanceMap, 
+        budgetWorkshops: Object.fromEntries(Object.entries(workshopMap).map(([k, v]) => [k, [...v]])),
+        advanceBudgetWorkshops: Object.fromEntries(Object.entries(advanceWorkshopMap).map(([k, v]) => [k, [...v]])),
+      };
     },
     enabled: budgetPaymentIds.length > 0,
   });
   const allBudgetSums = budgetSumsData.allBudgetSums;
   const advanceBudgetSums = budgetSumsData.advanceBudgetSums;
   const budgetWorkshops: Record<string, string[]> = budgetSumsData.budgetWorkshops;
+  const advanceBudgetWorkshops: Record<string, string[]> = budgetSumsData.advanceBudgetWorkshops;
 
   const uploadReceipt = async (paymentId: string, workshopForPayment: string, workshopName: string, file: File) => {
     const fileExt = file.name.split('.').pop();
@@ -650,10 +636,10 @@ export default function ContractorPayments() {
             className="pl-8 h-9 text-sm"
           />
         </div>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex gap-2">
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-1.5 md:flex md:gap-2">
             <Select value={filterContractor} onValueChange={setFilterContractor}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByContractor')} />
               </SelectTrigger>
               <SelectContent>
@@ -664,7 +650,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
             <Select value={filterWorkshop} onValueChange={setFilterWorkshop}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByWorkshop')} />
               </SelectTrigger>
               <SelectContent>
@@ -675,7 +661,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
             <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
-              <SelectTrigger className="w-[140px] h-9 text-xs md:text-sm">
+              <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
                 <SelectValue placeholder={t('contractors.filterByPaymentType')} />
               </SelectTrigger>
               <SelectContent>
@@ -686,7 +672,7 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
           </div>
-
+          <div className="flex justify-end">
           <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1">
@@ -812,6 +798,7 @@ export default function ContractorPayments() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
@@ -903,20 +890,45 @@ export default function ContractorPayments() {
         const filteredPayments = payments.filter(p => {
           // Hide budget_purchase entries - they are shown under their parent budget
           if (p.payment_type === 'budget_purchase') return false;
-          // When filtering by workshop, only show material_budgets that have purchases in that workshop
-          if (p.payment_type === 'material_budget' && filterWorkshop !== 'all') {
+          
+          if (p.payment_type === 'material_budget') {
+            const spent = allBudgetSums[p.id] || 0;
+            const remaining = Number(p.amount) - spent;
             const wsIds = budgetWorkshops[p.id] || [];
-            if (!wsIds.includes(filterWorkshop)) return false;
-          }
-          if (filterPaymentType !== 'all') {
+            const advanceWsIds = advanceBudgetWorkshops[p.id] || [];
+            const advanceFromBudget = advanceBudgetSums[p.id] || 0;
+            
+            // Workshop filter: budget must have activity in that workshop
+            if (filterWorkshop !== 'all' && !wsIds.includes(filterWorkshop)) return false;
+            
+            // Payment type filter for budgets
             if (filterPaymentType === 'advance') {
-              // Show advance payments + material_budgets (remaining counts as advance)
-              if (p.payment_type !== 'advance' && p.payment_type !== 'material_budget') return false;
+              // Only show if remaining > 0 OR has advance purchases
+              const hasRelevantAdvance = filterWorkshop !== 'all'
+                ? (advanceWsIds.includes(filterWorkshop)) // advance in this specific workshop
+                : (advanceFromBudget > 0);
+              const hasRemaining = remaining > 0;
+              if (!hasRelevantAdvance && !hasRemaining) return false;
+              // If workshop filter active AND remaining > 0 but no activity in workshop, hide
+              if (filterWorkshop !== 'all' && !hasRelevantAdvance && hasRemaining && !wsIds.includes(filterWorkshop)) return false;
             } else if (filterPaymentType === 'product') {
-              // Only show product payments, not material_budgets
-              if (p.payment_type !== 'product') return false;
-            } else {
-              if (p.payment_type !== filterPaymentType) return false;
+              return false; // Hide budgets in product filter
+            } else if (filterPaymentType === 'material_budget') {
+              // Show only if has actual product purchases (spent - advances > 0)
+              if (Math.max(0, spent - advanceFromBudget) <= 0) return false;
+            }
+          } else {
+            // When filtering by workshop, only show payments in that workshop
+            if (filterWorkshop !== 'all' && p.workshop_id !== filterWorkshop) return false;
+            
+            if (filterPaymentType !== 'all') {
+              if (filterPaymentType === 'advance') {
+                if (p.payment_type !== 'advance') return false;
+              } else if (filterPaymentType === 'product') {
+                if (p.payment_type !== 'product') return false;
+              } else {
+                if (p.payment_type !== filterPaymentType) return false;
+              }
             }
           }
           if (!searchQuery) return true;
