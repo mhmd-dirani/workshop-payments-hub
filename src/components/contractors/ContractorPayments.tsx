@@ -890,20 +890,45 @@ export default function ContractorPayments() {
         const filteredPayments = payments.filter(p => {
           // Hide budget_purchase entries - they are shown under their parent budget
           if (p.payment_type === 'budget_purchase') return false;
-          // When filtering by workshop, only show material_budgets that have purchases in that workshop
-          if (p.payment_type === 'material_budget' && filterWorkshop !== 'all') {
+          
+          if (p.payment_type === 'material_budget') {
+            const spent = allBudgetSums[p.id] || 0;
+            const remaining = Number(p.amount) - spent;
             const wsIds = budgetWorkshops[p.id] || [];
-            if (!wsIds.includes(filterWorkshop)) return false;
-          }
-          if (filterPaymentType !== 'all') {
+            const advanceWsIds = advanceBudgetWorkshops[p.id] || [];
+            const advanceFromBudget = advanceBudgetSums[p.id] || 0;
+            
+            // Workshop filter: budget must have activity in that workshop
+            if (filterWorkshop !== 'all' && !wsIds.includes(filterWorkshop)) return false;
+            
+            // Payment type filter for budgets
             if (filterPaymentType === 'advance') {
-              // Show advance payments + material_budgets (remaining counts as advance)
-              if (p.payment_type !== 'advance' && p.payment_type !== 'material_budget') return false;
+              // Only show if remaining > 0 OR has advance purchases
+              const hasRelevantAdvance = filterWorkshop !== 'all'
+                ? (advanceWsIds.includes(filterWorkshop)) // advance in this specific workshop
+                : (advanceFromBudget > 0);
+              const hasRemaining = remaining > 0;
+              if (!hasRelevantAdvance && !hasRemaining) return false;
+              // If workshop filter active AND remaining > 0 but no activity in workshop, hide
+              if (filterWorkshop !== 'all' && !hasRelevantAdvance && hasRemaining && !wsIds.includes(filterWorkshop)) return false;
             } else if (filterPaymentType === 'product') {
-              // Only show product payments, not material_budgets
-              if (p.payment_type !== 'product') return false;
-            } else {
-              if (p.payment_type !== filterPaymentType) return false;
+              return false; // Hide budgets in product filter
+            } else if (filterPaymentType === 'material_budget') {
+              // Show only if has actual product purchases (spent - advances > 0)
+              if (Math.max(0, spent - advanceFromBudget) <= 0) return false;
+            }
+          } else {
+            // When filtering by workshop, only show payments in that workshop
+            if (filterWorkshop !== 'all' && p.workshop_id !== filterWorkshop) return false;
+            
+            if (filterPaymentType !== 'all') {
+              if (filterPaymentType === 'advance') {
+                if (p.payment_type !== 'advance') return false;
+              } else if (filterPaymentType === 'product') {
+                if (p.payment_type !== 'product') return false;
+              } else {
+                if (p.payment_type !== filterPaymentType) return false;
+              }
             }
           }
           if (!searchQuery) return true;
