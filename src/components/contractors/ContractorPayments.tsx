@@ -146,42 +146,18 @@ export default function ContractorPayments() {
 
   // Fetch all budget purchase sums for display
   const budgetPaymentIds = payments.filter(p => p.payment_type === 'material_budget').map(p => p.id);
-  const { data: budgetSumsData = { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {} } } = useQuery({
+  const { data: budgetSumsData = { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {}, advanceBudgetWorkshops: {} } } = useQuery({
     queryKey: ['budget-sums', budgetPaymentIds.join(',')],
     queryFn: async () => {
-      if (budgetPaymentIds.length === 0) return { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {} };
+      if (budgetPaymentIds.length === 0) return { allBudgetSums: {}, advanceBudgetSums: {}, budgetWorkshops: {}, advanceBudgetWorkshops: {} };
       const { data, error } = await supabase
         .from('contractor_budget_purchases')
         .select('contractor_payment_id, amount, description')
         .in('contractor_payment_id', budgetPaymentIds);
       if (error) throw error;
-      
-      // Also fetch budget_purchase links to know which workshops each budget has activity in
-      const { data: budgetLinks } = await supabase
-        .from('contractor_payments')
-        .select('contractor_payment_id:contract_id, workshop_id, amount, description')
-        .eq('payment_type', 'budget_purchase')
-        .in('contractor_id', [...new Set(payments.filter(p => p.payment_type === 'material_budget').map(p => p.contractor_id))]);
-      
-      // Build a map of budget_id -> set of workshop_ids from the budget_purchase links
-      // We need to match via the original budget's contractor + contract
-      const workshopMap: Record<string, Set<string>> = {};
-      
-      // Get workshop info from budget_purchase records that reference our budgets
-      const { data: purchaseLinks } = await supabase
-        .from('contractor_payments')
-        .select('id, workshop_id')
-        .eq('payment_type', 'budget_purchase');
-      
-      // Match purchases to their parent budgets via description containing workshop names
-      // Simpler: check budget_purchase contractor_payments that share contractor_id with material_budgets
-      const budgetsByContractor = new Map<string, string[]>();
-      payments.filter(p => p.payment_type === 'material_budget').forEach(p => {
-        const list = budgetsByContractor.get(p.contractor_id) || [];
-        list.push(p.id);
-        budgetsByContractor.set(p.contractor_id, list);
-      });
 
+      const workshopMap: Record<string, Set<string>> = {};
+      const advanceWorkshopMap: Record<string, Set<string>> = {};
       const allMap: Record<string, number> = {};
       const advanceMap: Record<string, number> = {};
       data?.forEach(p => {
@@ -198,16 +174,26 @@ export default function ContractorPayments() {
           if (ws) {
             if (!workshopMap[p.contractor_payment_id]) workshopMap[p.contractor_payment_id] = new Set();
             workshopMap[p.contractor_payment_id].add(ws.id);
+            if (isAdvancePurchase) {
+              if (!advanceWorkshopMap[p.contractor_payment_id]) advanceWorkshopMap[p.contractor_payment_id] = new Set();
+              advanceWorkshopMap[p.contractor_payment_id].add(ws.id);
+            }
           }
         }
       });
-      return { allBudgetSums: allMap, advanceBudgetSums: advanceMap, budgetWorkshops: Object.fromEntries(Object.entries(workshopMap).map(([k, v]) => [k, [...v]])) };
+      return { 
+        allBudgetSums: allMap, 
+        advanceBudgetSums: advanceMap, 
+        budgetWorkshops: Object.fromEntries(Object.entries(workshopMap).map(([k, v]) => [k, [...v]])),
+        advanceBudgetWorkshops: Object.fromEntries(Object.entries(advanceWorkshopMap).map(([k, v]) => [k, [...v]])),
+      };
     },
     enabled: budgetPaymentIds.length > 0,
   });
   const allBudgetSums = budgetSumsData.allBudgetSums;
   const advanceBudgetSums = budgetSumsData.advanceBudgetSums;
   const budgetWorkshops: Record<string, string[]> = budgetSumsData.budgetWorkshops;
+  const advanceBudgetWorkshops: Record<string, string[]> = budgetSumsData.advanceBudgetWorkshops;
 
   const uploadReceipt = async (paymentId: string, workshopForPayment: string, workshopName: string, file: File) => {
     const fileExt = file.name.split('.').pop();
