@@ -524,7 +524,16 @@
     "confirmRepayment": "Confirmer remboursement",
     "debtRepaymentCreated": "Remboursement enregistré",
     "debtRepaymentCreatedDesc": "Le remboursement sera déduit du prochain paiement de salaire",
-    "repayExceedsDebt": "Le montant du remboursement dépasse la dette restante"
+    "repayExceedsDebt": "Le montant du remboursement dépasse la dette restante",
+    "editAdvanceCredit": "Modifier le paiement d'avance",
+    "editAdvanceCreditDesc": "Modifier le montant ou le payeur de ce paiement d'avance/partiel",
+    "whoPaid": "Qui a payé",
+    "selectPayer": "Sélectionner le payeur",
+    "advanceCreditUpdated": "Paiement d'avance modifié",
+    "advanceCreditUpdatedDesc": "Le montant et le payeur ont été synchronisés",
+    "advanceCreditDeleted": "Paiement d'avance supprimé",
+    "advanceCreditDeletedDesc": "Le paiement d'avance et les enregistrements liés ont été supprimés",
+    "deleteAdvanceCreditConfirm": "Êtes-vous sûr de vouloir supprimer ce paiement d'avance/partiel ? Cela supprimera également l'enregistrement de paiement lié et restaurera le solde du payeur."
   },
   "personalPayments": {
     "title": "Paiements personnels",

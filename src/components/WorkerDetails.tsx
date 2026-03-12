@@ -128,6 +128,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [editDebtAmount, setEditDebtAmount] = useState('');
   const [editDebtDescription, setEditDebtDescription] = useState('');
   const [workerDebtToDelete, setWorkerDebtToDelete] = useState<any>(null);
+  const [editingAdvanceCredit, setEditingAdvanceCredit] = useState<any>(null);
+  const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
+  const [editAdvanceCreatorId, setEditAdvanceCreatorId] = useState('');
+  const [advanceCreditToDelete, setAdvanceCreditToDelete] = useState<any>(null);
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
@@ -262,6 +266,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .from('workshops')
         .select('id, name')
         .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch profiles for "who paid" selector
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .order('full_name');
       if (error) throw error;
       return data || [];
     },
@@ -991,6 +1008,93 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // Edit advance/partial credit mutation
+  const editAdvanceCredit = useMutation({
+    mutationFn: async () => {
+      if (!editingAdvanceCredit) return;
+      const newAmount = parseFloat(editAdvanceAmount);
+      if (!newAmount || newAmount <= 0) throw new Error('Invalid amount');
+      
+      const adjId = editingAdvanceCredit.id;
+      const paymentId = editingAdvanceCredit.payment_id;
+      const newCreatorId = editAdvanceCreatorId;
+      
+      // Update the worker_adjustments amount
+      const adjReason = editingAdvanceCredit.reason || '';
+      const newAdjReason = adjReason.replace(/\d[\d\s.,]*\sCFA/, `${newAmount.toLocaleString('fr-FR')} CFA`);
+      await supabase.from('worker_adjustments').update({ amount: newAmount, reason: newAdjReason }).eq('id', adjId);
+      
+      if (paymentId) {
+        const { data: currentPayment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', paymentId)
+          .single();
+        
+        if (currentPayment) {
+          const oldCreatorId = currentPayment.created_by;
+          const updatePayload: Record<string, any> = { amount: newAmount };
+          const newPayReason = (currentPayment.reason || '').replace(/\d[\d\s.,]*\sCFA/, `${newAmount.toLocaleString('fr-FR')} CFA`);
+          updatePayload.reason = newPayReason;
+          
+          if (newCreatorId && newCreatorId !== oldCreatorId) {
+            updatePayload.created_by = newCreatorId;
+            const { data: existingTransfer } = await supabase
+              .from('user_transfers')
+              .select('*')
+              .eq('payment_id', paymentId)
+              .maybeSingle();
+            if (existingTransfer) {
+              await supabase.from('user_transfers')
+                .update({ user_id: newCreatorId, amount: newAmount })
+                .eq('id', existingTransfer.id);
+            }
+          } else {
+            const { data: existingTransfer } = await supabase
+              .from('user_transfers')
+              .select('id')
+              .eq('payment_id', paymentId)
+              .maybeSingle();
+            if (existingTransfer) {
+              await supabase.from('user_transfers')
+                .update({ amount: newAmount })
+                .eq('id', existingTransfer.id);
+            }
+          }
+          
+          await supabase.from('payments').update(updatePayload).eq('id', paymentId);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setEditingAdvanceCredit(null);
+      toast({ title: t('workers.advanceCreditUpdated'), description: t('workers.advanceCreditUpdatedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
+  const deleteAdvanceCredit = useMutation({
+    mutationFn: async (adj: any) => {
+      const paymentId = adj.payment_id;
+      await supabase.from('worker_adjustments').delete().eq('id', adj.id);
+      if (paymentId) {
+        await supabase.from('user_transfers').delete().eq('payment_id', paymentId);
+        await supabase.from('payments').delete().eq('id', paymentId);
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setAdvanceCreditToDelete(null);
+      toast({ title: t('workers.advanceCreditDeleted'), description: t('workers.advanceCreditDeletedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1194,10 +1298,49 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{adj.reason}</p>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <Badge variant={adj.adjustment_type === 'discount' ? 'destructive' : 'secondary'} className="gap-1 font-mono text-xs">
                                 {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')}
                               </Badge>
+                              {/* Edit/Delete for advance/partial credits */}
+                              {(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && adj.payment_id && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      // Fetch the linked payment to get creator info
+                                      const { data: payment } = await supabase
+                                        .from('payments')
+                                        .select('created_by, reason')
+                                        .eq('id', adj.payment_id)
+                                        .single();
+                                      setEditingAdvanceCredit({
+                                        ...adj,
+                                        _payment_created_by: payment?.created_by || '',
+                                        _payment_reason: payment?.reason || '',
+                                      });
+                                      setEditAdvanceAmount(String(adj.amount));
+                                      setEditAdvanceCreatorId(payment?.created_by || '');
+                                    }}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAdvanceCreditToDelete(adj);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -2286,6 +2429,74 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => workerDebtToDelete && deleteWorkerDebt.mutate(workerDebtToDelete)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Advance Credit Dialog */}
+      <Dialog open={!!editingAdvanceCredit} onOpenChange={(open) => !open && setEditingAdvanceCredit(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.editAdvanceCredit')}</DialogTitle>
+            <DialogDescription>{t('workers.editAdvanceCreditDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editAdvanceAmount}
+                onChange={(e) => setEditAdvanceAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('workers.whoPaid')}</Label>
+              <Select value={editAdvanceCreatorId} onValueChange={setEditAdvanceCreatorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectPayer')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProfiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name || p.user_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingAdvanceCredit(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => editAdvanceCredit.mutate()}
+              disabled={editAdvanceCredit.isPending || !editAdvanceAmount || parseFloat(editAdvanceAmount) <= 0}
+            >
+              {editAdvanceCredit.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Advance Credit Confirmation */}
+      <AlertDialog open={!!advanceCreditToDelete} onOpenChange={(open) => !open && setAdvanceCreditToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('workers.deleteAdvanceCreditConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => advanceCreditToDelete && deleteAdvanceCredit.mutate(advanceCreditToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
