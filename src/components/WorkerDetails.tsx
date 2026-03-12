@@ -1008,6 +1008,93 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // Edit advance/partial credit mutation
+  const editAdvanceCredit = useMutation({
+    mutationFn: async () => {
+      if (!editingAdvanceCredit) return;
+      const newAmount = parseFloat(editAdvanceAmount);
+      if (!newAmount || newAmount <= 0) throw new Error('Invalid amount');
+      
+      const adjId = editingAdvanceCredit.id;
+      const paymentId = editingAdvanceCredit.payment_id;
+      const newCreatorId = editAdvanceCreatorId;
+      
+      // Update the worker_adjustments amount
+      const adjReason = editingAdvanceCredit.reason || '';
+      const newAdjReason = adjReason.replace(/\d[\d\s.,]*\sCFA/, `${newAmount.toLocaleString('fr-FR')} CFA`);
+      await supabase.from('worker_adjustments').update({ amount: newAmount, reason: newAdjReason }).eq('id', adjId);
+      
+      if (paymentId) {
+        const { data: currentPayment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', paymentId)
+          .single();
+        
+        if (currentPayment) {
+          const oldCreatorId = currentPayment.created_by;
+          const updatePayload: Record<string, any> = { amount: newAmount };
+          const newPayReason = (currentPayment.reason || '').replace(/\d[\d\s.,]*\sCFA/, `${newAmount.toLocaleString('fr-FR')} CFA`);
+          updatePayload.reason = newPayReason;
+          
+          if (newCreatorId && newCreatorId !== oldCreatorId) {
+            updatePayload.created_by = newCreatorId;
+            const { data: existingTransfer } = await supabase
+              .from('user_transfers')
+              .select('*')
+              .eq('payment_id', paymentId)
+              .maybeSingle();
+            if (existingTransfer) {
+              await supabase.from('user_transfers')
+                .update({ user_id: newCreatorId, amount: newAmount })
+                .eq('id', existingTransfer.id);
+            }
+          } else {
+            const { data: existingTransfer } = await supabase
+              .from('user_transfers')
+              .select('id')
+              .eq('payment_id', paymentId)
+              .maybeSingle();
+            if (existingTransfer) {
+              await supabase.from('user_transfers')
+                .update({ amount: newAmount })
+                .eq('id', existingTransfer.id);
+            }
+          }
+          
+          await supabase.from('payments').update(updatePayload).eq('id', paymentId);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setEditingAdvanceCredit(null);
+      toast({ title: t('workers.advanceCreditUpdated'), description: t('workers.advanceCreditUpdatedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
+  const deleteAdvanceCredit = useMutation({
+    mutationFn: async (adj: any) => {
+      const paymentId = adj.payment_id;
+      await supabase.from('worker_adjustments').delete().eq('id', adj.id);
+      if (paymentId) {
+        await supabase.from('user_transfers').delete().eq('payment_id', paymentId);
+        await supabase.from('payments').delete().eq('id', paymentId);
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setAdvanceCreditToDelete(null);
+      toast({ title: t('workers.advanceCreditDeleted'), description: t('workers.advanceCreditDeletedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
