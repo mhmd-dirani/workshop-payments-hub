@@ -1298,10 +1298,49 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{adj.reason}</p>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <Badge variant={adj.adjustment_type === 'discount' ? 'destructive' : 'secondary'} className="gap-1 font-mono text-xs">
                                 {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')}
                               </Badge>
+                              {/* Edit/Delete for advance/partial credits */}
+                              {(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && adj.payment_id && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      // Fetch the linked payment to get creator info
+                                      const { data: payment } = await supabase
+                                        .from('payments')
+                                        .select('created_by, reason')
+                                        .eq('id', adj.payment_id)
+                                        .single();
+                                      setEditingAdvanceCredit({
+                                        ...adj,
+                                        _payment_created_by: payment?.created_by || '',
+                                        _payment_reason: payment?.reason || '',
+                                      });
+                                      setEditAdvanceAmount(String(adj.amount));
+                                      setEditAdvanceCreatorId(payment?.created_by || '');
+                                    }}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAdvanceCreditToDelete(adj);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
