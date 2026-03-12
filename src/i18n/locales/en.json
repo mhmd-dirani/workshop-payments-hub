@@ -525,7 +525,16 @@
     "confirmRepayment": "Confirm Repayment",
     "debtRepaymentCreated": "Debt repayment recorded",
     "debtRepaymentCreatedDesc": "The repayment will be deducted from the next salary payment",
-    "repayExceedsDebt": "Repayment amount exceeds remaining debt"
+    "repayExceedsDebt": "Repayment amount exceeds remaining debt",
+    "editAdvanceCredit": "Edit Advance Payment",
+    "editAdvanceCreditDesc": "Update the amount or who paid this advance/partial payment",
+    "whoPaid": "Who Paid",
+    "selectPayer": "Select who paid",
+    "advanceCreditUpdated": "Advance payment updated",
+    "advanceCreditUpdatedDesc": "The amount and payer have been synced",
+    "advanceCreditDeleted": "Advance payment deleted",
+    "advanceCreditDeletedDesc": "The advance payment and linked records have been removed",
+    "deleteAdvanceCreditConfirm": "Are you sure you want to delete this advance/partial payment? This will also remove the linked payment record and restore the payer's balance."
   },
   "personalPayments": {
     "title": "Personal Payments",

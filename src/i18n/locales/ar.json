@@ -524,7 +524,16 @@
     "confirmRepayment": "تأكيد السداد",
     "debtRepaymentCreated": "تم تسجيل سداد الدين",
     "debtRepaymentCreatedDesc": "سيتم خصم السداد من دفعة الراتب التالية",
-    "repayExceedsDebt": "مبلغ السداد يتجاوز الدين المتبقي"
+    "repayExceedsDebt": "مبلغ السداد يتجاوز الدين المتبقي",
+    "editAdvanceCredit": "تعديل الدفعة المقدمة",
+    "editAdvanceCreditDesc": "تعديل المبلغ أو من دفع هذه الدفعة المقدمة/الجزئية",
+    "whoPaid": "من دفع",
+    "selectPayer": "اختر من دفع",
+    "advanceCreditUpdated": "تم تحديث الدفعة المقدمة",
+    "advanceCreditUpdatedDesc": "تم مزامنة المبلغ والدافع",
+    "advanceCreditDeleted": "تم حذف الدفعة المقدمة",
+    "advanceCreditDeletedDesc": "تم حذف الدفعة المقدمة والسجلات المرتبطة",
+    "deleteAdvanceCreditConfirm": "هل أنت متأكد من حذف هذه الدفعة المقدمة/الجزئية؟ سيتم أيضاً حذف سجل الدفع المرتبط واستعادة رصيد الدافع."
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",
