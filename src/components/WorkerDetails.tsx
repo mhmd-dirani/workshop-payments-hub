@@ -2434,6 +2434,74 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Advance Credit Dialog */}
+      <Dialog open={!!editingAdvanceCredit} onOpenChange={(open) => !open && setEditingAdvanceCredit(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.editAdvanceCredit')}</DialogTitle>
+            <DialogDescription>{t('workers.editAdvanceCreditDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editAdvanceAmount}
+                onChange={(e) => setEditAdvanceAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('workers.whoPaid')}</Label>
+              <Select value={editAdvanceCreatorId} onValueChange={setEditAdvanceCreatorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('workers.selectPayer')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProfiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name || p.user_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingAdvanceCredit(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => editAdvanceCredit.mutate()}
+              disabled={editAdvanceCredit.isPending || !editAdvanceAmount || parseFloat(editAdvanceAmount) <= 0}
+            >
+              {editAdvanceCredit.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Advance Credit Confirmation */}
+      <AlertDialog open={!!advanceCreditToDelete} onOpenChange={(open) => !open && setAdvanceCreditToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('workers.deleteAdvanceCreditConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => advanceCreditToDelete && deleteAdvanceCredit.mutate(advanceCreditToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
