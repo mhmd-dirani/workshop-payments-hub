@@ -271,6 +271,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  // Fetch profiles for "who paid" selector
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
   const ADVANCE_CREDIT_TAG = '[ADVANCE_CREDIT]';
