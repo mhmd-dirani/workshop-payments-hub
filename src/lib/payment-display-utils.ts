@@ -56,5 +56,25 @@ export function translateReason(reason: string, t: TFunction): string {
   result = result.replace(/\s*\[DEBT_REPAYMENT:[^\]]+\]/g, '');
   result = result.replace(/- Debt repayment/g, `- ${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })}`);
   
+  // Translate day abbreviations inside parentheses: (mon tue) → (translated)
+  const dayMap: Record<string, string> = {
+    'sun': t('days.sun', { defaultValue: 'sun' }),
+    'mon': t('days.mon', { defaultValue: 'mon' }),
+    'tue': t('days.tue', { defaultValue: 'tue' }),
+    'wed': t('days.wed', { defaultValue: 'wed' }),
+    'thu': t('days.thu', { defaultValue: 'thu' }),
+    'fri': t('days.fri', { defaultValue: 'fri' }),
+    'sat': t('days.sat', { defaultValue: 'sat' }),
+  };
+  result = result.replace(/\(([^)]+)\)/g, (match, inner) => {
+    const translated = inner.replace(/½?(sun|mon|tue|wed|thu|fri|sat)/g, (dayMatch: string) => {
+      const isHalf = dayMatch.startsWith('½');
+      const day = isHalf ? dayMatch.slice(1) : dayMatch;
+      const translatedDay = dayMap[day] || day;
+      return isHalf ? `½${translatedDay}` : translatedDay;
+    });
+    return `(${translated})`;
+  });
+  
   return result.trim();
 }
