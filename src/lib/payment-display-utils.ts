@@ -31,6 +31,9 @@ export function translateReason(reason: string, t: TFunction): string {
   result = result.replace(/- Partial salary payment/g, `- ${t('workers.partialPaymentReason')}`);
   result = result.replace(/- Advance payment/g, `- ${t('workers.advancePaymentReason')}`);
   result = result.replace(/- Bonus\/Discount payment/g, `- ${t('workers.bonusPaymentReason')}`);
+  result = result.replace(/- Bonus\/Taxi payment/g, `- ${t('workers.bonusPaymentReason')}`);
+  result = result.replace(/- Taxi payment(?!\s*\()/g, `- ${t('workers.taxiPaymentReason', { defaultValue: 'Taxi payment' })}`);
+  result = result.replace(/- Bonus payment(?!\s*\()/g, `- ${t('workers.bonusOnlyPaymentReason', { defaultValue: 'Bonus payment' })}`);
   result = result.replace(/- Overtime payment/g, `- ${t('workers.overtimePaymentReason')}`);
   
   // Contractor payment types (after worker patterns to avoid conflicts)
