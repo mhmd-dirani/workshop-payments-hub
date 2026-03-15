@@ -510,6 +510,8 @@
     "trackAsDebt": "تتبع الفائض كدين",
     "trackAsDebtDesc": "سيتم تسجيل الفائض {{amount}} CFA كدين على هذا العامل. يمكنك تتبع المدفوعات يدوياً.",
     "advanceDebtReason": "دين سلفة للعامل",
+    "workerDebtLabel": "دين عامل",
+    "debtRepaymentFromSalary": "سداد دين مخصوم من الراتب",
     "creditLabel": "رصيد",
     "appliedToBalance": "تم تطبيقه على الرصيد",
     "workerDebts": "ديون العامل",
