@@ -748,5 +748,14 @@
     "linkExistingPayment": "Link Payment",
     "searchExistingPayments": "Search payments by name or workshop...",
     "linkPayment": "Link This Payment"
+  },
+  "days": {
+    "sun": "sun",
+    "mon": "mon",
+    "tue": "tue",
+    "wed": "wed",
+    "thu": "thu",
+    "fri": "fri",
+    "sat": "sat"
   }
 }

@@ -747,5 +747,14 @@
     "linkExistingPayment": "ربط دفعة",
     "searchExistingPayments": "البحث في المدفوعات بالاسم أو الورشة...",
     "linkPayment": "ربط هذه الدفعة"
+  },
+  "days": {
+    "sun": "أحد",
+    "mon": "إثن",
+    "tue": "ثلا",
+    "wed": "أرب",
+    "thu": "خمي",
+    "fri": "جمع",
+    "sat": "سبت"
   }
 }
