@@ -510,6 +510,8 @@
     "trackAsDebt": "Suivre l'excédent comme dette",
     "trackAsDebtDesc": "L'excédent de {{amount}} CFA sera enregistré comme dette sur ce travailleur. Vous pouvez suivre les remboursements manuellement.",
     "advanceDebtReason": "Dette d'avance pour travailleur",
+    "workerDebtLabel": "Dette travailleur",
+    "debtRepaymentFromSalary": "Remboursement de dette déduit du salaire",
     "creditLabel": "crédit",
     "appliedToBalance": "appliqué au solde",
     "workerDebts": "Dettes du travailleur",
@@ -747,5 +749,14 @@
     "linkExistingPayment": "Lier paiement",
     "searchExistingPayments": "Rechercher paiements par nom ou atelier...",
     "linkPayment": "Lier ce paiement"
+  },
+  "days": {
+    "sun": "dim",
+    "mon": "lun",
+    "tue": "mar",
+    "wed": "mer",
+    "thu": "jeu",
+    "fri": "ven",
+    "sat": "sam"
   }
 }

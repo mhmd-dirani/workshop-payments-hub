@@ -46,6 +46,8 @@ export function translateReason(reason: string, t: TFunction): string {
   result = result.replace(/\s*\[WORKER_DEBT\]/g, '');
   result = result.replace(/\[ADVANCE_DEBT\]/g, '');
   result = result.replace(/Advance debt for worker/g, t('workers.advanceDebtReason', { defaultValue: 'Advance debt for worker' }));
+  result = result.replace(/Worker debt/g, t('workers.workerDebtLabel', { defaultValue: 'Worker debt' }));
+  result = result.replace(/Debt repayment deducted from salary/g, t('workers.debtRepaymentFromSalary', { defaultValue: 'Debt repayment deducted from salary' }));
   
   // Credit reasons (shown in worker adjustments)
   result = result.replace(/Partial Pay credit:/g, `${t('workers.payPartial')} ${t('workers.creditLabel', { defaultValue: 'credit' })}:`);
@@ -55,6 +57,26 @@ export function translateReason(reason: string, t: TFunction): string {
   // Debt repayment - strip the internal tag with UUID
   result = result.replace(/\s*\[DEBT_REPAYMENT:[^\]]+\]/g, '');
   result = result.replace(/- Debt repayment/g, `- ${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })}`);
+  
+  // Translate day abbreviations inside parentheses: (mon tue) → (translated)
+  const dayMap: Record<string, string> = {
+    'sun': t('days.sun', { defaultValue: 'sun' }),
+    'mon': t('days.mon', { defaultValue: 'mon' }),
+    'tue': t('days.tue', { defaultValue: 'tue' }),
+    'wed': t('days.wed', { defaultValue: 'wed' }),
+    'thu': t('days.thu', { defaultValue: 'thu' }),
+    'fri': t('days.fri', { defaultValue: 'fri' }),
+    'sat': t('days.sat', { defaultValue: 'sat' }),
+  };
+  result = result.replace(/\(([^)]+)\)/g, (match, inner) => {
+    const translated = inner.replace(/½?(sun|mon|tue|wed|thu|fri|sat)/g, (dayMatch: string) => {
+      const isHalf = dayMatch.startsWith('½');
+      const day = isHalf ? dayMatch.slice(1) : dayMatch;
+      const translatedDay = dayMap[day] || day;
+      return isHalf ? `½${translatedDay}` : translatedDay;
+    });
+    return `(${translated})`;
+  });
   
   return result.trim();
 }

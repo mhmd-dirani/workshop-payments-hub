@@ -511,6 +511,8 @@
     "trackAsDebt": "Track excess as debt",
     "trackAsDebtDesc": "The excess {{amount}} CFA will be recorded as a debt on this worker. You can manually track repayments.",
     "advanceDebtReason": "Advance debt for worker",
+    "workerDebtLabel": "Worker debt",
+    "debtRepaymentFromSalary": "Debt repayment deducted from salary",
     "creditLabel": "credit",
     "appliedToBalance": "applied to balance",
     "workerDebts": "Worker Debts",
@@ -748,5 +750,14 @@
     "linkExistingPayment": "Link Payment",
     "searchExistingPayments": "Search payments by name or workshop...",
     "linkPayment": "Link This Payment"
+  },
+  "days": {
+    "sun": "sun",
+    "mon": "mon",
+    "tue": "tue",
+    "wed": "wed",
+    "thu": "thu",
+    "fri": "fri",
+    "sat": "sat"
   }
 }
