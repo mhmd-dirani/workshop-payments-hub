@@ -46,6 +46,8 @@ export function translateReason(reason: string, t: TFunction): string {
   result = result.replace(/\s*\[WORKER_DEBT\]/g, '');
   result = result.replace(/\[ADVANCE_DEBT\]/g, '');
   result = result.replace(/Advance debt for worker/g, t('workers.advanceDebtReason', { defaultValue: 'Advance debt for worker' }));
+  result = result.replace(/Worker debt/g, t('workers.workerDebtLabel', { defaultValue: 'Worker debt' }));
+  result = result.replace(/Debt repayment deducted from salary/g, t('workers.debtRepaymentFromSalary', { defaultValue: 'Debt repayment deducted from salary' }));
   
   // Credit reasons (shown in worker adjustments)
   result = result.replace(/Partial Pay credit:/g, `${t('workers.payPartial')} ${t('workers.creditLabel', { defaultValue: 'credit' })}:`);
