@@ -472,7 +472,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         return acc;
       }, {} as Record<string, { entries: any[]; total: number }>);
       
-      for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
+      // Collect all workshop IDs that have attendance or adjustments
+      const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
+      
+      for (const workshopId of allWorkshopIds) {
+        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
         const { entries, total } = workshopData;
         
         const workshopAdj = adjByWorkshop[workshopId] || [];
@@ -481,6 +485,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         const finalTotal = total + adjBonuses - adjDiscounts;
+        
+        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
         const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         
