@@ -704,7 +704,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
       
-      const reason = `${worker.name} - Bonus/Discount payment`;
+      const hasTaxi = bonusItems.some((a: any) => a.adjustment_type === 'taxi');
+      const hasBonus = bonusItems.some((a: any) => a.adjustment_type === 'bonus');
+      const typeLabel = hasTaxi && !hasBonus ? 'Taxi payment' : hasBonus && !hasTaxi ? 'Bonus payment' : 'Bonus/Taxi payment';
+      const reason = `${worker.name} - ${typeLabel}`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
