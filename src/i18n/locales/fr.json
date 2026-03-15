@@ -504,6 +504,8 @@
     "overtimePaymentCreated": "Paiement heures sup créé",
     "overtimePaymentCreatedDesc": "Le paiement des heures sup est en attente d'approbation",
     "bonusPaymentReason": "Paiement bonus/réduction",
+    "taxiPaymentReason": "Paiement taxi",
+    "bonusOnlyPaymentReason": "Paiement bonus",
     "entries": "Entrées",
     "trackAsDebt": "Suivre l'excédent comme dette",
     "trackAsDebtDesc": "L'excédent de {{amount}} CFA sera enregistré comme dette sur ce travailleur. Vous pouvez suivre les remboursements manuellement.",
