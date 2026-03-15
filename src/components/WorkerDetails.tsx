@@ -849,6 +849,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('debt_type', 'they_owe')
         .ilike('description', `%${WORKER_DEBT_TAG}%`)
         .eq('is_settled', false)
+        .neq('status', 'rejected')
         .order('debt_date', { ascending: false });
       if (error) throw error;
       return (data || []) as (typeof data extends (infer T)[] ? T & { status?: string } : never)[];
