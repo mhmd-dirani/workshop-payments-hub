@@ -472,7 +472,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         return acc;
       }, {} as Record<string, { entries: any[]; total: number }>);
       
-      for (const [workshopId, workshopData] of Object.entries(byWorkshop) as [string, { entries: any[]; total: number }][]) {
+      // Collect all workshop IDs that have attendance or adjustments
+      const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
+      
+      for (const workshopId of allWorkshopIds) {
+        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
         const { entries, total } = workshopData;
         
         const workshopAdj = adjByWorkshop[workshopId] || [];
@@ -481,6 +485,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         const finalTotal = total + adjBonuses - adjDiscounts;
+        
+        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
         const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         
@@ -698,7 +704,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
       
-      const reason = `${worker.name} - Bonus/Discount payment`;
+      const hasTaxi = bonusItems.some((a: any) => a.adjustment_type === 'taxi');
+      const hasBonus = bonusItems.some((a: any) => a.adjustment_type === 'bonus');
+      const typeLabel = hasTaxi && !hasBonus ? 'Taxi payment' : hasBonus && !hasTaxi ? 'Bonus payment' : 'Bonus/Taxi payment';
+      const reason = `${worker.name} - ${typeLabel}`;
 
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
@@ -840,6 +849,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .eq('debt_type', 'they_owe')
         .ilike('description', `%${WORKER_DEBT_TAG}%`)
         .eq('is_settled', false)
+        .neq('status', 'rejected')
         .order('debt_date', { ascending: false });
       if (error) throw error;
       return (data || []) as (typeof data extends (infer T)[] ? T & { status?: string } : never)[];

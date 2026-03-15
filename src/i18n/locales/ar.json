@@ -504,6 +504,8 @@
     "overtimePaymentCreated": "تم إنشاء دفعة العمل الإضافي",
     "overtimePaymentCreatedDesc": "دفعة العمل الإضافي في انتظار الموافقة",
     "bonusPaymentReason": "دفعة المكافأة/الخصم",
+    "taxiPaymentReason": "دفعة تاكسي",
+    "bonusOnlyPaymentReason": "دفعة مكافأة",
     "entries": "إدخالات",
     "trackAsDebt": "تتبع الفائض كدين",
     "trackAsDebtDesc": "سيتم تسجيل الفائض {{amount}} CFA كدين على هذا العامل. يمكنك تتبع المدفوعات يدوياً.",

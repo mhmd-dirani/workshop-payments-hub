@@ -505,6 +505,8 @@
     "overtimePaymentCreated": "Overtime payment created",
     "overtimePaymentCreatedDesc": "The overtime payment is pending approval",
     "bonusPaymentReason": "Bonus/Discount payment",
+    "taxiPaymentReason": "Taxi payment",
+    "bonusOnlyPaymentReason": "Bonus payment",
     "entries": "Entries",
     "trackAsDebt": "Track excess as debt",
     "trackAsDebtDesc": "The excess {{amount}} CFA will be recorded as a debt on this worker. You can manually track repayments.",
