@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface TeamMember {
   user_id: string;
@@ -27,9 +28,10 @@ interface TeamTransferFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   member: TeamMember | null;
+  isCoAdminTransfer?: boolean;
 }
 
-export default function TeamTransferForm({ open, onOpenChange, member }: TeamTransferFormProps) {
+export default function TeamTransferForm({ open, onOpenChange, member, isCoAdminTransfer }: TeamTransferFormProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -56,6 +58,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
         throw new Error(t('validation.amountPositive'));
       }
 
+      // Create team transfer (adds to recipient's received balance)
       const { error } = await supabase
         .from('team_transfers')
         .insert([{
@@ -67,15 +70,31 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
         }]);
 
       if (error) throw error;
+
+      // For co-admin transfers: also deduct from co-admin's balance via personal_payment
+      if (isCoAdminTransfer) {
+        const { error: ppError } = await supabase
+          .from('personal_payments')
+          .insert({
+            user_id: user.id,
+            amount: numAmount,
+            payment_date: transferDate,
+            reason: `${t('team.giveMoneyTo')} ${member.full_name || t('team.unnamedUser')}`,
+            paid_to: member.full_name || t('team.unnamedUser'),
+            created_by: user.id,
+          });
+        if (ppError) throw ppError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
       queryClient.invalidateQueries({ queryKey: ['team-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       onOpenChange(false);
       toast({
-        title: t('team.transferAdded'),
-        description: `${t('team.fundsAddedTo')} ${member?.full_name || t('team.teamMember')}`,
+        title: isCoAdminTransfer ? t('team.moneyGiven') : t('team.transferAdded'),
+        description: `${isCoAdminTransfer ? t('team.moneyGivenDesc') : t('team.fundsAddedTo')} ${member?.full_name || t('team.teamMember')}`,
       });
     },
     onError: (error: Error) => {
@@ -96,9 +115,12 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('team.addMoneyToMember')}</DialogTitle>
+          <DialogTitle>{isCoAdminTransfer ? t('team.giveMoney') : t('team.addMoneyToMember')}</DialogTitle>
           <DialogDescription>
-            {t('team.transferFunds')}
+            {isCoAdminTransfer 
+              ? t('team.giveMoneyFormDesc', { name: member?.full_name || t('team.unnamedUser') })
+              : t('team.transferFunds')
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -115,6 +137,11 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
               onChange={(e) => setAmount(e.target.value)}
               required
             />
+            {isCoAdminTransfer && (
+              <p className="text-[10px] text-muted-foreground">
+                {t('team.giveMoneyNote')}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -149,7 +176,7 @@ export default function TeamTransferForm({ open, onOpenChange, member }: TeamTra
               className="gradient-primary text-primary-foreground"
             >
               {transferMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t('team.addFunds')}
+              {isCoAdminTransfer ? t('team.giveMoney') : t('team.addFunds')}
             </Button>
           </DialogFooter>
         </form>
