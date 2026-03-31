@@ -153,7 +153,7 @@ export default function Team() {
     return <Navigate to="/auth" replace />;
   }
 
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'co_admin') {
     return <Navigate to="/" replace />;
   }
 
