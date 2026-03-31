@@ -2188,10 +2188,98 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
-                  <span>{t('common.total')}</span>
-                  <span className="font-mono text-success">{totalOwed.toLocaleString('fr-FR')} CFA</span>
-                </div>
+
+                {/* Debt deduction section */}
+                {totalRemainingDebt > 0 && (
+                  <div className="border border-warning/30 rounded-lg p-3 space-y-2 bg-warning/5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="debtDeduction"
+                        checked={debtDeductionEnabled}
+                        onChange={(e) => {
+                          setDebtDeductionEnabled(e.target.checked);
+                          if (!e.target.checked) {
+                            setDebtDeductionAmount('');
+                            setSelectedDebtForDeduction('');
+                          } else {
+                            // Auto-select first approved debt
+                            const firstDebt = workerDebts.find(d => (d as any).status === 'approved');
+                            if (firstDebt) setSelectedDebtForDeduction(firstDebt.id);
+                          }
+                        }}
+                        className="rounded border-warning"
+                      />
+                      <label htmlFor="debtDeduction" className="text-xs font-medium text-warning">
+                        {t('workers.deductFromDebt')}
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {t('workers.deductFromDebtDesc', { amount: totalRemainingDebt.toLocaleString('fr-FR') })}
+                    </p>
+                    {debtDeductionEnabled && (
+                      <div className="space-y-2">
+                        {workerDebts.filter(d => (d as any).status === 'approved').length > 1 && (
+                          <Select value={selectedDebtForDeduction} onValueChange={setSelectedDebtForDeduction}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder={t('workers.selectDebt')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {workerDebts.filter(d => (d as any).status === 'approved').map(debt => {
+                                const paid = workerDebtPayments
+                                  .filter(p => p.debt_id === debt.id)
+                                  .reduce((s, p) => s + Number(p.amount), 0);
+                                const remaining = Math.max(0, Number(debt.amount) - paid);
+                                if (remaining <= 0) return null;
+                                return (
+                                  <SelectItem key={debt.id} value={debt.id}>
+                                    {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')} ({remaining.toLocaleString('fr-FR')} CFA)
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <Input
+                          type="number"
+                          min="1"
+                          max={(() => {
+                            const debt = workerDebts.find(d => d.id === selectedDebtForDeduction);
+                            if (!debt) return totalRemainingDebt;
+                            const paid = workerDebtPayments
+                              .filter(p => p.debt_id === debt.id)
+                              .reduce((s, p) => s + Number(p.amount), 0);
+                            return Math.min(Math.max(0, Number(debt.amount) - paid), totalOwed);
+                          })()}
+                          value={debtDeductionAmount}
+                          onChange={(e) => setDebtDeductionAmount(e.target.value)}
+                          placeholder={t('workers.debtDeductionAmount')}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Final total */}
+                {(() => {
+                  const deduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
+                  const finalAmount = totalOwed - deduction;
+                  return (
+                    <>
+                      {deduction > 0 && (
+                        <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-warning/10 border border-warning/20">
+                          <span className="text-warning font-medium">{t('workers.debtRepaymentDeduction')}</span>
+                          <span className="font-mono font-medium text-warning">-{deduction.toLocaleString('fr-FR')} CFA</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
+                        <span>{t('common.total')}</span>
+                        <span className="font-mono text-success">{finalAmount.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
@@ -2199,7 +2287,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </Button>
                 <Button
                   onClick={() => createPayment.mutate()}
-                  disabled={createPayment.isPending}
+                  disabled={createPayment.isPending || (debtDeductionEnabled && (!debtDeductionAmount || parseFloat(debtDeductionAmount) <= 0 || !selectedDebtForDeduction))}
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
