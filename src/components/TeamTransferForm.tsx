@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
 
 interface TeamMember {
   user_id: string;
