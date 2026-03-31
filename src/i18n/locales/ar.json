@@ -269,7 +269,16 @@
     "noTransfersYet": "لا توجد تحويلات مسجلة بعد",
     "noSpendingYet": "لا توجد مصروفات مسجلة بعد",
     "addFunds": "إضافة أموال",
-    "unnamedUser": "مستخدم بدون اسم"
+    "unnamedUser": "مستخدم بدون اسم",
+    "giveMoneyTitle": "إعطاء أموال",
+    "giveMoneyDesc": "أعطِ أموالاً لأعضاء الفريق. سيتم خصم المبلغ من رصيدك.",
+    "giveMoney": "إعطاء أموال",
+    "giveMoneyTo": "أُعطي إلى",
+    "giveMoneyFormDesc": "أعطِ أموالاً لـ {{name}}. سيتم خصم المبلغ من رصيدك.",
+    "giveMoneyNote": "سيتم خصم هذا المبلغ من رصيدك وإضافته إلى رصيد المستلم.",
+    "moneyGiven": "تم إعطاء الأموال",
+    "moneyGivenDesc": "تم إعطاء الأموال بنجاح إلى",
+    "teamMember": "عضو الفريق"
   },
   "debts": {
     "title": "إدارة الديون",

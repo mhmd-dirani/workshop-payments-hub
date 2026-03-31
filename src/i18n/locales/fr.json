@@ -269,7 +269,16 @@
     "noTransfersYet": "Aucun transfert enregistré",
     "noSpendingYet": "Aucune dépense enregistrée",
     "addFunds": "Ajouter fonds",
-    "unnamedUser": "Utilisateur sans nom"
+    "unnamedUser": "Utilisateur sans nom",
+    "giveMoneyTitle": "Donner de l'argent",
+    "giveMoneyDesc": "Donnez de l'argent aux membres de l'équipe. Le montant sera déduit de votre solde.",
+    "giveMoney": "Donner",
+    "giveMoneyTo": "Donné à",
+    "giveMoneyFormDesc": "Donner de l'argent à {{name}}. Ce montant sera déduit de votre solde.",
+    "giveMoneyNote": "Ce montant sera déduit de votre solde et ajouté au solde du destinataire.",
+    "moneyGiven": "Argent donné",
+    "moneyGivenDesc": "Fonds donnés avec succès à",
+    "teamMember": "Membre de l'équipe"
   },
   "debts": {
     "title": "Gestion des dettes",
