@@ -135,6 +135,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
+  const [debtDeductionAmount, setDebtDeductionAmount] = useState('');
+  const [debtDeductionEnabled, setDebtDeductionEnabled] = useState(false);
+  const [selectedDebtForDeduction, setSelectedDebtForDeduction] = useState<string>('');
   
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
