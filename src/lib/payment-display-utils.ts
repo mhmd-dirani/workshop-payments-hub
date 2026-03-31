@@ -57,6 +57,8 @@ export function translateReason(reason: string, t: TFunction): string {
   // Debt repayment - strip the internal tag with UUID
   result = result.replace(/\s*\[DEBT_REPAYMENT:[^\]]+\]/g, '');
   result = result.replace(/- Debt repayment/g, `- ${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })}`);
+  // Debt repayment in brackets (from full salary deduction)
+  result = result.replace(/\[-(\d[\d\s,.]*)\s*Debt repayment\]/g, (_, amount) => `[-${amount} ${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })}]`);
   
   // Translate day abbreviations inside parentheses: (mon tue) → (translated)
   const dayMap: Record<string, string> = {
