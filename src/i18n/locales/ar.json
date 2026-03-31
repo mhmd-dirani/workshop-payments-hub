@@ -537,7 +537,13 @@
     "advanceCreditUpdatedDesc": "تم مزامنة المبلغ والدافع",
     "advanceCreditDeleted": "تم حذف الدفعة المقدمة",
     "advanceCreditDeletedDesc": "تم حذف الدفعة المقدمة والسجلات المرتبطة",
-    "deleteAdvanceCreditConfirm": "هل أنت متأكد من حذف هذه الدفعة المقدمة/الجزئية؟ سيتم أيضاً حذف سجل الدفع المرتبط واستعادة رصيد الدافع."
+    "deleteAdvanceCreditConfirm": "هل أنت متأكد من حذف هذه الدفعة المقدمة/الجزئية؟ سيتم أيضاً حذف سجل الدفع المرتبط واستعادة رصيد الدافع.",
+    "deductFromDebt": "خصم من دين العامل",
+    "deductFromDebtDesc": "هذا العامل لديه {{amount}} فرنك دين مستحق. يمكنك خصم مبلغ من الراتب لسداد الدين.",
+    "debtDeductionAmount": "المبلغ المراد خصمه",
+    "debtRepaymentDeduction": "سداد الدين",
+    "selectDebt": "اختر الدين",
+    "debtRepaymentReason": "سداد الدين"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

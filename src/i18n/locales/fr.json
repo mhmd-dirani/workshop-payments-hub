@@ -537,7 +537,13 @@
     "advanceCreditUpdatedDesc": "Le montant et le payeur ont été synchronisés",
     "advanceCreditDeleted": "Paiement d'avance supprimé",
     "advanceCreditDeletedDesc": "Le paiement d'avance et les enregistrements liés ont été supprimés",
-    "deleteAdvanceCreditConfirm": "Êtes-vous sûr de vouloir supprimer ce paiement d'avance/partiel ? Cela supprimera également l'enregistrement de paiement lié et restaurera le solde du payeur."
+    "deleteAdvanceCreditConfirm": "Êtes-vous sûr de vouloir supprimer ce paiement d'avance/partiel ? Cela supprimera également l'enregistrement de paiement lié et restaurera le solde du payeur.",
+    "deductFromDebt": "Déduire de la dette du travailleur",
+    "deductFromDebtDesc": "Ce travailleur a {{amount}} CFA de dette en cours. Vous pouvez déduire un montant du salaire pour rembourser la dette.",
+    "debtDeductionAmount": "Montant à déduire",
+    "debtRepaymentDeduction": "Remboursement de dette",
+    "selectDebt": "Sélectionner la dette",
+    "debtRepaymentReason": "Remboursement de dette"
   },
   "personalPayments": {
     "title": "Paiements personnels",

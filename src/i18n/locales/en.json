@@ -538,7 +538,13 @@
     "advanceCreditUpdatedDesc": "The amount and payer have been synced",
     "advanceCreditDeleted": "Advance payment deleted",
     "advanceCreditDeletedDesc": "The advance payment and linked records have been removed",
-    "deleteAdvanceCreditConfirm": "Are you sure you want to delete this advance/partial payment? This will also remove the linked payment record and restore the payer's balance."
+    "deleteAdvanceCreditConfirm": "Are you sure you want to delete this advance/partial payment? This will also remove the linked payment record and restore the payer's balance.",
+    "deductFromDebt": "Deduct from worker's debt",
+    "deductFromDebtDesc": "This worker has {{amount}} CFA in outstanding debt. You can deduct an amount from the salary to repay the debt.",
+    "debtDeductionAmount": "Amount to deduct",
+    "debtRepaymentDeduction": "Debt repayment",
+    "selectDebt": "Select debt",
+    "debtRepaymentReason": "Debt repayment"
   },
   "personalPayments": {
     "title": "Personal Payments",
