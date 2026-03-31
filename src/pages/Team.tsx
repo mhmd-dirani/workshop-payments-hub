@@ -30,7 +30,7 @@ export default function Team() {
   const [transferToMember, setTransferToMember] = useState<TeamMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch total given to team
+  // Fetch total given to team (admin only)
   const { data: totalGiven } = useQuery({
     queryKey: ['total-team-transfers'],
     queryFn: async () => {
@@ -42,6 +42,31 @@ export default function Team() {
       return data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     },
     enabled: role === 'admin',
+  });
+
+  // Fetch users for co-admin transfer (no balance info)
+  const { data: coAdminUsers = [] } = useQuery({
+    queryKey: ['co-admin-users-list'],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      // Filter to non-admin, non-self users
+      return (profiles || [])
+        .filter(p => roleMap.get(p.user_id) !== 'admin' && p.user_id !== user?.id)
+        .map(p => ({
+          user_id: p.user_id,
+          full_name: p.full_name,
+        }));
+    },
+    enabled: role === 'co_admin',
   });
 
   // Fetch all team members (non-admin users) with their balances
