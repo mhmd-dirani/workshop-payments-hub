@@ -454,11 +454,24 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  // Calculate total remaining debt for this worker
+  const totalRemainingDebt = useMemo(() => {
+    return workerDebts
+      .filter(d => (d as any).status === 'approved')
+      .reduce((sum, debt) => {
+        const paid = workerDebtPayments
+          .filter(p => p.debt_id === debt.id)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        return sum + Math.max(0, Number(debt.amount) - paid);
+      }, 0);
+  }, [workerDebts, workerDebtPayments]);
+
   // Create FULL payment mutation - pays ALL unpaid work across ALL workshops
   const createPayment = useMutation({
     mutationFn: async () => {
       const results: any[] = [];
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
+      const debtDeduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
       
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
@@ -478,6 +491,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       // Collect all workshop IDs that have attendance or adjustments
       const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
       
+      // Distribute debt deduction proportionally across workshops
+      let remainingDeduction = debtDeduction;
+      const workshopTotals: Record<string, number> = {};
+      for (const workshopId of allWorkshopIds) {
+        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
+        const workshopAdj = adjByWorkshop[workshopId] || [];
+        const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
+        const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
+        const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
+        const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
+        workshopTotals[workshopId] = workshopData.total + adjBonuses - adjDiscounts;
+      }
+      const grandTotalBeforeDeduction = Object.values(workshopTotals).reduce((s, v) => s + Math.max(v, 0), 0);
+      
       for (const workshopId of allWorkshopIds) {
         const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
         const { entries, total } = workshopData;
@@ -487,11 +514,25 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
-        const finalTotal = total + adjBonuses - adjDiscounts;
+        let finalTotal = total + adjBonuses - adjDiscounts;
+        
+        // Apply proportional debt deduction to this workshop
+        let workshopDeduction = 0;
+        if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
+          workshopDeduction = Math.min(
+            remainingDeduction,
+            Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
+          );
+          remainingDeduction -= workshopDeduction;
+          finalTotal -= workshopDeduction;
+        }
         
         if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
-        const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        if (workshopDeduction > 0) {
+          reason += ` [-${workshopDeduction.toLocaleString('fr-FR')} Debt repayment]`;
+        }
         
         const categoryLabel = 'Travailleur';
 
@@ -540,12 +581,40 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
       }
       
+      // Record debt repayment if deduction was applied
+      if (debtDeduction > 0 && selectedDebtForDeduction) {
+        // Record in debt_payments
+        await supabase.from('debt_payments').insert({
+          debt_id: selectedDebtForDeduction,
+          amount: debtDeduction,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Debt repayment deducted from salary`,
+          created_by: user?.id,
+        });
+        
+        // Check if debt is fully paid
+        const debt = workerDebts.find(d => d.id === selectedDebtForDeduction);
+        if (debt) {
+          const existingPaid = workerDebtPayments
+            .filter(p => p.debt_id === selectedDebtForDeduction)
+            .reduce((s, p) => s + Number(p.amount), 0);
+          if (existingPaid + debtDeduction >= Number(debt.amount)) {
+            await supabase.from('debts').update({ is_settled: true }).eq('id', selectedDebtForDeduction);
+          }
+        }
+      }
+      
       return results;
     },
     onSuccess: () => {
       invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
       setIsPayChoiceOpen(false);
       setPayMode(null);
+      setDebtDeductionAmount('');
+      setDebtDeductionEnabled(false);
+      setSelectedDebtForDeduction('');
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
