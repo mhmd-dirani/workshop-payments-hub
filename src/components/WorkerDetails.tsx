@@ -934,6 +934,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     enabled: workerDebts.length > 0,
   });
 
+  // Calculate total remaining debt for this worker
+  const totalRemainingDebt = useMemo(() => {
+    return workerDebts
+      .filter(d => (d as any).status === 'approved')
+      .reduce((sum, debt) => {
+        const paid = workerDebtPayments
+          .filter(p => p.debt_id === debt.id)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        return sum + Math.max(0, Number(debt.amount) - paid);
+      }, 0);
+  }, [workerDebts, workerDebtPayments]);
+
   const addWorkerDebt = useMutation({
     mutationFn: async () => {
       const amount = parseFloat(workerDebtAmount);
