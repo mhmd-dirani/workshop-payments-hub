@@ -43,6 +43,9 @@ export default function Layout({ children }: LayoutProps) {
       { name: t('nav.debts'), href: '/debts', icon: HandCoins },
       { name: t('nav.manageUsers'), href: '/users', icon: Settings },
     ] : []),
+    ...(role === 'co_admin' ? [
+      { name: t('nav.team'), href: '/team', icon: Users2 },
+    ] : []),
   ];
 
   return (

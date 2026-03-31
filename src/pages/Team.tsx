@@ -30,7 +30,7 @@ export default function Team() {
   const [transferToMember, setTransferToMember] = useState<TeamMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch total given to team
+  // Fetch total given to team (admin only)
   const { data: totalGiven } = useQuery({
     queryKey: ['total-team-transfers'],
     queryFn: async () => {
@@ -42,6 +42,31 @@ export default function Team() {
       return data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     },
     enabled: role === 'admin',
+  });
+
+  // Fetch users for co-admin transfer (no balance info)
+  const { data: coAdminUsers = [] } = useQuery({
+    queryKey: ['co-admin-users-list'],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      // Filter to non-admin, non-self users
+      return (profiles || [])
+        .filter(p => roleMap.get(p.user_id) !== 'admin' && p.user_id !== user?.id)
+        .map(p => ({
+          user_id: p.user_id,
+          full_name: p.full_name,
+        }));
+    },
+    enabled: role === 'co_admin',
   });
 
   // Fetch all team members (non-admin users) with their balances
@@ -128,7 +153,7 @@ export default function Team() {
     return <Navigate to="/auth" replace />;
   }
 
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'co_admin') {
     return <Navigate to="/" replace />;
   }
 
@@ -136,12 +161,22 @@ export default function Team() {
     m.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  const filteredCoAdminUsers = coAdminUsers.filter(u => 
+    u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleAddMoney = (member: TeamMember) => {
     setTransferToMember(member);
     setShowTransferForm(true);
   };
 
-  if (selectedMember) {
+  const handleCoAdminTransfer = (u: { user_id: string; full_name: string | null }) => {
+    setTransferToMember({ user_id: u.user_id, full_name: u.full_name } as TeamMember);
+    setShowTransferForm(true);
+  };
+
+  // Admin: selected member profile view
+  if (selectedMember && role === 'admin') {
     return (
       <Layout>
         <div className="space-y-6">
@@ -175,6 +210,78 @@ export default function Team() {
     );
   }
 
+  // Co-admin: simplified view - just give money to users
+  if (role === 'co_admin') {
+    return (
+      <Layout>
+        <div className="space-y-3 md:space-y-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-lg md:text-2xl font-bold flex items-center gap-2">
+              <Users2 className="w-5 h-5 md:w-6 md:h-6" />
+              {t('team.giveMoneyTitle')}
+            </h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              {t('team.giveMoneyDesc')}
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
+              <CardTitle className="text-base md:text-lg">{t('team.teamMembers')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-3 md:px-6 pb-3 md:pb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder={t('team.searchTeamMembers')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9 md:h-10"
+                />
+              </div>
+
+              {filteredCoAdminUsers.length === 0 ? (
+                <div className="text-center py-6 md:py-8 text-muted-foreground text-sm">
+                  {searchTerm ? t('team.noMembersMatchSearch') : t('team.noMembersFound')}
+                </div>
+              ) : (
+                <div className="grid gap-2 md:gap-3 grid-cols-1 md:grid-cols-2">
+                  {filteredCoAdminUsers.map((u) => (
+                    <div key={u.user_id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Users2 className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium">{u.full_name || t('team.unnamedUser')}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 h-8 text-xs"
+                        onClick={() => handleCoAdminTransfer(u)}
+                      >
+                        <Wallet className="w-3.5 h-3.5" />
+                        {t('team.giveMoney')}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <TeamTransferForm
+          open={showTransferForm}
+          onOpenChange={setShowTransferForm}
+          member={transferToMember}
+          isCoAdminTransfer
+        />
+      </Layout>
+    );
+  }
+
+  // Admin view
   return (
     <Layout>
       <div className="space-y-3 md:space-y-6">

@@ -269,7 +269,16 @@
     "noTransfersYet": "Aucun transfert enregistré",
     "noSpendingYet": "Aucune dépense enregistrée",
     "addFunds": "Ajouter fonds",
-    "unnamedUser": "Utilisateur sans nom"
+    "unnamedUser": "Utilisateur sans nom",
+    "giveMoneyTitle": "Donner de l'argent",
+    "giveMoneyDesc": "Donnez de l'argent aux membres de l'équipe. Le montant sera déduit de votre solde.",
+    "giveMoney": "Donner",
+    "giveMoneyTo": "Donné à",
+    "giveMoneyFormDesc": "Donner de l'argent à {{name}}. Ce montant sera déduit de votre solde.",
+    "giveMoneyNote": "Ce montant sera déduit de votre solde et ajouté au solde du destinataire.",
+    "moneyGiven": "Argent donné",
+    "moneyGivenDesc": "Fonds donnés avec succès à",
+    "teamMember": "Membre de l'équipe"
   },
   "debts": {
     "title": "Gestion des dettes",
@@ -537,7 +546,13 @@
     "advanceCreditUpdatedDesc": "Le montant et le payeur ont été synchronisés",
     "advanceCreditDeleted": "Paiement d'avance supprimé",
     "advanceCreditDeletedDesc": "Le paiement d'avance et les enregistrements liés ont été supprimés",
-    "deleteAdvanceCreditConfirm": "Êtes-vous sûr de vouloir supprimer ce paiement d'avance/partiel ? Cela supprimera également l'enregistrement de paiement lié et restaurera le solde du payeur."
+    "deleteAdvanceCreditConfirm": "Êtes-vous sûr de vouloir supprimer ce paiement d'avance/partiel ? Cela supprimera également l'enregistrement de paiement lié et restaurera le solde du payeur.",
+    "deductFromDebt": "Déduire de la dette du travailleur",
+    "deductFromDebtDesc": "Ce travailleur a {{amount}} CFA de dette en cours. Vous pouvez déduire un montant du salaire pour rembourser la dette.",
+    "debtDeductionAmount": "Montant à déduire",
+    "debtRepaymentDeduction": "Remboursement de dette",
+    "selectDebt": "Sélectionner la dette",
+    "debtRepaymentReason": "Remboursement de dette"
   },
   "personalPayments": {
     "title": "Paiements personnels",

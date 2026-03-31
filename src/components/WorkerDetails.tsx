@@ -135,6 +135,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
+  const [debtDeductionAmount, setDebtDeductionAmount] = useState('');
+  const [debtDeductionEnabled, setDebtDeductionEnabled] = useState(false);
+  const [selectedDebtForDeduction, setSelectedDebtForDeduction] = useState<string>('');
   
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
@@ -451,11 +454,15 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+
+
+
   // Create FULL payment mutation - pays ALL unpaid work across ALL workshops
   const createPayment = useMutation({
     mutationFn: async () => {
       const results: any[] = [];
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
+      const debtDeduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
       
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
@@ -475,6 +482,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       // Collect all workshop IDs that have attendance or adjustments
       const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
       
+      // Distribute debt deduction proportionally across workshops
+      let remainingDeduction = debtDeduction;
+      const workshopTotals: Record<string, number> = {};
+      for (const workshopId of allWorkshopIds) {
+        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
+        const workshopAdj = adjByWorkshop[workshopId] || [];
+        const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
+        const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
+        const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
+        const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
+        workshopTotals[workshopId] = workshopData.total + adjBonuses - adjDiscounts;
+      }
+      const grandTotalBeforeDeduction = Object.values(workshopTotals).reduce((s, v) => s + Math.max(v, 0), 0);
+      
       for (const workshopId of allWorkshopIds) {
         const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
         const { entries, total } = workshopData;
@@ -484,11 +505,25 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
-        const finalTotal = total + adjBonuses - adjDiscounts;
+        let finalTotal = total + adjBonuses - adjDiscounts;
+        
+        // Apply proportional debt deduction to this workshop
+        let workshopDeduction = 0;
+        if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
+          workshopDeduction = Math.min(
+            remainingDeduction,
+            Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
+          );
+          remainingDeduction -= workshopDeduction;
+          finalTotal -= workshopDeduction;
+        }
         
         if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
-        const reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        if (workshopDeduction > 0) {
+          reason += ` [-${workshopDeduction.toLocaleString('fr-FR')} Debt repayment]`;
+        }
         
         const categoryLabel = 'Travailleur';
 
@@ -537,12 +572,40 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
       }
       
+      // Record debt repayment if deduction was applied
+      if (debtDeduction > 0 && selectedDebtForDeduction) {
+        // Record in debt_payments
+        await supabase.from('debt_payments').insert({
+          debt_id: selectedDebtForDeduction,
+          amount: debtDeduction,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Debt repayment deducted from salary`,
+          created_by: user?.id,
+        });
+        
+        // Check if debt is fully paid
+        const debt = workerDebts.find(d => d.id === selectedDebtForDeduction);
+        if (debt) {
+          const existingPaid = workerDebtPayments
+            .filter(p => p.debt_id === selectedDebtForDeduction)
+            .reduce((s, p) => s + Number(p.amount), 0);
+          if (existingPaid + debtDeduction >= Number(debt.amount)) {
+            await supabase.from('debts').update({ is_settled: true }).eq('id', selectedDebtForDeduction);
+          }
+        }
+      }
+      
       return results;
     },
     onSuccess: () => {
       invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
       setIsPayChoiceOpen(false);
       setPayMode(null);
+      setDebtDeductionAmount('');
+      setDebtDeductionEnabled(false);
+      setSelectedDebtForDeduction('');
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -870,6 +933,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
     enabled: workerDebts.length > 0,
   });
+
+  // Calculate total remaining debt for this worker
+  const totalRemainingDebt = useMemo(() => {
+    return workerDebts
+      .filter(d => (d as any).status === 'approved')
+      .reduce((sum, debt) => {
+        const paid = workerDebtPayments
+          .filter(p => p.debt_id === debt.id)
+          .reduce((s, p) => s + Number(p.amount), 0);
+        return sum + Math.max(0, Number(debt.amount) - paid);
+      }, 0);
+  }, [workerDebts, workerDebtPayments]);
 
   const addWorkerDebt = useMutation({
     mutationFn: async () => {
@@ -2113,10 +2188,98 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <span className="font-mono font-medium">{total.toLocaleString('fr-FR')} CFA</span>
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
-                  <span>{t('common.total')}</span>
-                  <span className="font-mono text-success">{totalOwed.toLocaleString('fr-FR')} CFA</span>
-                </div>
+
+                {/* Debt deduction section */}
+                {totalRemainingDebt > 0 && (
+                  <div className="border border-warning/30 rounded-lg p-3 space-y-2 bg-warning/5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="debtDeduction"
+                        checked={debtDeductionEnabled}
+                        onChange={(e) => {
+                          setDebtDeductionEnabled(e.target.checked);
+                          if (!e.target.checked) {
+                            setDebtDeductionAmount('');
+                            setSelectedDebtForDeduction('');
+                          } else {
+                            // Auto-select first approved debt
+                            const firstDebt = workerDebts.find(d => (d as any).status === 'approved');
+                            if (firstDebt) setSelectedDebtForDeduction(firstDebt.id);
+                          }
+                        }}
+                        className="rounded border-warning"
+                      />
+                      <label htmlFor="debtDeduction" className="text-xs font-medium text-warning">
+                        {t('workers.deductFromDebt')}
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {t('workers.deductFromDebtDesc', { amount: totalRemainingDebt.toLocaleString('fr-FR') })}
+                    </p>
+                    {debtDeductionEnabled && (
+                      <div className="space-y-2">
+                        {workerDebts.filter(d => (d as any).status === 'approved').length > 1 && (
+                          <Select value={selectedDebtForDeduction} onValueChange={setSelectedDebtForDeduction}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder={t('workers.selectDebt')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {workerDebts.filter(d => (d as any).status === 'approved').map(debt => {
+                                const paid = workerDebtPayments
+                                  .filter(p => p.debt_id === debt.id)
+                                  .reduce((s, p) => s + Number(p.amount), 0);
+                                const remaining = Math.max(0, Number(debt.amount) - paid);
+                                if (remaining <= 0) return null;
+                                return (
+                                  <SelectItem key={debt.id} value={debt.id}>
+                                    {debt.description?.replace(WORKER_DEBT_TAG, '').trim() || t('workers.workerDebt')} ({remaining.toLocaleString('fr-FR')} CFA)
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <Input
+                          type="number"
+                          min="1"
+                          max={(() => {
+                            const debt = workerDebts.find(d => d.id === selectedDebtForDeduction);
+                            if (!debt) return totalRemainingDebt;
+                            const paid = workerDebtPayments
+                              .filter(p => p.debt_id === debt.id)
+                              .reduce((s, p) => s + Number(p.amount), 0);
+                            return Math.min(Math.max(0, Number(debt.amount) - paid), totalOwed);
+                          })()}
+                          value={debtDeductionAmount}
+                          onChange={(e) => setDebtDeductionAmount(e.target.value)}
+                          placeholder={t('workers.debtDeductionAmount')}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Final total */}
+                {(() => {
+                  const deduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
+                  const finalAmount = totalOwed - deduction;
+                  return (
+                    <>
+                      {deduction > 0 && (
+                        <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-warning/10 border border-warning/20">
+                          <span className="text-warning font-medium">{t('workers.debtRepaymentDeduction')}</span>
+                          <span className="font-mono font-medium text-warning">-{deduction.toLocaleString('fr-FR')} CFA</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-base font-bold p-2 rounded-lg bg-success/10 border border-success/20">
+                        <span>{t('common.total')}</span>
+                        <span className="font-mono text-success">{finalAmount.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
@@ -2124,7 +2287,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </Button>
                 <Button
                   onClick={() => createPayment.mutate()}
-                  disabled={createPayment.isPending}
+                  disabled={createPayment.isPending || (debtDeductionEnabled && (!debtDeductionAmount || parseFloat(debtDeductionAmount) <= 0 || !selectedDebtForDeduction))}
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   {createPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
