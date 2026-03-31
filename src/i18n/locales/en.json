@@ -270,7 +270,16 @@
     "noTransfersYet": "No transfers recorded yet",
     "noSpendingYet": "No spending recorded yet",
     "addFunds": "Add Funds",
-    "unnamedUser": "Unnamed User"
+    "unnamedUser": "Unnamed User",
+    "giveMoneyTitle": "Give Money",
+    "giveMoneyDesc": "Give money to team members. The amount will be deducted from your balance.",
+    "giveMoney": "Give Money",
+    "giveMoneyTo": "Given to",
+    "giveMoneyFormDesc": "Give money to {{name}}. This amount will be deducted from your balance.",
+    "giveMoneyNote": "This amount will be deducted from your balance and added to the recipient's balance.",
+    "moneyGiven": "Money given",
+    "moneyGivenDesc": "Successfully given funds to",
+    "teamMember": "Team Member"
   },
   "debts": {
     "title": "Debt Management",
