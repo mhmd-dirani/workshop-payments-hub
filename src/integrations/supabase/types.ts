@@ -99,6 +99,30 @@ export type Database = {
           },
         ]
       }
+      co_admin_member_assignments: {
+        Row: {
+          assigned_by: string | null
+          co_admin_user_id: string
+          created_at: string
+          id: string
+          member_user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          co_admin_user_id: string
+          created_at?: string
+          id?: string
+          member_user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          co_admin_user_id?: string
+          created_at?: string
+          id?: string
+          member_user_id?: string
+        }
+        Relationships: []
+      }
       contractor_budget_purchases: {
         Row: {
           amount: number
