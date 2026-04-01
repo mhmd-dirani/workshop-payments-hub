@@ -242,7 +242,14 @@
     "editDebt": "تعديل الدين",
     "deleteDebt": "حذف الدين",
     "debtEditedDesc": "تم تحديث دين العامل",
-    "debtDeletedDesc": "تم حذف دين العامل"
+    "debtDeletedDesc": "تم حذف دين العامل",
+    "assignMembers": "الأعضاء",
+    "memberAccess": "إدارة الأعضاء",
+    "selectMembers": "اختر أعضاء الفريق الذين يمكن لهذا المساعد إدارتهم.",
+    "noMembersAvailable": "لا يوجد أعضاء متاحون",
+    "membersSelected": "{{count}} عضو مختار",
+    "memberAssignmentsUpdated": "تم تحديث تعيينات الأعضاء",
+    "memberAccessUpdated": "تم تحديث الوصول للأعضاء"
   },
   "team": {
     "title": "ماليات الفريق",

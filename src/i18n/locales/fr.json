@@ -242,7 +242,14 @@
     "editDebt": "Modifier la dette",
     "deleteDebt": "Supprimer la dette",
     "debtEditedDesc": "La dette du travailleur a été mise à jour",
-    "debtDeletedDesc": "La dette du travailleur a été supprimée"
+    "debtDeletedDesc": "La dette du travailleur a été supprimée",
+    "assignMembers": "Membres",
+    "memberAccess": "Accès aux membres",
+    "selectMembers": "Sélectionnez les membres que ce co-admin peut gérer.",
+    "noMembersAvailable": "Aucun membre disponible",
+    "membersSelected": "{{count}} membre(s) sélectionné(s)",
+    "memberAssignmentsUpdated": "Assignations des membres mises à jour",
+    "memberAccessUpdated": "L'accès aux membres a été mis à jour"
   },
   "team": {
     "title": "Finances de l'équipe",
