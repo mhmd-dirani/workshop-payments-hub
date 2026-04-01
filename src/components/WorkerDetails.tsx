@@ -116,6 +116,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [partialWorkshopId, setPartialWorkshopId] = useState<string>('');
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState<string>('');
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
+  const [bonusAmount, setBonusAmount] = useState('');
+  const [bonusReason, setBonusReason] = useState('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
@@ -750,35 +752,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Pay bonus only mutation
+  // Pay bonus - direct payment with custom amount (like advance payment)
   const payBonus = useMutation({
     mutationFn: async () => {
-      if (!bonusWorkshopId) throw new Error('No workshop selected');
-      const workshopAdj = unpaidAdjByWorkshop[bonusWorkshopId];
-      if (!workshopAdj || workshopAdj.items.length === 0) throw new Error('No adjustments');
-      if (workshopAdj.bonuses <= 0) throw new Error('No bonus/taxi to pay');
+      const amount = parseFloat(bonusAmount);
+      if (!amount || amount <= 0 || !bonusWorkshopId) throw new Error('Invalid amount or workshop');
 
       const categoryLabel = 'Travailleur';
-      
-      // Only pay bonuses + taxi, NOT discounts
-      const bonusItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
-      const discountItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'discount');
-      const payableAmount = workshopAdj.bonuses; // only bonuses + taxi
-      
-      if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
-      
-      const hasTaxi = bonusItems.some((a: any) => a.adjustment_type === 'taxi');
-      const hasBonus = bonusItems.some((a: any) => a.adjustment_type === 'bonus');
-      const typeLabel = hasTaxi && !hasBonus ? 'Taxi payment' : hasBonus && !hasTaxi ? 'Bonus payment' : 'Bonus/Taxi payment';
-      const reason = `${worker.name} - ${typeLabel}`;
+      const reasonText = bonusReason ? `${worker.name} - ${bonusReason}` : `${worker.name} - Bonus payment`;
 
+      // 1. Create payment record
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .insert([{
           workshop_id: bonusWorkshopId,
           paid_to: categoryLabel,
-          reason,
-          amount: payableAmount,
+          reason: reasonText,
+          amount,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
           status: role === 'admin' ? 'approved' : 'pending',
@@ -787,22 +777,22 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .single();
       if (paymentError) throw paymentError;
 
-      // Mark bonus/taxi adjustments as paid with payment_id
-      const bonusIds = bonusItems.map((a: any) => a.id);
-      if (bonusIds.length > 0) {
-        await supabase
-          .from('worker_adjustments')
-          .update({ is_paid: true, payment_id: payment.id })
-          .in('id', bonusIds);
-      }
-      
-      // Mark discount adjustments as paid (no payment record - they just reduce balance)
-      const discountIds = discountItems.map((a: any) => a.id);
-      if (discountIds.length > 0) {
-        await supabase
-          .from('worker_adjustments')
-          .update({ is_paid: true })
-          .in('id', discountIds);
+      // 2. Create a bonus adjustment that's already paid (so it shows in history)
+      const { error: adjError } = await supabase.from('worker_adjustments').insert({
+        worker_id: worker.id,
+        workshop_id: bonusWorkshopId,
+        work_date: format(new Date(), 'yyyy-MM-dd'),
+        adjustment_type: 'bonus',
+        amount,
+        reason: bonusReason || 'Bonus payment',
+        is_paid: true,
+        payment_id: payment.id,
+        created_by: user?.id,
+      });
+      if (adjError) {
+        // Rollback payment if adjustment fails
+        await supabase.from('payments').delete().eq('id', payment.id);
+        throw adjError;
       }
 
       return payment;
@@ -812,6 +802,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setBonusWorkshopId('');
+      setBonusAmount('');
+      setBonusReason('');
       toast({ title: t('workers.bonusPaymentCreated'), description: t('workers.bonusPaymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -2128,17 +2120,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               </Button>
 
-              {/* Pay Bonus Only */}
+              {/* Pay Bonus */}
               <Button
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
                 onClick={() => setPayMode('bonus')}
-                disabled={adjustmentNet === 0}
               >
                 <Sparkles className="w-5 h-5 text-warning flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payBonusOnly')}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{adjustmentNet > 0 ? '+' : ''}{adjustmentNet.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payBonusDesc', { defaultValue: 'Pay a custom bonus amount' })}</p>
                 </div>
               </Button>
 
@@ -2310,39 +2301,37 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <SelectValue placeholder={t('workers.selectWorkshop')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(unpaidAdjByWorkshop).map(([workshopId, { name, bonuses, discounts }]) => (
-                      <SelectItem key={workshopId} value={workshopId}>
-                        {name} ({(bonuses - discounts).toLocaleString('fr-FR')} CFA)
-                      </SelectItem>
+                    {workshops.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              {bonusWorkshopId && unpaidAdjByWorkshop[bonusWorkshopId] && (
-                <div className="text-xs space-y-1 p-2 rounded-lg bg-muted">
-                  <div className="flex justify-between">
-                    <span>{t('workers.bonus', { defaultValue: 'Bonus' })}:</span>
-                    <span className="font-mono text-success">+{unpaidAdjByWorkshop[bonusWorkshopId].bonuses.toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                  {unpaidAdjByWorkshop[bonusWorkshopId].discounts > 0 && (
-                    <div className="flex justify-between">
-                      <span>{t('attendance.discount')}:</span>
-                      <span className="font-mono text-destructive">-{unpaidAdjByWorkshop[bonusWorkshopId].discounts.toLocaleString('fr-FR')} CFA</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold border-t pt-1">
-                    <span>{t('common.total')}:</span>
-                    <span className="font-mono">{(unpaidAdjByWorkshop[bonusWorkshopId].bonuses - unpaidAdjByWorkshop[bonusWorkshopId].discounts).toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>{t('common.amount')} (CFA)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('common.reason')} ({t('common.optional')})</Label>
+                <Input
+                  value={bonusReason}
+                  onChange={(e) => setBonusReason(e.target.value)}
+                  placeholder={t('workers.bonusReasonPlaceholder', { defaultValue: 'e.g. Good work, Extra effort...' })}
+                />
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
                   {t('common.cancel')}
                 </Button>
                 <Button
                   onClick={() => payBonus.mutate()}
-                  disabled={payBonus.isPending || !bonusWorkshopId}
+                  disabled={payBonus.isPending || !bonusAmount || parseFloat(bonusAmount) <= 0 || !bonusWorkshopId}
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   {payBonus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
