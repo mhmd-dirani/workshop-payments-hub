@@ -117,10 +117,26 @@ export default function Users() {
         .select('user_id');
       if (error) throw error;
       
-      // Count assignments per user
       const counts: Record<string, number> = {};
       data.forEach(a => {
         counts[a.user_id] = (counts[a.user_id] || 0) + 1;
+      });
+      return counts;
+    },
+  });
+
+  // Fetch co-admin member assignment counts
+  const { data: memberAssignmentCounts } = useQuery({
+    queryKey: ['co-admin-member-assignment-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('co_admin_member_assignments')
+        .select('co_admin_user_id');
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data.forEach(a => {
+        counts[a.co_admin_user_id] = (counts[a.co_admin_user_id] || 0) + 1;
       });
       return counts;
     },
