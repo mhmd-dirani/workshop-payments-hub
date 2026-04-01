@@ -34,7 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff, Trash2, Edit, MoreVertical } from 'lucide-react';
+import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff, Trash2, Edit, MoreVertical, Users2 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -43,6 +43,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import WorkshopAssignments from '@/components/WorkshopAssignments';
+import MemberAssignments from '@/components/MemberAssignments';
 import { useAuth } from '@/lib/auth';
 import { z } from 'zod';
 
@@ -73,6 +74,7 @@ export default function Users() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
+  const [memberAssignUser, setMemberAssignUser] = useState<{ id: string; name: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [editingUser, setEditingUser] = useState<{ userId: string; fullName: string } | null>(null);
   const [editName, setEditName] = useState('');
@@ -115,10 +117,26 @@ export default function Users() {
         .select('user_id');
       if (error) throw error;
       
-      // Count assignments per user
       const counts: Record<string, number> = {};
       data.forEach(a => {
         counts[a.user_id] = (counts[a.user_id] || 0) + 1;
+      });
+      return counts;
+    },
+  });
+
+  // Fetch co-admin member assignment counts
+  const { data: memberAssignmentCounts } = useQuery({
+    queryKey: ['co-admin-member-assignment-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('co_admin_member_assignments')
+        .select('co_admin_user_id');
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data.forEach(a => {
+        counts[a.co_admin_user_id] = (counts[a.co_admin_user_id] || 0) + 1;
       });
       return counts;
     },
@@ -422,7 +440,21 @@ export default function Users() {
                             <FolderOpen className="w-3 h-3 inline mr-1" />
                             {getWorkshopCount(user.user_id, userRole)}
                           </div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {userRole === 'co_admin' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2"
+                                onClick={() => setMemberAssignUser({ 
+                                  id: user.user_id, 
+                                  name: user.full_name || t('roles.user')
+                                })}
+                              >
+                                <Users2 className="w-3 h-3 mr-1" />
+                                {t('users.assignMembers')} ({memberAssignmentCounts?.[user.user_id] || 0})
+                              </Button>
+                            )}
                             {userRole !== 'admin' && (
                               <Button
                                 variant="outline"
@@ -491,6 +523,20 @@ export default function Users() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
+                                {userRole === 'co_admin' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => setMemberAssignUser({ 
+                                      id: user.user_id, 
+                                      name: user.full_name || t('roles.user')
+                                    })}
+                                  >
+                                    <Users2 className="w-3 h-3" />
+                                    {t('users.assignMembers')} ({memberAssignmentCounts?.[user.user_id] || 0})
+                                  </Button>
+                                )}
                                 {userRole !== 'admin' && (
                                   <Button
                                     variant="outline"
@@ -562,7 +608,16 @@ export default function Users() {
         />
       )}
 
-      {/* Edit User Dialog */}
+      {/* Member Assignment Dialog (for co-admins) */}
+      {memberAssignUser && (
+        <MemberAssignments
+          coAdminUserId={memberAssignUser.id}
+          coAdminName={memberAssignUser.name}
+          open={!!memberAssignUser}
+          onOpenChange={(open) => !open && setMemberAssignUser(null)}
+        />
+      )}
+
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

@@ -44,29 +44,30 @@ export default function Team() {
     enabled: role === 'admin',
   });
 
-  // Fetch users for co-admin transfer (no balance info)
+  // Fetch users assigned to this co-admin
   const { data: coAdminUsers = [] } = useQuery({
-    queryKey: ['co-admin-users-list'],
+    queryKey: ['co-admin-users-list', user?.id],
     queryFn: async () => {
+      // Get assigned member IDs for this co-admin
+      const { data: assignments } = await supabase
+        .from('co_admin_member_assignments')
+        .select('member_user_id')
+        .eq('co_admin_user_id', user!.id);
+
+      const assignedIds = assignments?.map(a => a.member_user_id) || [];
+      if (assignedIds.length === 0) return [];
+
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, full_name');
-      
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-      
-      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
-      
-      // Filter to non-admin, non-self users
-      return (profiles || [])
-        .filter(p => roleMap.get(p.user_id) !== 'admin' && p.user_id !== user?.id)
-        .map(p => ({
-          user_id: p.user_id,
-          full_name: p.full_name,
-        }));
+        .select('user_id, full_name')
+        .in('user_id', assignedIds);
+
+      return (profiles || []).map(p => ({
+        user_id: p.user_id,
+        full_name: p.full_name,
+      }));
     },
-    enabled: role === 'co_admin',
+    enabled: role === 'co_admin' && !!user,
   });
 
   // Fetch all team members (non-admin users) with their balances
