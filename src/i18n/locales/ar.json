@@ -481,8 +481,8 @@
       "macon": "بنّاء",
       "carreleur": "بلّاط"
     },
-    "payBonusOnly": "دفع المكافأة",
-    "payBonusOnlyDesc": "دفع المكافآت/الخصومات غير المدفوعة فقط لـ {{name}}",
+    "payBonusOnly": "دفع مكافأة",
+    "payBonusDesc": "دفع مبلغ مكافأة مخصص",
     "payPartial": "دفع جزئي",
     "payPartialDesc": "دفع مبلغ مخصص من الراتب المستحق لـ {{name}}",
     "paymentCreditReason": "رصيد {{mode}}: تم تطبيق {{amount}} CFA على الرصيد.",

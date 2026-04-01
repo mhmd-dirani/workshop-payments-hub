@@ -482,7 +482,7 @@
       "carreleur": "Carreleur"
     },
     "payBonusOnly": "Payer bonus",
-    "payBonusOnlyDesc": "Payer uniquement les bonus/réductions impayés de {{name}}",
+    "payBonusDesc": "Payer un montant de bonus personnalisé",
     "payPartial": "Paiement partiel",
     "payPartialDesc": "Payer un montant personnalisé du salaire dû de {{name}}",
     "paymentCreditReason": "Crédit {{mode}} : {{amount}} CFA appliqué au solde.",
