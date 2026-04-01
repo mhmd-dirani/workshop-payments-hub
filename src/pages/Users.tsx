@@ -523,6 +523,20 @@ export default function Users() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
+                                {userRole === 'co_admin' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => setMemberAssignUser({ 
+                                      id: user.user_id, 
+                                      name: user.full_name || t('roles.user')
+                                    })}
+                                  >
+                                    <Users2 className="w-3 h-3" />
+                                    {t('users.assignMembers')} ({memberAssignmentCounts?.[user.user_id] || 0})
+                                  </Button>
+                                )}
                                 {userRole !== 'admin' && (
                                   <Button
                                     variant="outline"
