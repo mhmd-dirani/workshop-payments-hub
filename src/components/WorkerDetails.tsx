@@ -2118,17 +2118,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               </Button>
 
-              {/* Pay Bonus Only */}
+              {/* Pay Bonus */}
               <Button
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
                 onClick={() => setPayMode('bonus')}
-                disabled={adjustmentNet === 0}
               >
                 <Sparkles className="w-5 h-5 text-warning flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payBonusOnly')}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{adjustmentNet > 0 ? '+' : ''}{adjustmentNet.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payBonusDesc', { defaultValue: 'Pay a custom bonus amount' })}</p>
                 </div>
               </Button>
 
