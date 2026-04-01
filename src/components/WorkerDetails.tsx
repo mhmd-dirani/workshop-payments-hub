@@ -2299,39 +2299,37 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     <SelectValue placeholder={t('workers.selectWorkshop')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(unpaidAdjByWorkshop).map(([workshopId, { name, bonuses, discounts }]) => (
-                      <SelectItem key={workshopId} value={workshopId}>
-                        {name} ({(bonuses - discounts).toLocaleString('fr-FR')} CFA)
-                      </SelectItem>
+                    {workshops.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              {bonusWorkshopId && unpaidAdjByWorkshop[bonusWorkshopId] && (
-                <div className="text-xs space-y-1 p-2 rounded-lg bg-muted">
-                  <div className="flex justify-between">
-                    <span>{t('workers.bonus', { defaultValue: 'Bonus' })}:</span>
-                    <span className="font-mono text-success">+{unpaidAdjByWorkshop[bonusWorkshopId].bonuses.toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                  {unpaidAdjByWorkshop[bonusWorkshopId].discounts > 0 && (
-                    <div className="flex justify-between">
-                      <span>{t('attendance.discount')}:</span>
-                      <span className="font-mono text-destructive">-{unpaidAdjByWorkshop[bonusWorkshopId].discounts.toLocaleString('fr-FR')} CFA</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold border-t pt-1">
-                    <span>{t('common.total')}:</span>
-                    <span className="font-mono">{(unpaidAdjByWorkshop[bonusWorkshopId].bonuses - unpaidAdjByWorkshop[bonusWorkshopId].discounts).toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>{t('common.amount')} (CFA)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('common.reason')} ({t('common.optional')})</Label>
+                <Input
+                  value={bonusReason}
+                  onChange={(e) => setBonusReason(e.target.value)}
+                  placeholder={t('workers.bonusReasonPlaceholder', { defaultValue: 'e.g. Good work, Extra effort...' })}
+                />
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
                   {t('common.cancel')}
                 </Button>
                 <Button
                   onClick={() => payBonus.mutate()}
-                  disabled={payBonus.isPending || !bonusWorkshopId}
+                  disabled={payBonus.isPending || !bonusAmount || parseFloat(bonusAmount) <= 0 || !bonusWorkshopId}
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   {payBonus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
