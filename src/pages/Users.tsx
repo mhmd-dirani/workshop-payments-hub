@@ -74,6 +74,7 @@ export default function Users() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
+  const [memberAssignUser, setMemberAssignUser] = useState<{ id: string; name: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [editingUser, setEditingUser] = useState<{ userId: string; fullName: string } | null>(null);
   const [editName, setEditName] = useState('');
