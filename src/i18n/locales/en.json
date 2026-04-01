@@ -243,7 +243,14 @@
     "editDebt": "Edit Debt",
     "deleteDebt": "Delete Debt",
     "debtEditedDesc": "The worker debt has been updated",
-    "debtDeletedDesc": "The worker debt has been removed"
+    "debtDeletedDesc": "The worker debt has been removed",
+    "assignMembers": "Members",
+    "memberAccess": "Member Access",
+    "selectMembers": "Select which team members this co-admin can manage.",
+    "noMembersAvailable": "No members available",
+    "membersSelected": "{{count}} member(s) selected",
+    "memberAssignmentsUpdated": "Member Assignments Updated",
+    "memberAccessUpdated": "Member access has been updated"
   },
   "team": {
     "title": "Team Finances",
