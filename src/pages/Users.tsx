@@ -608,7 +608,16 @@ export default function Users() {
         />
       )}
 
-      {/* Edit User Dialog */}
+      {/* Member Assignment Dialog (for co-admins) */}
+      {memberAssignUser && (
+        <MemberAssignments
+          coAdminUserId={memberAssignUser.id}
+          coAdminName={memberAssignUser.name}
+          open={!!memberAssignUser}
+          onOpenChange={(open) => !open && setMemberAssignUser(null)}
+        />
+      )}
+
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
