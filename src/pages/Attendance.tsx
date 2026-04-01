@@ -4,9 +4,8 @@ import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import QuickAttendanceForm from '@/components/QuickAttendanceForm';
 import OvertimePaymentForm from '@/components/OvertimePaymentForm';
-import WorkerAdjustmentsForm from '@/components/WorkerAdjustmentsForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Sparkles } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 
 export default function Attendance() {
   const { t } = useTranslation();
