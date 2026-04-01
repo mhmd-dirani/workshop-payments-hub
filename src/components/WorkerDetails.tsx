@@ -750,35 +750,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Pay bonus only mutation
+  // Pay bonus - direct payment with custom amount (like advance payment)
   const payBonus = useMutation({
     mutationFn: async () => {
-      if (!bonusWorkshopId) throw new Error('No workshop selected');
-      const workshopAdj = unpaidAdjByWorkshop[bonusWorkshopId];
-      if (!workshopAdj || workshopAdj.items.length === 0) throw new Error('No adjustments');
-      if (workshopAdj.bonuses <= 0) throw new Error('No bonus/taxi to pay');
+      const amount = parseFloat(bonusAmount);
+      if (!amount || amount <= 0 || !bonusWorkshopId) throw new Error('Invalid amount or workshop');
 
       const categoryLabel = 'Travailleur';
-      
-      // Only pay bonuses + taxi, NOT discounts
-      const bonusItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
-      const discountItems = workshopAdj.items.filter((a: any) => a.adjustment_type === 'discount');
-      const payableAmount = workshopAdj.bonuses; // only bonuses + taxi
-      
-      if (payableAmount <= 0) throw new Error('No bonus/taxi to pay');
-      
-      const hasTaxi = bonusItems.some((a: any) => a.adjustment_type === 'taxi');
-      const hasBonus = bonusItems.some((a: any) => a.adjustment_type === 'bonus');
-      const typeLabel = hasTaxi && !hasBonus ? 'Taxi payment' : hasBonus && !hasTaxi ? 'Bonus payment' : 'Bonus/Taxi payment';
-      const reason = `${worker.name} - ${typeLabel}`;
+      const reasonText = bonusReason ? `${worker.name} - ${bonusReason}` : `${worker.name} - Bonus payment`;
 
+      // 1. Create payment record
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .insert([{
           workshop_id: bonusWorkshopId,
           paid_to: categoryLabel,
-          reason,
-          amount: payableAmount,
+          reason: reasonText,
+          amount,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           created_by: user?.id,
           status: role === 'admin' ? 'approved' : 'pending',
@@ -787,22 +775,22 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .single();
       if (paymentError) throw paymentError;
 
-      // Mark bonus/taxi adjustments as paid with payment_id
-      const bonusIds = bonusItems.map((a: any) => a.id);
-      if (bonusIds.length > 0) {
-        await supabase
-          .from('worker_adjustments')
-          .update({ is_paid: true, payment_id: payment.id })
-          .in('id', bonusIds);
-      }
-      
-      // Mark discount adjustments as paid (no payment record - they just reduce balance)
-      const discountIds = discountItems.map((a: any) => a.id);
-      if (discountIds.length > 0) {
-        await supabase
-          .from('worker_adjustments')
-          .update({ is_paid: true })
-          .in('id', discountIds);
+      // 2. Create a bonus adjustment that's already paid (so it shows in history)
+      const { error: adjError } = await supabase.from('worker_adjustments').insert({
+        worker_id: worker.id,
+        workshop_id: bonusWorkshopId,
+        work_date: format(new Date(), 'yyyy-MM-dd'),
+        adjustment_type: 'bonus',
+        amount,
+        reason: bonusReason || 'Bonus payment',
+        is_paid: true,
+        payment_id: payment.id,
+        created_by: user?.id,
+      });
+      if (adjError) {
+        // Rollback payment if adjustment fails
+        await supabase.from('payments').delete().eq('id', payment.id);
+        throw adjError;
       }
 
       return payment;
@@ -812,6 +800,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setBonusWorkshopId('');
+      setBonusAmount('');
+      setBonusReason('');
       toast({ title: t('workers.bonusPaymentCreated'), description: t('workers.bonusPaymentCreatedDesc') });
     },
     onError: (error: Error) => {
