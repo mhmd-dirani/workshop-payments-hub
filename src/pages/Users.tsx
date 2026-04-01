@@ -440,7 +440,21 @@ export default function Users() {
                             <FolderOpen className="w-3 h-3 inline mr-1" />
                             {getWorkshopCount(user.user_id, userRole)}
                           </div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {userRole === 'co_admin' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2"
+                                onClick={() => setMemberAssignUser({ 
+                                  id: user.user_id, 
+                                  name: user.full_name || t('roles.user')
+                                })}
+                              >
+                                <Users2 className="w-3 h-3 mr-1" />
+                                {t('users.assignMembers')} ({memberAssignmentCounts?.[user.user_id] || 0})
+                              </Button>
+                            )}
                             {userRole !== 'admin' && (
                               <Button
                                 variant="outline"
