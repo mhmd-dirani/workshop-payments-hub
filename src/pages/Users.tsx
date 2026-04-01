@@ -34,7 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff, Trash2, Edit, MoreVertical } from 'lucide-react';
+import { UserPlus, Loader2, Shield, User, FolderOpen, Eye, EyeOff, Trash2, Edit, MoreVertical, Users2 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
