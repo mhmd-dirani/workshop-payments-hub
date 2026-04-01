@@ -116,6 +116,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [partialWorkshopId, setPartialWorkshopId] = useState<string>('');
   const [advanceWorkshopId, setAdvanceWorkshopId] = useState<string>('');
   const [bonusWorkshopId, setBonusWorkshopId] = useState<string>('');
+  const [bonusAmount, setBonusAmount] = useState('');
+  const [bonusReason, setBonusReason] = useState('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
