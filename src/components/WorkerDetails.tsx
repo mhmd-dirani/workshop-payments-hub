@@ -1621,7 +1621,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                             )}
                           </div>
                           <div className="flex items-center gap-1">
-                            {adj.adjustment_type === 'bonus' ? (
+                            {adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi' ? (
                               <Badge variant="secondary" className="gap-1 font-mono">
                                 <Sparkles className="w-3 h-3" />
                                 +{Number(adj.amount).toLocaleString('fr-FR')}
@@ -1632,6 +1632,30 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                 -{Number(adj.amount).toLocaleString('fr-FR')}
                               </Badge>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingBonusAdj(adj);
+                                setEditBonusAdjAmount(String(adj.amount));
+                                setEditBonusAdjReason(adj.reason || '');
+                              }}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBonusAdjToDelete(adj);
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
                       ))}
