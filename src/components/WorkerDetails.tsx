@@ -134,6 +134,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
   const [editAdvanceCreatorId, setEditAdvanceCreatorId] = useState('');
   const [advanceCreditToDelete, setAdvanceCreditToDelete] = useState<any>(null);
+  const [editingBonusAdj, setEditingBonusAdj] = useState<any>(null);
+  const [editBonusAdjAmount, setEditBonusAdjAmount] = useState('');
+  const [editBonusAdjReason, setEditBonusAdjReason] = useState('');
+  const [bonusAdjToDelete, setBonusAdjToDelete] = useState<any>(null);
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
