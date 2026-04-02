@@ -1176,6 +1176,68 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // Edit bonus/taxi/discount adjustment mutation
+  const editBonusAdjMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingBonusAdj) return;
+      const newAmount = parseFloat(editBonusAdjAmount);
+      if (!newAmount || newAmount <= 0) throw new Error('Invalid amount');
+      
+      // Update the adjustment
+      await supabase.from('worker_adjustments').update({
+        amount: newAmount,
+        reason: editBonusAdjReason || editingBonusAdj.reason,
+      }).eq('id', editingBonusAdj.id);
+      
+      // If linked to a payment (paid bonus), sync the payment too
+      if (editingBonusAdj.payment_id) {
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', editingBonusAdj.payment_id)
+          .single();
+        if (payment) {
+          const newReason = editBonusAdjReason 
+            ? `${worker.name} - ${editBonusAdjReason}`
+            : payment.reason;
+          await supabase.from('payments').update({
+            amount: newAmount,
+            reason: newReason,
+          }).eq('id', editingBonusAdj.payment_id);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setEditingBonusAdj(null);
+      toast({ title: t('workers.bonusUpdated'), description: t('workers.bonusUpdatedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
+  // Delete bonus/taxi/discount adjustment mutation
+  const deleteBonusAdjMutation = useMutation({
+    mutationFn: async (adj: any) => {
+      const paymentId = adj.payment_id;
+      await supabase.from('worker_adjustments').delete().eq('id', adj.id);
+      // If linked to a payment (paid bonus), delete the payment too
+      if (paymentId) {
+        await supabase.from('user_transfers').delete().eq('payment_id', paymentId);
+        await supabase.from('payments').delete().eq('id', paymentId);
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setBonusAdjToDelete(null);
+      toast({ title: t('workers.bonusDeleted'), description: t('workers.bonusDeletedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
