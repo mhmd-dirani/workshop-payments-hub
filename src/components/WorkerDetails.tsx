@@ -134,6 +134,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
   const [editAdvanceCreatorId, setEditAdvanceCreatorId] = useState('');
   const [advanceCreditToDelete, setAdvanceCreditToDelete] = useState<any>(null);
+  const [editingBonusAdj, setEditingBonusAdj] = useState<any>(null);
+  const [editBonusAdjAmount, setEditBonusAdjAmount] = useState('');
+  const [editBonusAdjReason, setEditBonusAdjReason] = useState('');
+  const [bonusAdjToDelete, setBonusAdjToDelete] = useState<any>(null);
   const [editingAttendance, setEditingAttendance] = useState<EditingAttendance | null>(null);
   const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
   const [paidEntryToDelete, setPaidEntryToDelete] = useState<any>(null);
@@ -1172,6 +1176,68 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // Edit bonus/taxi/discount adjustment mutation
+  const editBonusAdjMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingBonusAdj) return;
+      const newAmount = parseFloat(editBonusAdjAmount);
+      if (!newAmount || newAmount <= 0) throw new Error('Invalid amount');
+      
+      // Update the adjustment
+      await supabase.from('worker_adjustments').update({
+        amount: newAmount,
+        reason: editBonusAdjReason || editingBonusAdj.reason,
+      }).eq('id', editingBonusAdj.id);
+      
+      // If linked to a payment (paid bonus), sync the payment too
+      if (editingBonusAdj.payment_id) {
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', editingBonusAdj.payment_id)
+          .single();
+        if (payment) {
+          const newReason = editBonusAdjReason 
+            ? `${worker.name} - ${editBonusAdjReason}`
+            : payment.reason;
+          await supabase.from('payments').update({
+            amount: newAmount,
+            reason: newReason,
+          }).eq('id', editingBonusAdj.payment_id);
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setEditingBonusAdj(null);
+      toast({ title: t('workers.bonusUpdated'), description: t('workers.bonusUpdatedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
+  // Delete bonus/taxi/discount adjustment mutation
+  const deleteBonusAdjMutation = useMutation({
+    mutationFn: async (adj: any) => {
+      const paymentId = adj.payment_id;
+      await supabase.from('worker_adjustments').delete().eq('id', adj.id);
+      // If linked to a payment (paid bonus), delete the payment too
+      if (paymentId) {
+        await supabase.from('user_transfers').delete().eq('payment_id', paymentId);
+        await supabase.from('payments').delete().eq('id', paymentId);
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      setBonusAdjToDelete(null);
+      toast({ title: t('workers.bonusDeleted'), description: t('workers.bonusDeletedDesc') });
+    },
+    onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1388,7 +1454,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                     className="h-6 w-6"
                                     onClick={async (e) => {
                                       e.stopPropagation();
-                                      // Fetch the linked payment to get creator info
                                       const { data: payment } = await supabase
                                         .from('payments')
                                         .select('created_by, reason')
@@ -1412,6 +1477,35 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setAdvanceCreditToDelete(adj);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                              {/* Edit/Delete for bonus/taxi/discount adjustments (non-credit) */}
+                              {!(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingBonusAdj(adj);
+                                      setEditBonusAdjAmount(String(adj.amount));
+                                      setEditBonusAdjReason(adj.reason || '');
+                                    }}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBonusAdjToDelete(adj);
                                     }}
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -2657,6 +2751,67 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => advanceCreditToDelete && deleteAdvanceCredit.mutate(advanceCreditToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Bonus/Adjustment Dialog */}
+      <Dialog open={!!editingBonusAdj} onOpenChange={(open) => !open && setEditingBonusAdj(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.editBonus')}</DialogTitle>
+            <DialogDescription>{t('workers.editBonusDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editBonusAdjAmount}
+                onChange={(e) => setEditBonusAdjAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.reason')} ({t('common.optional')})</Label>
+              <Input
+                value={editBonusAdjReason}
+                onChange={(e) => setEditBonusAdjReason(e.target.value)}
+                placeholder={t('workers.bonusReasonPlaceholder', { defaultValue: 'e.g. Good work, Extra effort...' })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingBonusAdj(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => editBonusAdjMutation.mutate()}
+              disabled={editBonusAdjMutation.isPending || !editBonusAdjAmount || parseFloat(editBonusAdjAmount) <= 0}
+            >
+              {editBonusAdjMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Bonus/Adjustment Confirmation */}
+      <AlertDialog open={!!bonusAdjToDelete} onOpenChange={(open) => !open && setBonusAdjToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('workers.deleteBonusConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bonusAdjToDelete && deleteBonusAdjMutation.mutate(bonusAdjToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('common.delete')}
