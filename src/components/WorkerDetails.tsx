@@ -1454,7 +1454,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                     className="h-6 w-6"
                                     onClick={async (e) => {
                                       e.stopPropagation();
-                                      // Fetch the linked payment to get creator info
                                       const { data: payment } = await supabase
                                         .from('payments')
                                         .select('created_by, reason')
@@ -1478,6 +1477,35 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setAdvanceCreditToDelete(adj);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                              {/* Edit/Delete for bonus/taxi/discount adjustments (non-credit) */}
+                              {!(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingBonusAdj(adj);
+                                      setEditBonusAdjAmount(String(adj.amount));
+                                      setEditBonusAdjReason(adj.reason || '');
+                                    }}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBonusAdjToDelete(adj);
                                     }}
                                   >
                                     <Trash2 className="w-3 h-3" />
