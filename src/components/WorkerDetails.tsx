@@ -2758,6 +2758,67 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Bonus/Adjustment Dialog */}
+      <Dialog open={!!editingBonusAdj} onOpenChange={(open) => !open && setEditingBonusAdj(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('workers.editBonus')}</DialogTitle>
+            <DialogDescription>{t('workers.editBonusDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('common.amount')} (CFA)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editBonusAdjAmount}
+                onChange={(e) => setEditBonusAdjAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.reason')} ({t('common.optional')})</Label>
+              <Input
+                value={editBonusAdjReason}
+                onChange={(e) => setEditBonusAdjReason(e.target.value)}
+                placeholder={t('workers.bonusReasonPlaceholder', { defaultValue: 'e.g. Good work, Extra effort...' })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingBonusAdj(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => editBonusAdjMutation.mutate()}
+              disabled={editBonusAdjMutation.isPending || !editBonusAdjAmount || parseFloat(editBonusAdjAmount) <= 0}
+            >
+              {editBonusAdjMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Bonus/Adjustment Confirmation */}
+      <AlertDialog open={!!bonusAdjToDelete} onOpenChange={(open) => !open && setBonusAdjToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('workers.deleteBonusConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bonusAdjToDelete && deleteBonusAdjMutation.mutate(bonusAdjToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
