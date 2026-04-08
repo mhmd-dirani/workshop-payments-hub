@@ -280,10 +280,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card and Personal Payments (for non-admins) */}
+        {/* User Balance Card, Payment Activity, and Personal Payments (for non-admins) */}
         {role !== 'admin' && (
           <>
             <UserBalanceCard />
+            <UserIncomeTable />
             <PersonalPaymentsTable />
           </>
         )}
