@@ -362,8 +362,8 @@ export default function Dashboard() {
           <WorkshopFilesManager workshopId={selectedWorkshop} workshopName={selectedWorkshopName} />
         )}
 
-        {/* User Income Table (transfers received - for non-admins, global) */}
-        {selectedWorkshop && role !== 'admin' && (
+        {/* User Income Table - only show here for regular users with workshop selected (co-admin already shown above) */}
+        {selectedWorkshop && role === 'user' && (
           <UserIncomeTable />
         )}
 
