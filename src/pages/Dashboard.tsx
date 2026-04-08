@@ -280,8 +280,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card and Personal Payments (for non-admins - show global balance always) */}
-        {role !== 'admin' && role !== 'co_admin' && (
+        {/* User Balance Card and Personal Payments (for non-admins) */}
+        {role !== 'admin' && (
           <>
             <UserBalanceCard />
             <PersonalPaymentsTable />
