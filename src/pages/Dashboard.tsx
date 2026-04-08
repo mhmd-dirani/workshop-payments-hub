@@ -286,6 +286,7 @@ export default function Dashboard() {
           <>
             <UserBalanceCard />
             <UserIncomeTable />
+            <UserWorkshopPayments />
             <PersonalPaymentsTable />
           </>
         )}
