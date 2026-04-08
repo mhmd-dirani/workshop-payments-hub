@@ -12,6 +12,7 @@ import IncomeTable from '@/components/IncomeTable';
 import UserIncomeTable from '@/components/UserIncomeTable';
 import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
+import UserWorkshopPayments from '@/components/UserWorkshopPayments';
 import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import WorkshopFilesManager from '@/components/WorkshopFilesManager';
 import { Button } from '@/components/ui/button';
