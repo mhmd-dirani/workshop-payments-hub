@@ -12,6 +12,7 @@ import IncomeTable from '@/components/IncomeTable';
 import UserIncomeTable from '@/components/UserIncomeTable';
 import RejectedPayments from '@/components/RejectedPayments';
 import UserBalanceCard from '@/components/UserBalanceCard';
+import UserWorkshopPayments from '@/components/UserWorkshopPayments';
 import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import WorkshopFilesManager from '@/components/WorkshopFilesManager';
 import { Button } from '@/components/ui/button';
@@ -280,10 +281,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* User Balance Card and Personal Payments (for non-admins) */}
+        {/* User Balance Card, Payment Activity, and Personal Payments (for non-admins) */}
         {role !== 'admin' && (
           <>
             <UserBalanceCard />
+            <UserIncomeTable />
+            <UserWorkshopPayments />
             <PersonalPaymentsTable />
           </>
         )}
@@ -361,10 +364,7 @@ export default function Dashboard() {
           <WorkshopFilesManager workshopId={selectedWorkshop} workshopName={selectedWorkshopName} />
         )}
 
-        {/* User Income Table (transfers received - for non-admins, global) */}
-        {selectedWorkshop && role !== 'admin' && (
-          <UserIncomeTable />
-        )}
+
 
         {/* Payment Table */}
         {selectedWorkshop ? (
