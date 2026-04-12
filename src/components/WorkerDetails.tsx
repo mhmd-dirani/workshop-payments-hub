@@ -2416,7 +2416,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 {/* Final total */}
                 {(() => {
                   const deduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-                  const finalAmount = totalOwed - deduction;
+                  const holiday = includeHolidayPay ? worker.hourly_rate : 0;
+                  const finalAmount = totalOwed + holiday - deduction;
                   return (
                     <>
                       {deduction > 0 && (
