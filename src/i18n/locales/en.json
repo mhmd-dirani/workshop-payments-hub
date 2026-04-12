@@ -541,6 +541,8 @@
     "overtimePaidNow": "Overtime payment created and sent to dashboard",
     "overtimeAddedToSalary": "Overtime added to salary to be paid later",
     "sundayRateNote": "Pre-filled with daily rate. You can edit.",
+    "numberOfHours": "Number of hours",
+    "hoursAmountNote": "Total amount for the extra hours worked",
     "bonusPaymentReason": "Bonus/Discount payment",
     "taxiPaymentReason": "Taxi payment",
     "bonusOnlyPaymentReason": "Bonus payment",

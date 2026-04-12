@@ -540,6 +540,8 @@
     "overtimePaidNow": "تم إنشاء دفعة العمل الإضافي وإرسالها للوحة",
     "overtimeAddedToSalary": "تم إضافة العمل الإضافي للراتب ليُدفع لاحقاً",
     "sundayRateNote": "مملوء مسبقاً بالمعدل اليومي. يمكنك التعديل.",
+    "numberOfHours": "عدد الساعات",
+    "hoursAmountNote": "المبلغ الإجمالي لساعات العمل الإضافية",
     "bonusPaymentReason": "دفعة المكافأة/الخصم",
     "taxiPaymentReason": "دفعة تاكسي",
     "bonusOnlyPaymentReason": "دفعة مكافأة",
