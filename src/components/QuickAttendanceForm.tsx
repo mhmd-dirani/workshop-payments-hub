@@ -23,6 +23,16 @@ interface Worker {
   hourly_rate: number;
 }
 
+interface DailyAttendanceSummaryRow {
+  worker_id: string;
+  total_hours: number | string;
+  hidden_hours: number | string;
+  visible_entries: Array<{
+    workshop_id: string;
+    hours_worked: number | string;
+  }> | null;
+}
+
 export default function QuickAttendanceForm() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -103,30 +113,34 @@ export default function QuickAttendanceForm() {
     enabled: !!selectedWorkshop,
   });
 
-  // All workshops attendance for the date (to detect cross-workshop conflicts)
-  const { data: allDateAttendance = [] } = useQuery({
-    queryKey: ['all-date-attendance', selectedDate],
+  // Privacy-safe daily summary across all workshops
+  const { data: allDateAttendanceSummary = [], isLoading: loadingDailySummary } = useQuery({
+    queryKey: ['daily-attendance-summary', selectedDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('worker_id, workshop_id, hours_worked')
-        .eq('work_date', selectedDate);
+      const { data, error } = await (supabase as any).rpc('get_worker_daily_attendance_summary', {
+        _work_date: selectedDate,
+      });
       if (error) throw error;
-      return data || [];
+      return (data || []) as DailyAttendanceSummaryRow[];
     },
   });
 
   const attendanceMap = new Map(existingAttendance.map(a => [a.worker_id, a]));
 
-  // Build conflict info: worker_id -> { workshopIds, totalHours }
-  const workerConflictMap = new Map<string, { workshops: Map<string, number>; totalHours: number }>();
-  allDateAttendance.forEach(a => {
-    if (!workerConflictMap.has(a.worker_id)) {
-      workerConflictMap.set(a.worker_id, { workshops: new Map(), totalHours: 0 });
-    }
-    const info = workerConflictMap.get(a.worker_id)!;
-    info.workshops.set(a.workshop_id, Number(a.hours_worked));
-    info.totalHours += Number(a.hours_worked);
+  const workerConflictMap = new Map<string, {
+    visibleWorkshops: Map<string, number>;
+    hiddenHours: number;
+    totalHours: number;
+  }>();
+
+  allDateAttendanceSummary.forEach((row) => {
+    workerConflictMap.set(row.worker_id, {
+      visibleWorkshops: new Map(
+        (row.visible_entries || []).map((entry) => [entry.workshop_id, Number(entry.hours_worked)])
+      ),
+      hiddenHours: Number(row.hidden_hours) || 0,
+      totalHours: Number(row.total_hours) || 0,
+    });
   });
 
   const workshopNameMap = new Map(workshops.map(w => [w.id, w.name]));
@@ -137,19 +151,25 @@ export default function QuickAttendanceForm() {
       if (!worker) throw new Error('Worker not found');
 
       // Fresh DB check for cross-workshop conflicts
-      const { data: freshAttendance } = await supabase
-        .from('attendance')
-        .select('worker_id, workshop_id, hours_worked')
-        .eq('worker_id', workerId)
-        .eq('work_date', selectedDate);
+      const { data: freshSummary, error: summaryError } = await (supabase as any).rpc(
+        'get_worker_daily_attendance_summary',
+        { _work_date: selectedDate }
+      );
+      if (summaryError) throw summaryError;
 
-      const otherEntries = (freshAttendance || []).filter(a => a.workshop_id !== selectedWorkshop);
-      const currentEntry = (freshAttendance || []).find(a => a.workshop_id === selectedWorkshop);
+      const workerSummary = ((freshSummary || []) as DailyAttendanceSummaryRow[]).find(
+        (entry) => entry.worker_id === workerId
+      );
+      const visibleEntries = workerSummary?.visible_entries || [];
+      const currentEntry = visibleEntries.find((entry) => entry.workshop_id === selectedWorkshop);
       
       // Already exists in this workshop
       if (currentEntry) return;
 
-      const otherTotalHours = otherEntries.reduce((sum, a) => sum + Number(a.hours_worked), 0);
+      const otherTotalHours = Math.max(
+        (Number(workerSummary?.total_hours) || 0) - Number(currentEntry?.hours_worked || 0),
+        0
+      );
 
       // If worker already has full day (1 hour) elsewhere, block entirely
       if (otherTotalHours >= 1) {
@@ -183,7 +203,7 @@ export default function QuickAttendanceForm() {
     onSuccess: (_, { workerId }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['all-date-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-attendance-summary'] });
       setSavedWorkers(prev => new Set([...prev, workerId]));
       setTimeout(() => {
         setSavedWorkers(prev => {
@@ -211,7 +231,7 @@ export default function QuickAttendanceForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       queryClient.invalidateQueries({ queryKey: ['existing-attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['all-date-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-attendance-summary'] });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
@@ -226,7 +246,7 @@ export default function QuickAttendanceForm() {
     }
   };
 
-  const isLoading = loadingWorkers || loadingWorkshops;
+  const isLoading = loadingWorkers || loadingWorkshops || loadingDailySummary;
 
   if (isLoading) {
     return (
@@ -303,10 +323,12 @@ export default function QuickAttendanceForm() {
               
               // Check conflict state from allDateAttendance
               const conflict = workerConflictMap.get(worker.id);
-              const otherEntries = conflict 
-                ? Array.from(conflict.workshops.entries()).filter(([wsId]) => wsId !== selectedWorkshop)
+               const otherEntries = conflict 
+                 ? Array.from(conflict.visibleWorkshops.entries()).filter(([wsId]) => wsId !== selectedWorkshop)
                 : [];
-              const otherTotalHours = otherEntries.reduce((sum, [, h]) => sum + h, 0);
+               const visibleOtherHours = otherEntries.reduce((sum, [, h]) => sum + h, 0);
+               const hiddenHours = conflict?.hiddenHours || 0;
+               const otherTotalHours = visibleOtherHours + hiddenHours;
               
               // Determine what to show
               let otherWorkshopName: string | undefined;
@@ -314,11 +336,18 @@ export default function QuickAttendanceForm() {
               
               if (!isAttended && otherEntries.length > 0) {
                 // Build descriptive label - show "other site" for workshops user isn't assigned to
-                const otherLabels = otherEntries.map(([wsId, hours]) => {
+                 const otherLabels = otherEntries.map(([wsId, hours]) => {
                   const canSeeWorkshop = isAdmin || userWorkshopSet.has(wsId);
                   const name = canSeeWorkshop ? (workshopNameMap.get(wsId) || '?') : t('attendance.otherSite', { defaultValue: 'Other site' });
                   return hours === 0.5 ? `½ @ ${name}` : `${t('attendance.fullDay')} @ ${name}`;
                 });
+                 if (hiddenHours > 0) {
+                   otherLabels.push(
+                     hiddenHours === 0.5
+                       ? `½ @ ${t('attendance.otherSite', { defaultValue: 'Other site' })}`
+                       : `${t('attendance.fullDay')} @ ${t('attendance.otherSite', { defaultValue: 'Other site' })}`
+                   );
+                 }
                 otherWorkshopName = otherLabels.join(' + ');
                 // If total hours across other workshops >= 1, block entirely
                 if (otherTotalHours >= 1) {
