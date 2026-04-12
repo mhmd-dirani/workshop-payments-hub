@@ -343,7 +343,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       const totalApprovedPayments = paymentsData?.filter(p => p.status === 'approved').reduce((s, p) => s + Number(p.amount), 0) || 0;
       const totalPendingPayments = paymentsData?.filter(p => p.status === 'pending').reduce((s, p) => s + Number(p.amount), 0) || 0;
       const balance = totalIncome - totalApprovedPayments;
-      const totalAttendanceDays = attendanceData?.length || 0;
+      const totalAttendanceDays = new Set(attendanceData?.map(a => a.work_date) || []).size;
 
       const summary = [
         `Workshop: ${safeName}`,
