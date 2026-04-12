@@ -1049,12 +1049,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName}`,
         created_by: user?.id,
       });
-        debt_id: workerDebtRepayId,
-        amount,
-        payment_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `Debt repayment by ${user?.id}`,
-        created_by: user?.id,
-      });
 
       // Increase the repayer's balance via team_transfers (money returned)
       await supabase.from('team_transfers').insert({
