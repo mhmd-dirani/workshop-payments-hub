@@ -311,9 +311,10 @@ export default function QuickAttendanceForm() {
               let isBlocked = false;
               
               if (!isAttended && otherEntries.length > 0) {
-                // Build descriptive label for each other workshop
+                // Build descriptive label - show "other site" for workshops user isn't assigned to
                 const otherLabels = otherEntries.map(([wsId, hours]) => {
-                  const name = workshopNameMap.get(wsId) || '?';
+                  const canSeeWorkshop = isAdmin || userWorkshopSet.has(wsId);
+                  const name = canSeeWorkshop ? (workshopNameMap.get(wsId) || '?') : t('attendance.otherSite', { defaultValue: 'Other site' });
                   return hours === 0.5 ? `½ @ ${name}` : `${t('attendance.fullDay')} @ ${name}`;
                 });
                 otherWorkshopName = otherLabels.join(' + ');
