@@ -277,13 +277,10 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       if (attendanceData && attendanceData.length > 0) {
         const csvHeader = 'Date,Worker,Category,Hours,Hourly Rate,Daily Salary,Extra,Description,Paid';
         const csvRows: string[] = [];
-        let lastDate = '';
         attendanceData.forEach(a => {
           const wName = workerMap.get(a.worker_id) || a.worker_id;
           const wCat = workerCatMap.get(a.worker_id) || 'worker';
-          const dateStr = a.work_date === lastDate ? '' : a.work_date;
-          lastDate = a.work_date;
-          csvRows.push(`${dateStr},"${wName}","${wCat}",${a.hours_worked},${a.hourly_rate},${a.daily_salary || 0},${a.extra_amount || 0},"${(a.description || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
+          csvRows.push(`${a.work_date},"${wName}","${wCat}",${a.hours_worked},${a.hourly_rate},${a.daily_salary || 0},${a.extra_amount || 0},"${(a.description || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
         });
         zip.file(`${safeName}/attendance.csv`, '\uFEFF' + csvHeader + '\n' + csvRows.join('\n'));
       }
@@ -298,12 +295,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       if (adjustmentsData && adjustmentsData.length > 0) {
         const csvHeader = 'Date,Worker,Type,Amount,Reason,Paid';
         const csvRows: string[] = [];
-        let lastDate = '';
         adjustmentsData.forEach(a => {
           const wName = workerMap.get(a.worker_id) || a.worker_id;
-          const dateStr = a.work_date === lastDate ? '' : a.work_date;
-          lastDate = a.work_date;
-          csvRows.push(`${dateStr},"${wName}","${a.adjustment_type}",${a.amount},"${(a.reason || '').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
+          csvRows.push(`${a.work_date},"${wName}","${a.adjustment_type}",${a.amount},"${(a.reason || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""')}",${a.is_paid ? 'Yes' : 'No'}`);
         });
         zip.file(`${safeName}/adjustments.csv`, '\uFEFF' + csvHeader + '\n' + csvRows.join('\n'));
       }
@@ -318,13 +312,11 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       if (paymentsData && paymentsData.length > 0) {
         const csvHeader = 'Date,Paid To,Amount,Reason,Status,Added By';
         const csvRows: string[] = [];
-        let lastDate = '';
         paymentsData.forEach(p => {
           const addedBy = profileMap.get(p.created_by) || p.created_by;
-          const dateStr = p.payment_date === lastDate ? '' : p.payment_date;
-          lastDate = p.payment_date;
           const cleanReason = (p.reason || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""');
-          csvRows.push(`${dateStr},"${p.paid_to}",${p.amount},"${cleanReason}","${p.status}","${addedBy}"`);
+          const cleanPaidTo = (p.paid_to || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""');
+          csvRows.push(`${p.payment_date},"${cleanPaidTo}",${p.amount},"${cleanReason}","${p.status}","${addedBy}"`);
         });
         zip.file(`${safeName}/payments.csv`, '\uFEFF' + csvHeader + '\n' + csvRows.join('\n'));
       }
@@ -339,12 +331,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
       if (incomeData && incomeData.length > 0) {
         const csvHeader = 'Date,Amount,Description,Added By';
         const csvRows: string[] = [];
-        let lastDate = '';
         incomeData.forEach(i => {
           const addedBy = profileMap.get(i.created_by) || i.created_by;
-          const dateStr = i.income_date === lastDate ? '' : i.income_date;
-          lastDate = i.income_date;
-          csvRows.push(`${dateStr},${i.amount},"${(i.description || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""')}","${addedBy}"`);
+          csvRows.push(`${i.income_date},${i.amount},"${(i.description || '').replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ').replace(/"/g, '""')}","${addedBy}"`);
         });
         zip.file(`${safeName}/income.csv`, '\uFEFF' + csvHeader + '\n' + csvRows.join('\n'));
       }
