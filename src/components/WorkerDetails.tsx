@@ -856,7 +856,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!amount || amount <= 0) throw new Error('Invalid amount');
 
       const categoryLabel = 'Travailleur';
-      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' });
+      const hours = overtimeType === 'hours' ? parseFloat(overtimeHours) || 1 : 1;
+      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' }) + (hours > 1 ? ` (${hours}h)` : '');
       const reason = `${worker.name} - ${t('workers.payOvertime', { defaultValue: 'Overtime' })}: ${typeLabel}`;
 
       if (overtimePaidNow) {
