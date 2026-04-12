@@ -2331,17 +2331,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               </Button>
 
-              {/* Pay Overtime Only */}
+              {/* Pay Overtime */}
               <Button
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
-                onClick={() => setPayMode('overtime')}
-                disabled={overtimeTotal <= 0}
+                onClick={() => {
+                  setPayMode('overtime');
+                  setOvertimeType(null);
+                  setOvertimeAmount(String(worker.hourly_rate));
+                  setOvertimePaidNow(true);
+                  const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                  setOvertimeWorkshopId(firstWs);
+                }}
               >
                 <Clock className="w-5 h-5 text-primary flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payOvertime', { defaultValue: 'Pay Overtime' })}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{overtimeTotal.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payOvertimeDesc', { defaultValue: 'Sunday work or extra hours' })}</p>
                 </div>
               </Button>
 
