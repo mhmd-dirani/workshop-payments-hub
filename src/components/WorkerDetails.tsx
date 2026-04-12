@@ -638,6 +638,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setDebtDeductionAmount('');
       setDebtDeductionEnabled(false);
       setSelectedDebtForDeduction('');
+      setIncludeHolidayPay(false);
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
