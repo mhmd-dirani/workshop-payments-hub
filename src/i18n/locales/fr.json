@@ -608,6 +608,13 @@
     "balanceDeducted": "Le montant a été déduit de votre solde",
     "noPayments": "Aucun paiement personnel"
   },
+  "userDebtTracker": {
+    "title": "Dettes ouvriers placées",
+    "placed": "Placées",
+    "repaid": "Remboursées",
+    "pending": "En attente",
+    "remaining": "Restant"
+  },
   "files": {
     "workshopFiles": "Fichiers de l'atelier",
     "mapsAndReceipts": "Télécharger cartes, plans et reçus",
