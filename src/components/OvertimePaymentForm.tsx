@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,9 +6,10 @@ import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -17,8 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { Loader2, Clock, Building2, Users, Sparkles, Check } from 'lucide-react';
+import { format, startOfWeek, addDays } from 'date-fns';
+import { Loader2, Clock, Building2, Users, Check, CalendarHeart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Worker {
@@ -27,20 +28,22 @@ interface Worker {
   hourly_rate: number;
 }
 
+interface WorkerOvertime {
+  selected: boolean;
+  amount: number;
+}
+
 export default function OvertimePaymentForm() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const actionInProgressRef = useRef(false);
   
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
-  const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
+  const [workerOvertime, setWorkerOvertime] = useState<Record<string, WorkerOvertime>>({});
 
-  // Fetch active workers
   const { data: workers = [], isLoading: loadingWorkers } = useQuery({
     queryKey: ['workers-active'],
     queryFn: async () => {
@@ -54,7 +57,6 @@ export default function OvertimePaymentForm() {
     },
   });
 
-  // Fetch workshops
   const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
     queryKey: ['workshops'],
     queryFn: async () => {
@@ -67,105 +69,101 @@ export default function OvertimePaymentForm() {
     },
   });
 
+  // Check if selected date is a holiday
+  const { data: isHoliday = false } = useQuery({
+    queryKey: ['holiday-check', selectedDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('holidays')
+        .select('id')
+        .eq('holiday_date', selectedDate)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+  });
+
   const toggleWorker = (workerId: string) => {
-    setSelectedWorkers(prev => {
-      const next = new Set(prev);
-      if (next.has(workerId)) {
-        next.delete(workerId);
-      } else {
-        next.add(workerId);
+    setWorkerOvertime(prev => {
+      const worker = workers.find(w => w.id === workerId);
+      const existing = prev[workerId];
+      if (existing?.selected) {
+        const next = { ...prev };
+        delete next[workerId];
+        return next;
       }
-      return next;
+      return {
+        ...prev,
+        [workerId]: {
+          selected: true,
+          amount: worker?.hourly_rate || 0,
+        },
+      };
     });
   };
 
+  const updateWorkerAmount = (workerId: string, amount: number) => {
+    setWorkerOvertime(prev => ({
+      ...prev,
+      [workerId]: { ...prev[workerId], amount },
+    }));
+  };
+
   const selectAllWorkers = () => {
-    if (selectedWorkers.size === workers.length) {
-      setSelectedWorkers(new Set());
+    const anySelected = Object.values(workerOvertime).some(v => v.selected);
+    if (anySelected && Object.keys(workerOvertime).length === workers.length) {
+      setWorkerOvertime({});
     } else {
-      setSelectedWorkers(new Set(workers.map(w => w.id)));
+      const all: Record<string, WorkerOvertime> = {};
+      workers.forEach(w => {
+        all[w.id] = { selected: true, amount: w.hourly_rate };
+      });
+      setWorkerOvertime(all);
     }
   };
 
-  const createOvertimePayment = useMutation({
+  const selectedWorkers = useMemo(() => 
+    Object.entries(workerOvertime).filter(([, v]) => v.selected),
+    [workerOvertime]
+  );
+
+  const totalAmount = useMemo(() => 
+    selectedWorkers.reduce((sum, [, v]) => sum + (v.amount || 0), 0),
+    [selectedWorkers]
+  );
+
+  const createOvertimeEntries = useMutation({
     mutationFn: async () => {
-      // Prevent double-clicks
-      if (actionInProgressRef.current) {
-        throw new Error('Action already in progress');
+      if (!selectedWorkshop || selectedWorkers.length === 0 || !reason) {
+        throw new Error(t('errors.fillAllFields', { defaultValue: 'Please fill all fields' }));
       }
-      actionInProgressRef.current = true;
 
-      try {
-        if (!selectedWorkshop || selectedWorkers.size === 0 || !reason || !totalAmount) {
-          throw new Error(t('errors.fillAllFields'));
-        }
+      const entries = selectedWorkers.map(([workerId, data]) => {
+        const worker = workers.find(w => w.id === workerId);
+        return {
+          worker_id: workerId,
+          workshop_id: selectedWorkshop,
+          work_date: selectedDate,
+          hours_worked: 1,
+          hourly_rate: 0, // Mark as overtime (hourly_rate=0)
+          has_extra: true,
+          extra_amount: data.amount,
+          description: `${t('attendance.overtime')}: ${reason}${isHoliday ? ` [${t('attendance.holidayIncluded')}]` : ''}`,
+          is_paid: false,
+          created_by: user?.id,
+        };
+      });
 
-        const amount = Number(totalAmount);
-        if (isNaN(amount) || amount <= 0) {
-          throw new Error(t('errors.invalidAmount'));
-        }
-
-        const selectedWorkersList = workers.filter(w => selectedWorkers.has(w.id));
-        const workerNames = selectedWorkersList.map(w => w.name).join(', ');
-        const workerIds = selectedWorkersList.map(w => w.id);
-        const paymentDate = format(new Date(), 'yyyy-MM-dd');
-
-        // Create ONE payment record with all worker names in reason
-        const { data: payment, error: paymentError } = await supabase
-          .from('payments')
-          .insert([{
-            workshop_id: selectedWorkshop,
-            paid_to: 'Travailleur Overtime',
-            reason: `${workerNames} - ${reason}`,
-            amount: amount,
-            payment_date: paymentDate,
-            status: 'approved',
-            approved_by: user?.id,
-            approved_at: new Date().toISOString(),
-            created_by: user?.id,
-          }])
-          .select('id')
-          .single();
-
-        if (paymentError) throw paymentError;
-
-        // Create ONE attendance record with ALL worker names in description
-        // Use first worker as the reference worker_id (for foreign key constraint)
-        // Store all names in description so filtering can find by any name
-        const overtimeDescription = `${t('attendance.overtime')}: ${workerNames} - ${reason}`;
-        
-        const { error: attendanceError } = await supabase
-          .from('attendance')
-          .insert({
-            worker_id: selectedWorkersList[0].id, // First worker as reference
-            workshop_id: selectedWorkshop,
-            work_date: selectedDate,
-            hours_worked: 1, // Minimum to satisfy constraint
-            hourly_rate: 1, // Minimum to satisfy check constraint
-            has_extra: true,
-            extra_amount: amount, // Full amount (only ONE record)
-            description: overtimeDescription, // Contains all worker names for filtering
-            is_paid: true,
-            payment_id: payment.id,
-            created_by: user?.id,
-          });
-
-        if (attendanceError) throw attendanceError;
-
-        return { payment, workers: selectedWorkersList };
-      } finally {
-        actionInProgressRef.current = false;
-      }
+      const { error } = await supabase.from('attendance').insert(entries);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-unpaid-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['all-unpaid-attendance'] });
       
-      // Reset form
-      setSelectedWorkers(new Set());
+      setWorkerOvertime({});
       setReason('');
-      setTotalAmount('');
       
       toast({
         title: t('common.success'),
@@ -173,18 +171,15 @@ export default function OvertimePaymentForm() {
       });
     },
     onError: (error: Error) => {
-      if (error.message !== 'Action already in progress') {
-        toast({
-          title: t('errors.error'),
-          description: error.message,
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: t('errors.error'),
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 
   const isLoading = loadingWorkers || loadingWorkshops;
-  const amountNum = Number(totalAmount) || 0;
 
   if (isLoading) {
     return (
@@ -204,16 +199,16 @@ export default function OvertimePaymentForm() {
           {t('attendance.overtimePayment')}
         </CardTitle>
         <CardDescription className="text-xs md:text-sm">
-          {t('attendance.overtimePaymentDesc')}
+          {t('attendance.overtimePaymentDescNew', { defaultValue: 'Record overtime per worker. Each worker gets an individual entry.' })}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="px-3 md:px-6 pb-3 md:pb-6 space-y-4">
-        {/* Date and Workshop Selection */}
+        {/* Date and Workshop */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
+              <Clock className="w-3.5 h-3.5" />
               {t('attendance.overtimeDate')}
             </Label>
             <Input
@@ -241,6 +236,16 @@ export default function OvertimePaymentForm() {
           </div>
         </div>
 
+        {/* Holiday indicator */}
+        {isHoliday && (
+          <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/20 rounded-lg">
+            <CalendarHeart className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium text-primary">
+              {t('attendance.dateIsHoliday', { defaultValue: 'This date is marked as a holiday' })}
+            </span>
+          </div>
+        )}
+
         {/* Reason */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
@@ -250,30 +255,11 @@ export default function OvertimePaymentForm() {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={t('attendance.overtimeReasonPlaceholder')}
-            className="min-h-[60px] text-sm"
+            className="min-h-[50px] text-sm"
           />
         </div>
 
-        {/* Total Amount */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">
-            {t('attendance.totalOvertimeAmount')}
-          </Label>
-          <Input
-            type="number"
-            value={totalAmount}
-            onChange={(e) => setTotalAmount(e.target.value)}
-            placeholder="0"
-            className="h-9 text-sm font-mono"
-          />
-          {selectedWorkers.size > 0 && amountNum > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {t('attendance.sharedAmongWorkers', { count: selectedWorkers.size })}
-            </p>
-          )}
-        </div>
-
-        {/* Workers Selection */}
+        {/* Workers Selection with individual amounts */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-medium flex items-center gap-1.5">
@@ -287,7 +273,7 @@ export default function OvertimePaymentForm() {
               onClick={selectAllWorkers}
               className="h-7 text-xs"
             >
-              {selectedWorkers.size === workers.length ? t('common.deselectAll') : t('common.selectAll')}
+              {selectedWorkers.length === workers.length ? t('common.deselectAll') : t('common.selectAll')}
             </Button>
           </div>
 
@@ -296,23 +282,44 @@ export default function OvertimePaymentForm() {
               {t('workers.noWorkers')}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
+            <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
               {workers.map((worker) => {
-                const isSelected = selectedWorkers.has(worker.id);
+                const overtime = workerOvertime[worker.id];
+                const isSelected = overtime?.selected || false;
                 return (
                   <div
                     key={worker.id}
                     className={cn(
-                      "flex items-center gap-2 p-2 border rounded-md cursor-pointer transition-colors",
+                      "border rounded-md p-2 transition-colors",
                       isSelected && "border-primary bg-primary/5"
                     )}
-                    onClick={() => toggleWorker(worker.id)}
                   >
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleWorker(worker.id)}
-                    />
-                    <span className="text-sm truncate">{worker.name}</span>
+                    <div
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => toggleWorker(worker.id)}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleWorker(worker.id)}
+                      />
+                      <span className="text-sm flex-1 truncate">{worker.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Label className="text-[10px] whitespace-nowrap">{t('common.amount')}:</Label>
+                        <Input
+                          type="number"
+                          value={overtime.amount || ''}
+                          onChange={(e) => updateWorkerAmount(worker.id, Number(e.target.value))}
+                          className="h-7 text-xs font-mono flex-1"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-[10px] text-muted-foreground">CFA</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -321,31 +328,30 @@ export default function OvertimePaymentForm() {
         </div>
 
         {/* Summary */}
-        {selectedWorkers.size > 0 && amountNum > 0 && reason && selectedWorkshop && (
+        {selectedWorkers.length > 0 && reason && selectedWorkshop && (
           <div className="p-3 bg-success/10 border border-success/20 rounded-lg space-y-1">
             <p className="text-xs font-medium text-success">
               {t('attendance.overtimeSummary')}
             </p>
             <p className="text-xs text-muted-foreground">
-              {amountNum.toLocaleString('fr-FR')} CFA {t('attendance.sharedPayment')} ({selectedWorkers.size} {t('attendance.workersSelected')})
+              {selectedWorkers.length} {t('attendance.workersSelected')} · {totalAmount.toLocaleString('fr-FR')} CFA {t('common.total')}
             </p>
           </div>
         )}
 
-        {/* Submit Button */}
+        {/* Submit */}
         <Button
-          onClick={() => createOvertimePayment.mutate()}
+          onClick={() => createOvertimeEntries.mutate()}
           disabled={
-            createOvertimePayment.isPending ||
+            createOvertimeEntries.isPending ||
             !selectedWorkshop ||
-            selectedWorkers.size === 0 ||
+            selectedWorkers.length === 0 ||
             !reason ||
-            !totalAmount ||
-            amountNum <= 0
+            totalAmount <= 0
           }
           className="w-full gap-2"
         >
-          {createOvertimePayment.isPending ? (
+          {createOvertimeEntries.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Check className="w-4 h-4" />
