@@ -40,7 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subWeeks, addDays } from 'date-fns';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -56,7 +56,8 @@ import {
   Clock,
   MinusCircle,
   X,
-  ArrowUpCircle
+  ArrowUpCircle,
+  CalendarHeart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
