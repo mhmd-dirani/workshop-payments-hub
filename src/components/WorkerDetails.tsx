@@ -281,6 +281,27 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
+  // Check holidays in the current week for the holiday pay prompt
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+  const weekEndDate = addDays(weekStart, 6);
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+  const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+
+  const { data: weekHolidays = [] } = useQuery({
+    queryKey: ['holidays-week', weekStartStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('holidays')
+        .select('*')
+        .gte('holiday_date', weekStartStr)
+        .lte('holiday_date', weekEndStr);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const hasHolidayThisWeek = weekHolidays.length > 0;
+
   // Fetch profiles for "who paid" selector
   const { data: allProfiles = [] } = useQuery({
     queryKey: ['all-profiles'],
