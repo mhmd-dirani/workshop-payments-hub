@@ -540,6 +540,8 @@
     "overtimePaidNow": "Paiement heures sup créé et envoyé au tableau de bord",
     "overtimeAddedToSalary": "Heures sup ajoutées au salaire à payer plus tard",
     "sundayRateNote": "Pré-rempli avec le taux journalier. Vous pouvez le modifier.",
+    "numberOfHours": "Nombre d'heures",
+    "hoursAmountNote": "Montant total pour les heures supplémentaires travaillées",
     "bonusPaymentReason": "Paiement bonus/réduction",
     "taxiPaymentReason": "Paiement taxi",
     "bonusOnlyPaymentReason": "Paiement bonus",

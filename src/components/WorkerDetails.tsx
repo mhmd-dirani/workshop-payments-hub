@@ -122,6 +122,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
   const [overtimeType, setOvertimeType] = useState<'sunday' | 'hours' | null>(null);
   const [overtimeAmount, setOvertimeAmount] = useState('');
+  const [overtimeHours, setOvertimeHours] = useState('');
   const [overtimePaidNow, setOvertimePaidNow] = useState(true);
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
@@ -855,7 +856,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       if (!amount || amount <= 0) throw new Error('Invalid amount');
 
       const categoryLabel = 'Travailleur';
-      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' });
+      const hours = overtimeType === 'hours' ? parseFloat(overtimeHours) || 1 : 1;
+      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' }) + (hours > 1 ? ` (${hours}h)` : '');
       const reason = `${worker.name} - ${t('workers.payOvertime', { defaultValue: 'Overtime' })}: ${typeLabel}`;
 
       if (overtimePaidNow) {
@@ -916,6 +918,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setOvertimeWorkshopId('');
       setOvertimeType(null);
       setOvertimeAmount('');
+      setOvertimeHours('');
       setOvertimePaidNow(true);
       const msg = overtimePaidNow
         ? t('workers.overtimePaidNow', { defaultValue: 'Overtime payment created and sent to dashboard' })
@@ -2354,6 +2357,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   setPayMode('overtime');
                   setOvertimeType(null);
                   setOvertimeAmount(String(worker.hourly_rate));
+                  setOvertimeHours('1');
                   setOvertimePaidNow(true);
                   const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
                   setOvertimeWorkshopId(firstWs);
@@ -2614,6 +2618,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     onClick={() => {
                       setOvertimeType('hours');
                       setOvertimeAmount('');
+                      setOvertimeHours('1');
                     }}
                   >
                     <Clock className="w-5 h-5 text-warning flex-shrink-0" />
@@ -2646,6 +2651,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     </Select>
                   </div>
 
+                  {overtimeType === 'hours' && (
+                    <div className="space-y-2">
+                      <Label>{t('workers.numberOfHours', { defaultValue: 'Number of hours' })}</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={overtimeHours}
+                        onChange={(e) => setOvertimeHours(e.target.value)}
+                        placeholder="1"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>{t('common.amount')} (CFA)</Label>
                     <Input
@@ -2658,6 +2676,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     {overtimeType === 'sunday' && (
                       <p className="text-[10px] text-muted-foreground">
                         {t('workers.sundayRateNote', { defaultValue: 'Pre-filled with daily rate. You can edit.' })}
+                      </p>
+                    )}
+                    {overtimeType === 'hours' && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {t('workers.hoursAmountNote', { defaultValue: 'Total amount for the extra hours worked' })}
                       </p>
                     )}
                   </div>
