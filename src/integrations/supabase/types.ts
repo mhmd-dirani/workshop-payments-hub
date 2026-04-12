@@ -914,6 +914,15 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_worker_daily_attendance_summary: {
+        Args: { _work_date: string }
+        Returns: {
+          hidden_hours: number
+          total_hours: number
+          visible_entries: Json
+          worker_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
