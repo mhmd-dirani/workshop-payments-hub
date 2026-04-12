@@ -918,6 +918,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setOvertimeWorkshopId('');
       setOvertimeType(null);
       setOvertimeAmount('');
+      setOvertimeHours('');
       setOvertimePaidNow(true);
       const msg = overtimePaidNow
         ? t('workers.overtimePaidNow', { defaultValue: 'Overtime payment created and sent to dashboard' })
