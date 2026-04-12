@@ -513,22 +513,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         let finalTotal = total + adjBonuses - adjDiscounts;
         
-        // Apply proportional debt deduction to this workshop
+        // Debt deduction is just a note - salary amount remains unchanged
         let workshopDeduction = 0;
+        
+        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
+        
+        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
+          // Calculate proportional note amount but DON'T deduct from finalTotal
           workshopDeduction = Math.min(
             remainingDeduction,
             Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
           );
           remainingDeduction -= workshopDeduction;
-          finalTotal -= workshopDeduction;
-        }
-        
-        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
-        
-        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
-        if (workshopDeduction > 0) {
-          reason += ` [-${workshopDeduction.toLocaleString('fr-FR')} Debt repayment]`;
+          reason += `\n[${t('workers.debtRepaymentReason')}: ${workshopDeduction.toLocaleString('fr-FR')} CFA]`;
         }
         
         const categoryLabel = 'Travailleur';
