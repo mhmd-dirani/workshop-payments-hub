@@ -15,6 +15,7 @@ import UserBalanceCard from '@/components/UserBalanceCard';
 import UserWorkshopPayments from '@/components/UserWorkshopPayments';
 import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import WorkshopFilesManager from '@/components/WorkshopFilesManager';
+import UserDebtTracker from '@/components/UserDebtTracker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';

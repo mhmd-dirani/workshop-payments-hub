@@ -50,7 +50,8 @@ export default function PersonalPaymentsTable() {
         .eq('user_id', user?.id)
         .order('payment_date', { ascending: false });
       if (error) throw error;
-      return data as PersonalPayment[];
+      // Filter out worker debt entries - those are tracked separately
+      return (data || []).filter(p => !p.reason?.includes('[WORKER_DEBT]')) as PersonalPayment[];
     },
     enabled: !!user?.id,
   });
