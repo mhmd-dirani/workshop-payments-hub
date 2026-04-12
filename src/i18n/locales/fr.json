@@ -421,7 +421,13 @@
     "overtimeWith": "Heures supp. avec",
     "extra": "extra",
     "sharedPayment": "paiement partagé",
-    "sharedAmongWorkers": "Partagé entre {{count}} travailleurs"
+    "sharedAmongWorkers": "Partagé entre {{count}} travailleurs",
+    "holidays": "Jours fériés cette semaine",
+    "holidayUpdated": "Jour férié mis à jour",
+    "holidayNote": "Les jours fériés déclencheront une question lors du paiement du salaire",
+    "payHoliday": "Payer le jour férié ?",
+    "payHolidayDesc": "Il y a un jour férié cette semaine. Ajouter 1 jour de salaire ?",
+    "holidayIncluded": "Salaire jour férié inclus"
   },
   "workers": {
     "title": "Travailleurs",

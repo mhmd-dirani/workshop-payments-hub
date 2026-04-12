@@ -402,6 +402,27 @@ export type Database = {
         }
         Relationships: []
       }
+      holidays: {
+        Row: {
+          created_at: string
+          created_by: string
+          holiday_date: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          holiday_date: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          holiday_date?: string
+          id?: string
+        }
+        Relationships: []
+      }
       income: {
         Row: {
           amount: number

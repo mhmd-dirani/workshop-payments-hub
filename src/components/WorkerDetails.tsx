@@ -513,22 +513,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         let finalTotal = total + adjBonuses - adjDiscounts;
         
-        // Apply proportional debt deduction to this workshop
+        // Debt deduction is just a note - salary amount remains unchanged
         let workshopDeduction = 0;
+        
+        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
+        
+        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
         if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
+          // Calculate proportional note amount but DON'T deduct from finalTotal
           workshopDeduction = Math.min(
             remainingDeduction,
             Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
           );
           remainingDeduction -= workshopDeduction;
-          finalTotal -= workshopDeduction;
-        }
-        
-        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
-        
-        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
-        if (workshopDeduction > 0) {
-          reason += ` [-${workshopDeduction.toLocaleString('fr-FR')} Debt repayment]`;
+          reason += `\n[${t('workers.debtRepaymentReason')}: ${workshopDeduction.toLocaleString('fr-FR')} CFA]`;
         }
         
         const categoryLabel = 'Travailleur';
@@ -961,21 +959,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       } as any);
       if (error) throw error;
 
-      // 2. Create payment record so it shows in user's spending/balance
-      const { error: payError } = await supabase.from('payments').insert({
-        workshop_id: workerDebtWorkshopId,
-        paid_to: 'Travailleur',
-        reason: `${worker.name} - ${workerDebtDescription || 'Worker debt'} [WORKER_DEBT]`,
+      // 2. Deduct from placer's balance via personal_payments (NOT dashboard payments)
+      const { error: ppError } = await supabase.from('personal_payments').insert({
+        user_id: user?.id,
+        paid_to: worker.name,
+        reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
         created_by: user?.id,
-        status: isAdmin ? 'approved' : 'pending',
       });
-      if (payError) throw payError;
+      if (ppError) throw ppError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       setIsWorkerDebtFormOpen(false);
       setWorkerDebtAmount('');
@@ -1003,28 +1000,21 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Debt repayment is NOT a spending - no payment record needed.
-      // It only records the debt_payment + a discount adjustment on salary.
-      const isAdmin = role === 'admin';
-
       // Record the debt payment
       await supabase.from('debt_payments').insert({
         debt_id: workerDebtRepayId,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `Debt repayment deducted from salary`,
+        description: `Debt repayment by ${user?.id}`,
         created_by: user?.id,
       });
 
-      // Create a discount adjustment so it's deducted from salary when paying
-      await supabase.from('worker_adjustments').insert({
-        worker_id: worker.id,
-        workshop_id: workerDebtRepayWorkshopId,
-        work_date: format(new Date(), 'yyyy-MM-dd'),
-        adjustment_type: 'discount',
+      // Increase the repayer's balance via team_transfers (money returned)
+      await supabase.from('team_transfers').insert({
+        user_id: user?.id,
         amount,
-        reason: `Debt repayment - ${amount.toLocaleString('fr-FR')} CFA [DEBT_REPAYMENT]`,
-        is_paid: false,
+        transfer_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `Debt repayment from ${worker.name} [DEBT_REPAYMENT]`,
         created_by: user?.id,
       });
 
@@ -1042,6 +1032,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
       queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-transfers'] });
       setWorkerDebtRepayId(null);
       setWorkerDebtRepayAmount('');
       setWorkerDebtRepayWorkshopId('');
