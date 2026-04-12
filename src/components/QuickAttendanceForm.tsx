@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +56,36 @@ export default function QuickAttendanceForm() {
       return data || [];
     },
   });
+
+  // Fetch user's workshop assignments
+  const { data: userAssignments = [] } = useQuery({
+    queryKey: ['user-workshop-assignments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('workshop_assignments')
+        .select('workshop_id')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(a => a.workshop_id) || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user is admin (admins see all workshop names)
+  const { data: userRole } = useQuery({
+    queryKey: ['user-role-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.rpc('get_user_role', { _user_id: user.id });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isAdmin = userRole === 'admin';
+  const userWorkshopSet = useMemo(() => new Set(userAssignments), [userAssignments]);
 
   // Current workshop attendance
   const { data: existingAttendance = [] } = useQuery({
@@ -281,9 +311,10 @@ export default function QuickAttendanceForm() {
               let isBlocked = false;
               
               if (!isAttended && otherEntries.length > 0) {
-                // Build descriptive label for each other workshop
+                // Build descriptive label - show "other site" for workshops user isn't assigned to
                 const otherLabels = otherEntries.map(([wsId, hours]) => {
-                  const name = workshopNameMap.get(wsId) || '?';
+                  const canSeeWorkshop = isAdmin || userWorkshopSet.has(wsId);
+                  const name = canSeeWorkshop ? (workshopNameMap.get(wsId) || '?') : t('attendance.otherSite', { defaultValue: 'Other site' });
                   return hours === 0.5 ? `½ @ ${name}` : `${t('attendance.fullDay')} @ ${name}`;
                 });
                 otherWorkshopName = otherLabels.join(' + ');

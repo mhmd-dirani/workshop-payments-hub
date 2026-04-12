@@ -120,6 +120,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [bonusAmount, setBonusAmount] = useState('');
   const [bonusReason, setBonusReason] = useState('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
+  const [overtimeType, setOvertimeType] = useState<'sunday' | 'hours' | null>(null);
+  const [overtimeAmount, setOvertimeAmount] = useState('');
+  const [overtimePaidNow, setOvertimePaidNow] = useState(true);
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
   const [workerDebtDescription, setWorkerDebtDescription] = useState('');
@@ -332,9 +335,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // adjustmentNet should only reflect real bonuses/discounts, not payment credits
   const adjustmentNet = bonusTotal - realDiscountTotal;
 
-  // Unpaid overtime entries (description-based, not direct worker attendance)
+   // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
-    (e) => e.worker_id !== worker.id || (e.description?.includes('Overtime') && Number(e.hourly_rate) === 0)
+    (e) => e.description?.includes('Overtime')
   );
   const overtimeTotal = unpaidOvertimeEntries.reduce((sum, a) => sum + getEffectivePay(a), 0);
 
@@ -844,45 +847,80 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Pay overtime only mutation
+  // Pay overtime mutation - new flow with Sunday/Hours and paid now/add to salary
   const payOvertime = useMutation({
     mutationFn: async () => {
-      if (!overtimeWorkshopId) throw new Error('No workshop selected');
-      const workshopOt = unpaidOvertimeByWorkshop[overtimeWorkshopId];
-      if (!workshopOt || workshopOt.entries.length === 0) throw new Error('No overtime entries');
+      if (!overtimeWorkshopId || !overtimeType) throw new Error('Missing fields');
+      const amount = parseFloat(overtimeAmount);
+      if (!amount || amount <= 0) throw new Error('Invalid amount');
 
       const categoryLabel = 'Travailleur';
-      const reason = `${worker.name} - Overtime payment`;
+      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' });
+      const reason = `${worker.name} - ${t('workers.payOvertime', { defaultValue: 'Overtime' })}: ${typeLabel}`;
 
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
+      if (overtimePaidNow) {
+        // Paid now: create payment + paid attendance entry
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: overtimeWorkshopId,
+            paid_to: categoryLabel,
+            reason,
+            amount,
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: role === 'admin' ? 'approved' : 'pending',
+          }])
+          .select()
+          .single();
+        if (paymentError) throw paymentError;
+
+        // Create paid attendance record
+        await supabase.from('attendance').insert({
+          worker_id: worker.id,
           workshop_id: overtimeWorkshopId,
-          paid_to: categoryLabel,
-          reason,
-          amount: workshopOt.total,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          hours_worked: 1,
+          hourly_rate: amount,
+          has_extra: false,
+          extra_amount: 0,
+          description: `${t('attendance.overtime')}: ${typeLabel}`,
+          is_paid: true,
+          payment_id: payment.id,
           created_by: user?.id,
-          status: role === 'admin' ? 'approved' : 'pending',
-        }])
-        .select()
-        .single();
-      if (paymentError) throw paymentError;
+        });
 
-      const entryIds = workshopOt.entries.map((e: any) => e.id);
-      await supabase
-        .from('attendance')
-        .update({ is_paid: true, payment_id: payment.id })
-        .in('id', entryIds);
+        return payment;
+      } else {
+        // Add to salary: create unpaid attendance entry
+        await supabase.from('attendance').insert({
+          worker_id: worker.id,
+          workshop_id: overtimeWorkshopId,
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          hours_worked: 1,
+          hourly_rate: amount,
+          has_extra: false,
+          extra_amount: 0,
+          description: `${t('attendance.overtime')}: ${typeLabel}`,
+          is_paid: false,
+          created_by: user?.id,
+        });
 
-      return payment;
+        return null;
+      }
     },
     onSuccess: () => {
       invalidateAll();
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setOvertimeWorkshopId('');
-      toast({ title: t('workers.overtimePaymentCreated', { defaultValue: 'Overtime payment created' }), description: t('workers.overtimePaymentCreatedDesc', { defaultValue: 'The overtime payment is pending approval' }) });
+      setOvertimeType(null);
+      setOvertimeAmount('');
+      setOvertimePaidNow(true);
+      const msg = overtimePaidNow
+        ? t('workers.overtimePaidNow', { defaultValue: 'Overtime payment created and sent to dashboard' })
+        : t('workers.overtimeAddedToSalary', { defaultValue: 'Overtime added to salary to be paid later' });
+      toast({ title: t('common.success'), description: msg });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
@@ -1710,7 +1748,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   <CardContent className="p-0">
                     <div className="md:hidden">
                       {filteredPaidAttendance.map((entry) => {
-                        const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                        const isOvertime = entry.description?.includes('Overtime');
                         const extraAmount = Number(entry.extra_amount) || 0;
                         const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
                         const discountAmount = Number(entry.discount_amount) || 0;
@@ -1836,7 +1874,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         </TableHeader>
                         <TableBody>
                           {filteredPaidAttendance.map((entry) => {
-                            const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                            const isOvertime = entry.description?.includes('Overtime');
                             const extraAmount = Number(entry.extra_amount) || 0;
                             const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
                             const discountAmount = Number(entry.discount_amount) || 0;
@@ -2293,17 +2331,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               </Button>
 
-              {/* Pay Overtime Only */}
+              {/* Pay Overtime */}
               <Button
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
-                onClick={() => setPayMode('overtime')}
-                disabled={overtimeTotal <= 0}
+                onClick={() => {
+                  setPayMode('overtime');
+                  setOvertimeType(null);
+                  setOvertimeAmount(String(worker.hourly_rate));
+                  setOvertimePaidNow(true);
+                  const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
+                  setOvertimeWorkshopId(firstWs);
+                }}
               >
                 <Clock className="w-5 h-5 text-primary flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payOvertime', { defaultValue: 'Pay Overtime' })}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{overtimeTotal.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground">{t('workers.payOvertimeDesc', { defaultValue: 'Sunday work or extra hours' })}</p>
                 </div>
               </Button>
 
@@ -2530,46 +2574,125 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               <Button variant="ghost" size="sm" onClick={() => setPayMode(null)} className="gap-1 text-xs -mt-2">
                 <ArrowLeft className="w-3 h-3" /> {t('common.back')}
               </Button>
-              <div className="space-y-2">
-                <Label>{t('workers.selectWorkshop')}</Label>
-                <Select value={overtimeWorkshopId} onValueChange={setOvertimeWorkshopId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('workers.selectWorkshop')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(unpaidOvertimeByWorkshop).map(([workshopId, { name, total }]) => (
-                      <SelectItem key={workshopId} value={workshopId}>
-                        {name} ({total.toLocaleString('fr-FR')} CFA)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {overtimeWorkshopId && unpaidOvertimeByWorkshop[overtimeWorkshopId] && (
-                <div className="text-xs space-y-1 p-2 rounded-lg bg-muted">
-                  <div className="flex justify-between">
-                    <span>{t('workers.payOvertime', { defaultValue: 'Overtime' })}:</span>
-                    <span className="font-mono">{unpaidOvertimeByWorkshop[overtimeWorkshopId].total.toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>{t('workers.entries', { defaultValue: 'Entries' })}:</span>
-                    <span>{unpaidOvertimeByWorkshop[overtimeWorkshopId].entries.length}</span>
-                  </div>
+
+              {/* Step 1: Select type */}
+              {!overtimeType && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('workers.selectOvertimeType', { defaultValue: 'Select overtime type' })}</p>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-auto py-3"
+                    onClick={() => {
+                      setOvertimeType('sunday');
+                      setOvertimeAmount(String(worker.hourly_rate));
+                    }}
+                  >
+                    <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{t('workers.overtimeSunday', { defaultValue: 'Worked Sunday' })}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}</p>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-auto py-3"
+                    onClick={() => {
+                      setOvertimeType('hours');
+                      setOvertimeAmount('');
+                    }}
+                  >
+                    <Clock className="w-5 h-5 text-warning flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{t('workers.overtimeHours', { defaultValue: 'Worked Extra Hours' })}</p>
+                      <p className="text-xs text-muted-foreground">{t('workers.overtimeHoursDesc', { defaultValue: 'Enter custom amount' })}</p>
+                    </div>
+                  </Button>
                 </div>
               )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  onClick={() => payOvertime.mutate()}
-                  disabled={payOvertime.isPending || !overtimeWorkshopId}
-                  className="bg-success text-success-foreground hover:bg-success/90"
-                >
-                  {payOvertime.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {t('workers.confirmPayment')}
-                </Button>
-              </DialogFooter>
+
+              {/* Step 2: Amount + Workshop + Payment option */}
+              {overtimeType && (
+                <div className="space-y-3">
+                  <Button variant="ghost" size="sm" onClick={() => setOvertimeType(null)} className="gap-1 text-xs -mt-2">
+                    <ArrowLeft className="w-3 h-3" /> {t('common.back')}
+                  </Button>
+
+                  <div className="space-y-2">
+                    <Label>{t('workers.selectWorkshop')}</Label>
+                    <Select value={overtimeWorkshopId} onValueChange={setOvertimeWorkshopId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('workers.selectWorkshop')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workshops.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>{t('common.amount')} (CFA)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={overtimeAmount}
+                      onChange={(e) => setOvertimeAmount(e.target.value)}
+                      placeholder="0"
+                    />
+                    {overtimeType === 'sunday' && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {t('workers.sundayRateNote', { defaultValue: 'Pre-filled with daily rate. You can edit.' })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Paid now or add to salary */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">{t('workers.overtimePaymentOption', { defaultValue: 'Payment option' })}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={overtimePaidNow ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-auto py-2 text-xs"
+                        onClick={() => setOvertimePaidNow(true)}
+                      >
+                        <DollarSign className="w-3.5 h-3.5 mr-1" />
+                        {t('workers.paidNow', { defaultValue: 'Paid Now' })}
+                      </Button>
+                      <Button
+                        variant={!overtimePaidNow ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-auto py-2 text-xs"
+                        onClick={() => setOvertimePaidNow(false)}
+                      >
+                        <Wallet className="w-3.5 h-3.5 mr-1" />
+                        {t('workers.addToSalary', { defaultValue: 'Add to Salary' })}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {overtimePaidNow
+                        ? t('workers.paidNowDesc', { defaultValue: 'Sent directly to payment dashboard without affecting salary' })
+                        : t('workers.addToSalaryDesc', { defaultValue: 'Added to unpaid balance, paid with next salary' })
+                      }
+                    </p>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      onClick={() => payOvertime.mutate()}
+                      disabled={payOvertime.isPending || !overtimeWorkshopId || !overtimeAmount || parseFloat(overtimeAmount) <= 0}
+                      className="bg-success text-success-foreground hover:bg-success/90"
+                    >
+                      {payOvertime.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {t('workers.confirmPayment')}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
             </div>
           )}
 

@@ -145,9 +145,9 @@ export default function OvertimePaymentForm() {
           workshop_id: selectedWorkshop,
           work_date: selectedDate,
           hours_worked: 1,
-          hourly_rate: 0, // Mark as overtime (hourly_rate=0)
-          has_extra: true,
-          extra_amount: data.amount,
+          hourly_rate: data.amount, // Use the overtime amount as hourly_rate to satisfy CHECK > 0
+          has_extra: false,
+          extra_amount: 0,
           description: `${t('attendance.overtime')}: ${reason}${isHoliday ? ` [${t('attendance.holidayIncluded')}]` : ''}`,
           is_paid: false,
           created_by: user?.id,
