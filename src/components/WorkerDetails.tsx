@@ -2574,45 +2574,127 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               <Button variant="ghost" size="sm" onClick={() => setPayMode(null)} className="gap-1 text-xs -mt-2">
                 <ArrowLeft className="w-3 h-3" /> {t('common.back')}
               </Button>
-              <div className="space-y-2">
-                <Label>{t('workers.selectWorkshop')}</Label>
-                <Select value={overtimeWorkshopId} onValueChange={setOvertimeWorkshopId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('workers.selectWorkshop')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(unpaidOvertimeByWorkshop).map(([workshopId, { name, total }]) => (
-                      <SelectItem key={workshopId} value={workshopId}>
-                        {name} ({total.toLocaleString('fr-FR')} CFA)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {overtimeWorkshopId && unpaidOvertimeByWorkshop[overtimeWorkshopId] && (
-                <div className="text-xs space-y-1 p-2 rounded-lg bg-muted">
-                  <div className="flex justify-between">
-                    <span>{t('workers.payOvertime', { defaultValue: 'Overtime' })}:</span>
-                    <span className="font-mono">{unpaidOvertimeByWorkshop[overtimeWorkshopId].total.toLocaleString('fr-FR')} CFA</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>{t('workers.entries', { defaultValue: 'Entries' })}:</span>
-                    <span>{unpaidOvertimeByWorkshop[overtimeWorkshopId].entries.length}</span>
-                  </div>
+
+              {/* Step 1: Select type */}
+              {!overtimeType && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('workers.selectOvertimeType', { defaultValue: 'Select overtime type' })}</p>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-auto py-3"
+                    onClick={() => {
+                      setOvertimeType('sunday');
+                      setOvertimeAmount(String(worker.hourly_rate));
+                    }}
+                  >
+                    <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{t('workers.overtimeSunday', { defaultValue: 'Worked Sunday' })}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day')}</p>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-auto py-3"
+                    onClick={() => {
+                      setOvertimeType('hours');
+                      setOvertimeAmount('');
+                    }}
+                  >
+                    <Clock className="w-5 h-5 text-warning flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{t('workers.overtimeHours', { defaultValue: 'Worked Extra Hours' })}</p>
+                      <p className="text-xs text-muted-foreground">{t('workers.overtimeHoursDesc', { defaultValue: 'Enter custom amount' })}</p>
+                    </div>
+                  </Button>
                 </div>
               )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  onClick={() => payOvertime.mutate()}
-                  disabled={payOvertime.isPending || !overtimeWorkshopId}
-                  className="bg-success text-success-foreground hover:bg-success/90"
-                >
-                  {payOvertime.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {t('workers.confirmPayment')}
-                </Button>
+
+              {/* Step 2: Amount + Workshop + Payment option */}
+              {overtimeType && (
+                <div className="space-y-3">
+                  <Button variant="ghost" size="sm" onClick={() => setOvertimeType(null)} className="gap-1 text-xs -mt-2">
+                    <ArrowLeft className="w-3 h-3" /> {t('common.back')}
+                  </Button>
+
+                  <div className="space-y-2">
+                    <Label>{t('workers.selectWorkshop')}</Label>
+                    <Select value={overtimeWorkshopId} onValueChange={setOvertimeWorkshopId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('workers.selectWorkshop')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workshops.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>{t('common.amount')} (CFA)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={overtimeAmount}
+                      onChange={(e) => setOvertimeAmount(e.target.value)}
+                      placeholder="0"
+                    />
+                    {overtimeType === 'sunday' && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {t('workers.sundayRateNote', { defaultValue: 'Pre-filled with daily rate. You can edit.' })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Paid now or add to salary */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">{t('workers.overtimePaymentOption', { defaultValue: 'Payment option' })}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={overtimePaidNow ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-auto py-2 text-xs"
+                        onClick={() => setOvertimePaidNow(true)}
+                      >
+                        <DollarSign className="w-3.5 h-3.5 mr-1" />
+                        {t('workers.paidNow', { defaultValue: 'Paid Now' })}
+                      </Button>
+                      <Button
+                        variant={!overtimePaidNow ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-auto py-2 text-xs"
+                        onClick={() => setOvertimePaidNow(false)}
+                      >
+                        <Wallet className="w-3.5 h-3.5 mr-1" />
+                        {t('workers.addToSalary', { defaultValue: 'Add to Salary' })}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {overtimePaidNow
+                        ? t('workers.paidNowDesc', { defaultValue: 'Sent directly to payment dashboard without affecting salary' })
+                        : t('workers.addToSalaryDesc', { defaultValue: 'Added to unpaid balance, paid with next salary' })
+                      }
+                    </p>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsPayChoiceOpen(false)}>
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      onClick={() => payOvertime.mutate()}
+                      disabled={payOvertime.isPending || !overtimeWorkshopId || !overtimeAmount || parseFloat(overtimeAmount) <= 0}
+                      className="bg-success text-success-foreground hover:bg-success/90"
+                    >
+                      {payOvertime.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {t('workers.confirmPayment')}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </div>
+          )}
               </DialogFooter>
             </div>
           )}
