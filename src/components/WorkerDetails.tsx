@@ -2650,6 +2650,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     </Select>
                   </div>
 
+                  {overtimeType === 'hours' && (
+                    <div className="space-y-2">
+                      <Label>{t('workers.numberOfHours', { defaultValue: 'Number of hours' })}</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={overtimeHours}
+                        onChange={(e) => setOvertimeHours(e.target.value)}
+                        placeholder="1"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>{t('common.amount')} (CFA)</Label>
                     <Input
@@ -2662,6 +2675,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     {overtimeType === 'sunday' && (
                       <p className="text-[10px] text-muted-foreground">
                         {t('workers.sundayRateNote', { defaultValue: 'Pre-filled with daily rate. You can edit.' })}
+                      </p>
+                    )}
+                    {overtimeType === 'hours' && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {t('workers.hoursAmountNote', { defaultValue: 'Total amount for the extra hours worked' })}
                       </p>
                     )}
                   </div>
