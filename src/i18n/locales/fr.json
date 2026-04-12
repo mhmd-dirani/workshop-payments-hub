@@ -389,6 +389,7 @@
     "alreadyFullDay": "Le travailleur a déjà une journée complète dans un autre atelier",
     "onlyHalfDayAllowed": "Le travailleur a déjà ½ jour ailleurs. Seul ½ jour est autorisé ici.",
     "perDay": "jour",
+    "otherSite": "Autre chantier",
     "day": "jour",
     "allTime": "Tout",
     "showingAllRecords": "Affichage de tous les enregistrements",

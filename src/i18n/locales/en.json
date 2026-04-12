@@ -390,6 +390,7 @@
     "alreadyFullDay": "Worker already has a full day in another workshop",
     "onlyHalfDayAllowed": "Worker already has ½ day elsewhere. Only ½ day allowed here.",
     "perDay": "day",
+    "otherSite": "Other site",
     "day": "day",
     "allTime": "All Time",
     "showingAllRecords": "Showing all attendance records",
