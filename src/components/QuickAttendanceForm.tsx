@@ -57,6 +57,36 @@ export default function QuickAttendanceForm() {
     },
   });
 
+  // Fetch user's workshop assignments
+  const { data: userAssignments = [] } = useQuery({
+    queryKey: ['user-workshop-assignments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('workshop_assignments')
+        .select('workshop_id')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(a => a.workshop_id) || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user is admin (admins see all workshop names)
+  const { data: userRole } = useQuery({
+    queryKey: ['user-role-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.rpc('get_user_role', { _user_id: user.id });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isAdmin = userRole === 'admin';
+  const userWorkshopSet = useMemo(() => new Set(userAssignments), [userAssignments]);
+
   // Current workshop attendance
   const { data: existingAttendance = [] } = useQuery({
     queryKey: ['existing-attendance', selectedDate, selectedWorkshop],
