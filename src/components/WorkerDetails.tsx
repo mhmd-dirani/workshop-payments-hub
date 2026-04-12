@@ -2357,6 +2357,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   setPayMode('overtime');
                   setOvertimeType(null);
                   setOvertimeAmount(String(worker.hourly_rate));
+                  setOvertimeHours('1');
                   setOvertimePaidNow(true);
                   const firstWs = Object.keys(unpaidByWorkshop)[0] || (workshops.length > 0 ? workshops[0].id : '');
                   setOvertimeWorkshopId(firstWs);
