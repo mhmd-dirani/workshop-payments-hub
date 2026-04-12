@@ -28,6 +28,7 @@ interface Payment {
   amount: number;
   payment_date: string;
   description: string | null;
+  created_by_name?: string | null;
 }
 
 interface PersonDebtCardProps {
