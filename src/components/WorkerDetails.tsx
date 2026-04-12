@@ -2022,10 +2022,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                       <div className="space-y-1 border-t pt-1">
                         {debtPaymentsForThis.map(dp => (
                           <div key={dp.id} className="flex items-center justify-between text-[10px]">
-                            <span className="text-muted-foreground font-mono">
-                              {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
-                            </span>
-                            <span className="text-success font-mono">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-muted-foreground font-mono flex-shrink-0">
+                                {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
+                              </span>
+                              {(dp as any).created_by_name && (
+                                <Badge variant="outline" className="text-[8px] h-3.5 px-1 flex-shrink-0">
+                                  {(dp as any).created_by_name}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-success font-mono flex-shrink-0">
                               -{Number(dp.amount).toLocaleString('fr-FR')} CFA
                             </span>
                           </div>
