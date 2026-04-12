@@ -952,7 +952,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .in('debt_id', workerDebts.map(d => d.id))
         .order('payment_date', { ascending: false });
       if (error) throw error;
-      return data || [];
+
+      // Fetch profiles to show who repaid
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+      return (data || []).map(p => ({
+        ...p,
+        created_by_name: profileMap.get(p.created_by) || null,
+      }));
     },
     enabled: workerDebts.length > 0,
   });
