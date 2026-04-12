@@ -491,7 +491,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const results: any[] = [];
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
       const debtDeduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-      
+      const holidayPay = includeHolidayPay ? worker.hourly_rate : 0;
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
         if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
@@ -541,6 +541,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
         let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        
+        // Add holiday pay to the first workshop
+        if (holidayPay > 0 && workshopId === Array.from(allWorkshopIds)[0]) {
+          finalTotal += holidayPay;
+          reason += `\n[${t('attendance.holidayIncluded')}: +${holidayPay.toLocaleString('fr-FR')} CFA]`;
+        }
         if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
           // Calculate proportional note amount but DON'T deduct from finalTotal
           workshopDeduction = Math.min(
