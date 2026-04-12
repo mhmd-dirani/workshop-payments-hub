@@ -421,7 +421,13 @@
     "overtimeWith": "عمل إضافي مع",
     "extra": "إضافي",
     "sharedPayment": "دفعة مشتركة",
-    "sharedAmongWorkers": "مشترك بين {{count}} عمال"
+    "sharedAmongWorkers": "مشترك بين {{count}} عمال",
+    "holidays": "العطل هذا الأسبوع",
+    "holidayUpdated": "تم تحديث العطلة",
+    "holidayNote": "الأيام المحددة كعطلة ستظهر سؤال عند دفع الراتب",
+    "payHoliday": "هل تدفع العطلة؟",
+    "payHolidayDesc": "يوجد يوم عطلة هذا الأسبوع. هل تريد إضافة راتب يوم واحد؟",
+    "holidayIncluded": "تم تضمين أجر العطلة"
   },
   "workers": {
     "title": "العمال",

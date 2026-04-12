@@ -422,7 +422,13 @@
     "overtimeWith": "Overtime with",
     "extra": "extra",
     "sharedPayment": "shared payment",
-    "sharedAmongWorkers": "Shared among {{count}} workers"
+    "sharedAmongWorkers": "Shared among {{count}} workers",
+    "holidays": "Holidays This Week",
+    "holidayUpdated": "Holiday updated",
+    "holidayNote": "Days marked as holiday will prompt during salary payment",
+    "payHoliday": "Pay holiday?",
+    "payHolidayDesc": "There is a holiday this week. Add 1 day salary?",
+    "holidayIncluded": "Holiday pay included"
   },
   "workers": {
     "title": "Workers",
