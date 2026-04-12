@@ -1038,16 +1038,19 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       } as any);
       if (error) throw error;
 
-      // 2. Deduct from placer's balance via personal_payments (NOT dashboard payments)
-      const { error: ppError } = await supabase.from('personal_payments').insert({
-        user_id: user?.id,
-        paid_to: worker.name,
-        reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
-        amount,
-        payment_date: format(new Date(), 'yyyy-MM-dd'),
-        created_by: user?.id,
-      });
-      if (ppError) throw ppError;
+      // 2. Only deduct from placer's balance if admin (auto-approved)
+      // For non-admins, balance deduction happens when admin approves the debt
+      if (isAdmin) {
+        const { error: ppError } = await supabase.from('personal_payments').insert({
+          user_id: user?.id,
+          paid_to: worker.name,
+          reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          created_by: user?.id,
+        });
+        if (ppError) throw ppError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
@@ -1412,6 +1415,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         const hasDiscount = discountAmount > 0;
                         const extraReason = entry.extra_reason?.trim();
                         const discountReason = entry.discount_reason?.trim();
+                        const isOvertime = entry.description?.includes('Overtime');
                         return (
                           <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
                             <div className="flex flex-col">
@@ -1424,7 +1428,18 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                                      {t('attendance.halfDay', { defaultValue: '½ Day' })}
                                   </Badge>
                                 )}
+                                {isOvertime && (
+                                  <Badge variant="secondary" className="text-[10px] px-1 py-0 gap-0.5">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {t('attendance.overtimeShort', { defaultValue: 'OT' })}
+                                  </Badge>
+                                )}
                               </div>
+                              {isOvertime && entry.description && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                                  {entry.description}
+                                </p>
+                              )}
                               {hasExtra && (
                                 <div className="flex flex-col gap-0.5 mt-0.5">
                                   <div className="flex items-center gap-1">

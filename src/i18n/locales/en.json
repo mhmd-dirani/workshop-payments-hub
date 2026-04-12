@@ -609,6 +609,13 @@
     "balanceDeducted": "The amount has been deducted from your balance",
     "noPayments": "No personal payments yet"
   },
+  "userDebtTracker": {
+    "title": "Worker Debts Placed",
+    "placed": "Placed",
+    "repaid": "Repaid",
+    "pending": "Pending",
+    "remaining": "Remaining"
+  },
   "files": {
     "workshopFiles": "Workshop Files",
     "mapsAndReceipts": "Upload maps, plans, and receipts",

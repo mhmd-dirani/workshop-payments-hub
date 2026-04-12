@@ -69,6 +69,34 @@ export default function OvertimePaymentForm() {
     },
   });
 
+  // Fetch user role and assignments for workshop filtering
+  const { data: userRole } = useQuery({
+    queryKey: ['user-role-ot', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase.rpc('get_user_role', { _user_id: user.id });
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: userAssignments = [] } = useQuery({
+    queryKey: ['user-workshop-assignments-ot', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('workshop_assignments')
+        .select('workshop_id')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(a => a.workshop_id) || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const isAdmin = userRole === 'admin';
+  const userWorkshopSet = useMemo(() => new Set(userAssignments), [userAssignments]);
+
   // Check if selected date is a holiday
   const { data: isHoliday = false } = useQuery({
     queryKey: ['holiday-check', selectedDate],
@@ -228,9 +256,11 @@ export default function OvertimePaymentForm() {
                 <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
               </SelectTrigger>
               <SelectContent>
-                {workshops.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                ))}
+                {workshops
+                  .filter(w => isAdmin || userWorkshopSet.has(w.id))
+                  .map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

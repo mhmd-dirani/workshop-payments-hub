@@ -608,6 +608,13 @@
     "balanceDeducted": "تم خصم المبلغ من رصيدك",
     "noPayments": "لا توجد مدفوعات شخصية بعد"
   },
+  "userDebtTracker": {
+    "title": "ديون العمال الموضوعة",
+    "placed": "موضوعة",
+    "repaid": "مُسددة",
+    "pending": "قيد الانتظار",
+    "remaining": "المتبقي"
+  },
   "files": {
     "workshopFiles": "ملفات الورشة",
     "mapsAndReceipts": "رفع الخرائط والمخططات والإيصالات",
