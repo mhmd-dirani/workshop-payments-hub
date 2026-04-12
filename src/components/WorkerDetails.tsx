@@ -2617,6 +2617,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     onClick={() => {
                       setOvertimeType('hours');
                       setOvertimeAmount('');
+                      setOvertimeHours('1');
                     }}
                   >
                     <Clock className="w-5 h-5 text-warning flex-shrink-0" />
