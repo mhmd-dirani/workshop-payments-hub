@@ -552,6 +552,8 @@
     "debtRepaymentCreated": "تم تسجيل سداد الدين",
     "debtRepaymentCreatedDesc": "سيتم خصم السداد من دفعة الراتب التالية",
     "repayExceedsDebt": "مبلغ السداد يتجاوز الدين المتبقي",
+    "repaidBy": "تم السداد بواسطة",
+    "deductedFromSalary": "مخصوم من الراتب",
     "editAdvanceCredit": "تعديل الدفعة المقدمة",
     "editAdvanceCreditDesc": "تعديل المبلغ أو من دفع هذه الدفعة المقدمة/الجزئية",
     "whoPaid": "من دفع",

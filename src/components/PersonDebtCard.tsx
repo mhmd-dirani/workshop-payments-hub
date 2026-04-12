@@ -28,6 +28,7 @@ interface Payment {
   amount: number;
   payment_date: string;
   description: string | null;
+  created_by_name?: string | null;
 }
 
 interface PersonDebtCardProps {
@@ -191,11 +192,16 @@ export default function PersonDebtCard({
                         <p className="text-[10px] md:text-xs font-medium text-muted-foreground">{t('debts.repaymentHistory')}:</p>
                         {debtPayments.map((payment) => (
                           <div key={payment.id} className="flex items-center justify-between p-1.5 md:p-2 rounded bg-background text-xs">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-muted-foreground font-mono">{format(new Date(payment.payment_date), 'dd/MM/yy')}</span>
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground font-mono flex-shrink-0">{format(new Date(payment.payment_date), 'dd/MM/yy')}</span>
+                              {payment.created_by_name && (
+                                <Badge variant="outline" className="text-[9px] h-4 px-1 flex-shrink-0">
+                                  {payment.created_by_name}
+                                </Badge>
+                              )}
                               {payment.description && <span className="text-muted-foreground truncate">• {payment.description}</span>}
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
                               <span className="font-mono text-success">+{Number(payment.amount).toLocaleString('fr-FR')}</span>
                               <Button variant="ghost" size="icon" onClick={() => setPaymentToDelete(payment)} className="h-5 w-5 text-destructive hover:text-destructive">
                                 <Trash2 className="w-2.5 h-2.5" />

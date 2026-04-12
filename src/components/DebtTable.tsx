@@ -39,7 +39,17 @@ export default function DebtTable({ debtType, onAddPayment, onEdit, onAddDebtFor
         .select('*')
         .order('payment_date', { ascending: false });
       if (error) throw error;
-      return data;
+
+      // Fetch profiles to show who made each repayment
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+      return (data || []).map(p => ({
+        ...p,
+        created_by_name: profileMap.get(p.created_by) || null,
+      }));
     },
   });
 

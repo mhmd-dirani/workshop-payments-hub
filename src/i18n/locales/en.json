@@ -553,6 +553,8 @@
     "debtRepaymentCreated": "Debt repayment recorded",
     "debtRepaymentCreatedDesc": "The repayment will be deducted from the next salary payment",
     "repayExceedsDebt": "Repayment amount exceeds remaining debt",
+    "repaidBy": "Repaid by",
+    "deductedFromSalary": "deducted from salary",
     "editAdvanceCredit": "Edit Advance Payment",
     "editAdvanceCreditDesc": "Update the amount or who paid this advance/partial payment",
     "whoPaid": "Who Paid",

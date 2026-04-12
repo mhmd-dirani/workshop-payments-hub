@@ -606,12 +606,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       // Record debt repayment if deduction was applied
       if (debtDeduction > 0 && selectedDebtForDeduction) {
+        const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
+        const creatorName = creatorProfile?.full_name || 'Unknown';
         // Record in debt_payments
         await supabase.from('debt_payments').insert({
           debt_id: selectedDebtForDeduction,
           amount: debtDeduction,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
-          description: `Debt repayment deducted from salary`,
+          description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName} (${t('workers.deductedFromSalary', { defaultValue: 'deducted from salary' })})`,
           created_by: user?.id,
         });
         
@@ -952,7 +954,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         .in('debt_id', workerDebts.map(d => d.id))
         .order('payment_date', { ascending: false });
       if (error) throw error;
-      return data || [];
+
+      // Fetch profiles to show who repaid
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+      return (data || []).map(p => ({
+        ...p,
+        created_by_name: profileMap.get(p.created_by) || null,
+      }));
     },
     enabled: workerDebts.length > 0,
   });
@@ -1029,12 +1041,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Record the debt payment
+      // Record the debt payment with user name
+      const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
+      const creatorName = creatorProfile?.full_name || 'Unknown';
       await supabase.from('debt_payments').insert({
         debt_id: workerDebtRepayId,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `Debt repayment by ${user?.id}`,
+        description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName}`,
         created_by: user?.id,
       });
 
@@ -2012,10 +2026,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                       <div className="space-y-1 border-t pt-1">
                         {debtPaymentsForThis.map(dp => (
                           <div key={dp.id} className="flex items-center justify-between text-[10px]">
-                            <span className="text-muted-foreground font-mono">
-                              {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
-                            </span>
-                            <span className="text-success font-mono">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-muted-foreground font-mono flex-shrink-0">
+                                {format(new Date(dp.payment_date), 'dd/MM/yyyy')}
+                              </span>
+                              {(dp as any).created_by_name && (
+                                <Badge variant="outline" className="text-[8px] h-3.5 px-1 flex-shrink-0">
+                                  {(dp as any).created_by_name}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-success font-mono flex-shrink-0">
                               -{Number(dp.amount).toLocaleString('fr-FR')} CFA
                             </span>
                           </div>

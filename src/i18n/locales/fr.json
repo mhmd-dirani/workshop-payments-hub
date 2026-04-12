@@ -552,6 +552,8 @@
     "debtRepaymentCreated": "Remboursement enregistré",
     "debtRepaymentCreatedDesc": "Le remboursement sera déduit du prochain paiement de salaire",
     "repayExceedsDebt": "Le montant du remboursement dépasse la dette restante",
+    "repaidBy": "Remboursé par",
+    "deductedFromSalary": "déduit du salaire",
     "editAdvanceCredit": "Modifier le paiement d'avance",
     "editAdvanceCreditDesc": "Modifier le montant ou le payeur de ce paiement d'avance/partiel",
     "whoPaid": "Qui a payé",
