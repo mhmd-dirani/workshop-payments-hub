@@ -2312,7 +2312,29 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   </div>
                 ))}
 
-                {/* Debt deduction section */}
+                {/* Holiday pay prompt */}
+                {hasHolidayThisWeek && (
+                  <div className="border border-primary/30 rounded-lg p-3 space-y-2 bg-primary/5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="holidayPay"
+                        checked={includeHolidayPay}
+                        onChange={(e) => setIncludeHolidayPay(e.target.checked)}
+                        className="rounded border-primary"
+                      />
+                      <label htmlFor="holidayPay" className="text-xs font-medium text-primary flex items-center gap-1.5">
+                        <CalendarHeart className="w-3.5 h-3.5" />
+                        {t('attendance.payHoliday')}
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {t('attendance.payHolidayDesc')} (+{worker.hourly_rate.toLocaleString('fr-FR')} CFA)
+                    </p>
+                  </div>
+                )}
+
+
                 {totalRemainingDebt > 0 && (
                   <div className="border border-warning/30 rounded-lg p-3 space-y-2 bg-warning/5">
                     <div className="flex items-center gap-2">
