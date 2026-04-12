@@ -40,7 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subWeeks, addDays } from 'date-fns';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -56,7 +56,8 @@ import {
   Clock,
   MinusCircle,
   X,
-  ArrowUpCircle
+  ArrowUpCircle,
+  CalendarHeart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -144,7 +145,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [debtDeductionAmount, setDebtDeductionAmount] = useState('');
   const [debtDeductionEnabled, setDebtDeductionEnabled] = useState(false);
   const [selectedDebtForDeduction, setSelectedDebtForDeduction] = useState<string>('');
-  
+  const [includeHolidayPay, setIncludeHolidayPay] = useState(false);
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
   const [historyWorkshopFilter, setHistoryWorkshopFilter] = useState('all');
@@ -279,6 +280,27 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       return data || [];
     },
   });
+
+  // Check holidays in the current week for the holiday pay prompt
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+  const weekEndDate = addDays(weekStart, 6);
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+  const weekEndStr = format(weekEndDate, 'yyyy-MM-dd');
+
+  const { data: weekHolidays = [] } = useQuery({
+    queryKey: ['holidays-week', weekStartStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('holidays')
+        .select('*')
+        .gte('holiday_date', weekStartStr)
+        .lte('holiday_date', weekEndStr);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const hasHolidayThisWeek = weekHolidays.length > 0;
 
   // Fetch profiles for "who paid" selector
   const { data: allProfiles = [] } = useQuery({
@@ -469,7 +491,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const results: any[] = [];
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
       const debtDeduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-      
+      const holidayPay = includeHolidayPay ? worker.hourly_rate : 0;
       const adjByWorkshop: Record<string, any[]> = {};
       unpaidAdjustments.forEach((adj) => {
         if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
@@ -519,6 +541,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
         
         let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
+        
+        // Add holiday pay to the first workshop
+        if (holidayPay > 0 && workshopId === Array.from(allWorkshopIds)[0]) {
+          finalTotal += holidayPay;
+          reason += `\n[${t('attendance.holidayIncluded')}: +${holidayPay.toLocaleString('fr-FR')} CFA]`;
+        }
         if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
           // Calculate proportional note amount but DON'T deduct from finalTotal
           workshopDeduction = Math.min(
@@ -610,6 +638,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setDebtDeductionAmount('');
       setDebtDeductionEnabled(false);
       setSelectedDebtForDeduction('');
+      setIncludeHolidayPay(false);
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -2290,7 +2319,29 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   </div>
                 ))}
 
-                {/* Debt deduction section */}
+                {/* Holiday pay prompt */}
+                {hasHolidayThisWeek && (
+                  <div className="border border-primary/30 rounded-lg p-3 space-y-2 bg-primary/5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="holidayPay"
+                        checked={includeHolidayPay}
+                        onChange={(e) => setIncludeHolidayPay(e.target.checked)}
+                        className="rounded border-primary"
+                      />
+                      <label htmlFor="holidayPay" className="text-xs font-medium text-primary flex items-center gap-1.5">
+                        <CalendarHeart className="w-3.5 h-3.5" />
+                        {t('attendance.payHoliday')}
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {t('attendance.payHolidayDesc')} (+{worker.hourly_rate.toLocaleString('fr-FR')} CFA)
+                    </p>
+                  </div>
+                )}
+
+
                 {totalRemainingDebt > 0 && (
                   <div className="border border-warning/30 rounded-lg p-3 space-y-2 bg-warning/5">
                     <div className="flex items-center gap-2">
@@ -2365,7 +2416,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 {/* Final total */}
                 {(() => {
                   const deduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-                  const finalAmount = totalOwed - deduction;
+                  const holiday = includeHolidayPay ? worker.hourly_rate : 0;
+                  const finalAmount = totalOwed + holiday - deduction;
                   return (
                     <>
                       {deduction > 0 && (
