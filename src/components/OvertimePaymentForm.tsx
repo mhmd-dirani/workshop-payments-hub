@@ -256,9 +256,11 @@ export default function OvertimePaymentForm() {
                 <SelectValue placeholder={t('workshopSelector.selectWorkshop')} />
               </SelectTrigger>
               <SelectContent>
-                {workshops.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                ))}
+                {workshops
+                  .filter(w => isAdmin || userWorkshopSet.has(w.id))
+                  .map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
