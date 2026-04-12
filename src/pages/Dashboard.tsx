@@ -286,6 +286,7 @@ export default function Dashboard() {
         {role !== 'admin' && (
           <>
             <UserBalanceCard />
+            <UserDebtTracker />
             <UserIncomeTable />
             <UserWorkshopPayments />
             <PersonalPaymentsTable />
