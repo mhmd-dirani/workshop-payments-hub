@@ -332,9 +332,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // adjustmentNet should only reflect real bonuses/discounts, not payment credits
   const adjustmentNet = bonusTotal - realDiscountTotal;
 
-  // Unpaid overtime entries (description-based, not direct worker attendance)
+   // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
-    (e) => e.worker_id !== worker.id || (e.description?.includes('Overtime') && Number(e.hourly_rate) === 0)
+    (e) => e.description?.includes('Overtime')
   );
   const overtimeTotal = unpaidOvertimeEntries.reduce((sum, a) => sum + getEffectivePay(a), 0);
 
@@ -1710,7 +1710,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                   <CardContent className="p-0">
                     <div className="md:hidden">
                       {filteredPaidAttendance.map((entry) => {
-                        const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                        const isOvertime = entry.description?.includes('Overtime');
                         const extraAmount = Number(entry.extra_amount) || 0;
                         const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
                         const discountAmount = Number(entry.discount_amount) || 0;
@@ -1836,7 +1836,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         </TableHeader>
                         <TableBody>
                           {filteredPaidAttendance.map((entry) => {
-                            const isOvertime = entry.description?.includes('Overtime') || Number(entry.hourly_rate) === 0;
+                            const isOvertime = entry.description?.includes('Overtime');
                             const extraAmount = Number(entry.extra_amount) || 0;
                             const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
                             const discountAmount = Number(entry.discount_amount) || 0;
