@@ -847,45 +847,80 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     },
   });
 
-  // Pay overtime only mutation
+  // Pay overtime mutation - new flow with Sunday/Hours and paid now/add to salary
   const payOvertime = useMutation({
     mutationFn: async () => {
-      if (!overtimeWorkshopId) throw new Error('No workshop selected');
-      const workshopOt = unpaidOvertimeByWorkshop[overtimeWorkshopId];
-      if (!workshopOt || workshopOt.entries.length === 0) throw new Error('No overtime entries');
+      if (!overtimeWorkshopId || !overtimeType) throw new Error('Missing fields');
+      const amount = parseFloat(overtimeAmount);
+      if (!amount || amount <= 0) throw new Error('Invalid amount');
 
       const categoryLabel = 'Travailleur';
-      const reason = `${worker.name} - Overtime payment`;
+      const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' });
+      const reason = `${worker.name} - ${t('workers.payOvertime', { defaultValue: 'Overtime' })}: ${typeLabel}`;
 
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
+      if (overtimePaidNow) {
+        // Paid now: create payment + paid attendance entry
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            workshop_id: overtimeWorkshopId,
+            paid_to: categoryLabel,
+            reason,
+            amount,
+            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            created_by: user?.id,
+            status: role === 'admin' ? 'approved' : 'pending',
+          }])
+          .select()
+          .single();
+        if (paymentError) throw paymentError;
+
+        // Create paid attendance record
+        await supabase.from('attendance').insert({
+          worker_id: worker.id,
           workshop_id: overtimeWorkshopId,
-          paid_to: categoryLabel,
-          reason,
-          amount: workshopOt.total,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          hours_worked: 1,
+          hourly_rate: amount,
+          has_extra: false,
+          extra_amount: 0,
+          description: `${t('attendance.overtime')}: ${typeLabel}`,
+          is_paid: true,
+          payment_id: payment.id,
           created_by: user?.id,
-          status: role === 'admin' ? 'approved' : 'pending',
-        }])
-        .select()
-        .single();
-      if (paymentError) throw paymentError;
+        });
 
-      const entryIds = workshopOt.entries.map((e: any) => e.id);
-      await supabase
-        .from('attendance')
-        .update({ is_paid: true, payment_id: payment.id })
-        .in('id', entryIds);
+        return payment;
+      } else {
+        // Add to salary: create unpaid attendance entry
+        await supabase.from('attendance').insert({
+          worker_id: worker.id,
+          workshop_id: overtimeWorkshopId,
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          hours_worked: 1,
+          hourly_rate: amount,
+          has_extra: false,
+          extra_amount: 0,
+          description: `${t('attendance.overtime')}: ${typeLabel}`,
+          is_paid: false,
+          created_by: user?.id,
+        });
 
-      return payment;
+        return null;
+      }
     },
     onSuccess: () => {
       invalidateAll();
       setIsPayChoiceOpen(false);
       setPayMode(null);
       setOvertimeWorkshopId('');
-      toast({ title: t('workers.overtimePaymentCreated', { defaultValue: 'Overtime payment created' }), description: t('workers.overtimePaymentCreatedDesc', { defaultValue: 'The overtime payment is pending approval' }) });
+      setOvertimeType(null);
+      setOvertimeAmount('');
+      setOvertimePaidNow(true);
+      const msg = overtimePaidNow
+        ? t('workers.overtimePaidNow', { defaultValue: 'Overtime payment created and sent to dashboard' })
+        : t('workers.overtimeAddedToSalary', { defaultValue: 'Overtime added to salary to be paid later' });
+      toast({ title: t('common.success'), description: msg });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
