@@ -606,12 +606,14 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       
       // Record debt repayment if deduction was applied
       if (debtDeduction > 0 && selectedDebtForDeduction) {
+        const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
+        const creatorName = creatorProfile?.full_name || 'Unknown';
         // Record in debt_payments
         await supabase.from('debt_payments').insert({
           debt_id: selectedDebtForDeduction,
           amount: debtDeduction,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
-          description: `Debt repayment deducted from salary`,
+          description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName} (${t('workers.deductedFromSalary', { defaultValue: 'deducted from salary' })})`,
           created_by: user?.id,
         });
         
