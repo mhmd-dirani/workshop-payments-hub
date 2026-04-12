@@ -120,6 +120,9 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [bonusAmount, setBonusAmount] = useState('');
   const [bonusReason, setBonusReason] = useState('');
   const [overtimeWorkshopId, setOvertimeWorkshopId] = useState<string>('');
+  const [overtimeType, setOvertimeType] = useState<'sunday' | 'hours' | null>(null);
+  const [overtimeAmount, setOvertimeAmount] = useState('');
+  const [overtimePaidNow, setOvertimePaidNow] = useState(true);
   const [isWorkerDebtFormOpen, setIsWorkerDebtFormOpen] = useState(false);
   const [workerDebtAmount, setWorkerDebtAmount] = useState('');
   const [workerDebtDescription, setWorkerDebtDescription] = useState('');
