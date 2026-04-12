@@ -2695,9 +2695,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
               )}
             </div>
           )}
-              </DialogFooter>
-            </div>
-          )}
 
           {/* Advance Payment Form */}
           {payMode === 'advance' && (
