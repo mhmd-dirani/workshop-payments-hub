@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import QuickAttendanceForm from '@/components/QuickAttendanceForm';
 import OvertimePaymentForm from '@/components/OvertimePaymentForm';
+import HolidayToggle from '@/components/HolidayToggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock } from 'lucide-react';
 
@@ -37,6 +38,9 @@ export default function Attendance() {
             {t('attendance.description')}
           </p>
         </div>
+
+        {/* Holiday toggle - admin only, before workshop selection */}
+        <HolidayToggle />
 
         <Tabs defaultValue="entry" className="space-y-4">
           <TabsList className="grid w-full max-w-lg grid-cols-2">
