@@ -1039,8 +1039,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Record the debt payment
+      // Record the debt payment with user name
+      const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
+      const creatorName = creatorProfile?.full_name || 'Unknown';
       await supabase.from('debt_payments').insert({
+        debt_id: workerDebtRepayId,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName}`,
+        created_by: user?.id,
+      });
         debt_id: workerDebtRepayId,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
