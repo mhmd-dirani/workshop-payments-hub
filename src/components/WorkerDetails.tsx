@@ -1041,19 +1041,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       } as any);
       if (error) throw error;
 
-      // 2. Only deduct from placer's balance if admin (auto-approved)
-      // For non-admins, balance deduction happens when admin approves the debt
-      if (isAdmin) {
-        const { error: ppError } = await supabase.from('personal_payments').insert({
-          user_id: user?.id,
-          paid_to: worker.name,
-          reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
-          amount,
-          payment_date: format(new Date(), 'yyyy-MM-dd'),
-          created_by: user?.id,
-        });
-        if (ppError) throw ppError;
-      }
+      // 2. Deduct from placer's balance immediately (treated as personal expenditure)
+      // The repayment will later credit the balance back via team_transfers
+      const { error: ppError } = await supabase.from('personal_payments').insert({
+        user_id: user?.id,
+        paid_to: worker.name,
+        reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
+        amount,
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        created_by: user?.id,
+      });
+      if (ppError) throw ppError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
