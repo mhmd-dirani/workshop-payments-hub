@@ -1103,9 +1103,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       });
 
       if (workerDebtRepayMode === 'separate') {
-        // Worker handed cash to repayer → credit repayer's balance back
+        // Worker handed cash → credit the ORIGINAL DEBT PLACER's balance back
+        // (whoever spent the money in the first place gets it back)
+        const placerUserId = (debt as any)?.created_by || user?.id;
         await supabase.from('team_transfers').insert({
-          user_id: user?.id,
+          user_id: placerUserId,
           amount,
           transfer_date: format(new Date(), 'yyyy-MM-dd'),
           description: `Debt repayment from ${worker.name} [DEBT_REPAYMENT]`,
