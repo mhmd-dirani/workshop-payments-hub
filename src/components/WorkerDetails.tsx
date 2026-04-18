@@ -2342,9 +2342,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              {t('workers.repayDebtNote')}
-            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWorkerDebtRepayId(null)}>
