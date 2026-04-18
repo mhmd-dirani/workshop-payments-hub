@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks, addDays } from 'date-fns';
 import { 
@@ -131,6 +132,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [workerDebtRepayId, setWorkerDebtRepayId] = useState<string | null>(null);
   const [workerDebtRepayAmount, setWorkerDebtRepayAmount] = useState('');
   const [workerDebtRepayWorkshopId, setWorkerDebtRepayWorkshopId] = useState('');
+  const [workerDebtRepayMode, setWorkerDebtRepayMode] = useState<'separate' | 'salary'>('separate');
   const [editingWorkerDebt, setEditingWorkerDebt] = useState<any>(null);
   const [editDebtAmount, setEditDebtAmount] = useState('');
   const [editDebtDescription, setEditDebtDescription] = useState('');
@@ -1083,25 +1085,41 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         if (amount > remaining) throw new Error(t('workers.repayExceedsDebt', { defaultValue: 'Repayment amount exceeds remaining debt' }));
       }
 
-      // Record the debt payment with user name
+      // Record the debt payment with user name and mode
       const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
       const creatorName = creatorProfile?.full_name || 'Unknown';
+      const modeNote = workerDebtRepayMode === 'salary'
+        ? t('workers.deductedFromSalary', { defaultValue: 'deducted from salary' })
+        : t('workers.paidSeparately', { defaultValue: 'paid separately' });
       await supabase.from('debt_payments').insert({
         debt_id: workerDebtRepayId,
         amount,
         payment_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName}`,
+        description: `${t('workers.repaidBy', { defaultValue: 'Repaid by' })} ${creatorName} (${modeNote})`,
         created_by: user?.id,
       });
 
-      // Increase the repayer's balance via team_transfers (money returned)
-      await supabase.from('team_transfers').insert({
-        user_id: user?.id,
-        amount,
-        transfer_date: format(new Date(), 'yyyy-MM-dd'),
-        description: `Debt repayment from ${worker.name} [DEBT_REPAYMENT]`,
-        created_by: user?.id,
-      });
+      if (workerDebtRepayMode === 'separate') {
+        // Worker handed cash to repayer → credit repayer's balance back
+        await supabase.from('team_transfers').insert({
+          user_id: user?.id,
+          amount,
+          transfer_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Debt repayment from ${worker.name} [DEBT_REPAYMENT]`,
+          created_by: user?.id,
+        });
+      } else {
+        // Deduct from worker's next salary → create a worker_adjustment (discount)
+        await supabase.from('worker_adjustments').insert({
+          worker_id: worker.id,
+          workshop_id: workerDebtRepayWorkshopId,
+          adjustment_type: 'discount',
+          amount,
+          work_date: format(new Date(), 'yyyy-MM-dd'),
+          reason: `${t('workers.debtRepaymentReason', { defaultValue: 'Debt repayment' })} [DEBT_REPAYMENT]`,
+          created_by: user?.id,
+        });
+      }
 
       // Check if debt is fully paid
       if (debt) {
@@ -1119,10 +1137,17 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       queryClient.invalidateQueries({ queryKey: ['team-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-adjustments'] });
       setWorkerDebtRepayId(null);
       setWorkerDebtRepayAmount('');
       setWorkerDebtRepayWorkshopId('');
-      toast({ title: t('workers.debtRepaymentCreated'), description: t('workers.debtRepaymentCreatedDesc') });
+      setWorkerDebtRepayMode('separate');
+      toast({
+        title: t('workers.debtRepaymentCreated'),
+        description: workerDebtRepayMode === 'salary'
+          ? t('workers.debtRepaymentCreatedDescSalary', { defaultValue: 'The repayment will be deducted from the next salary payment' })
+          : t('workers.debtRepaymentCreatedDescSeparate', { defaultValue: 'The repayment was recorded and your balance was credited back' })
+      });
     },
     onError: (error: Error) => {
       toast({ title: t('errors.error'), description: error.message, variant: 'destructive' });
@@ -2228,11 +2253,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       </Dialog>
 
       {/* Repay Worker Debt Dialog */}
-      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => !open && setWorkerDebtRepayId(null)}>
+      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => { if (!open) { setWorkerDebtRepayId(null); setWorkerDebtRepayMode('separate'); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{t('workers.repayDebt')}</DialogTitle>
-            <DialogDescription>{t('workers.repayDebtDesc')}</DialogDescription>
+            <DialogDescription>{t('workers.repayDebtChooseMode', { defaultValue: 'How is the worker repaying this debt?' })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {workerDebtRepayId && (() => {
@@ -2250,6 +2275,43 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               );
             })()}
+            {/* Repayment mode selector */}
+            <div className="space-y-2">
+              <Label>{t('workers.repaymentMethod', { defaultValue: 'Repayment method' })}</Label>
+              <RadioGroup
+                value={workerDebtRepayMode}
+                onValueChange={(v) => setWorkerDebtRepayMode(v as 'separate' | 'salary')}
+                className="grid grid-cols-1 gap-2"
+              >
+                <label
+                  htmlFor="repay-separate"
+                  className={cn(
+                    'flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors',
+                    workerDebtRepayMode === 'separate' ? 'border-primary bg-primary/5' : 'border-border'
+                  )}
+                >
+                  <RadioGroupItem id="repay-separate" value="separate" className="mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">{t('workers.repayPaidSeparately', { defaultValue: 'Paid separately (cash)' })}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('workers.repayPaidSeparatelyDesc', { defaultValue: 'Worker handed cash. Your balance will be credited back.' })}</p>
+                  </div>
+                </label>
+                <label
+                  htmlFor="repay-salary"
+                  className={cn(
+                    'flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors',
+                    workerDebtRepayMode === 'salary' ? 'border-primary bg-primary/5' : 'border-border'
+                  )}
+                >
+                  <RadioGroupItem id="repay-salary" value="salary" className="mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">{t('workers.repayDeductFromSalary', { defaultValue: 'Deduct from salary' })}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('workers.repayDeductFromSalaryDesc', { defaultValue: "Will be deducted from the worker's next salary payment." })}</p>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+
             <div className="space-y-2">
               <Label>{t('common.amount')} (CFA)</Label>
               <Input
@@ -2280,9 +2342,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              {t('workers.repayDebtNote')}
-            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWorkerDebtRepayId(null)}>
