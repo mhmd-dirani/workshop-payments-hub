@@ -1032,7 +1032,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const isAdmin = role === 'admin';
       
       // 1. Create debt record
-      const { error } = await supabase.from('debts').insert({
+      const { data: insertedDebt, error } = await supabase.from('debts').insert({
         person_name: worker.name,
         amount,
         debt_type: 'they_owe',
@@ -1040,20 +1040,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         description: `${workerDebtDescription || 'Worker debt'} ${WORKER_DEBT_TAG}`,
         created_by: user?.id,
         status: isAdmin ? 'approved' : 'pending',
-      } as any);
+      } as any).select().single();
       if (error) throw error;
 
-      // 2. Deduct from placer's balance immediately (treated as personal expenditure)
-      // The repayment will later credit the balance back via team_transfers
-      const { error: ppError } = await supabase.from('personal_payments').insert({
-        user_id: user?.id,
-        paid_to: worker.name,
-        reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT]`,
-        amount,
-        payment_date: format(new Date(), 'yyyy-MM-dd'),
-        created_by: user?.id,
-      });
-      if (ppError) throw ppError;
+      // 2. Deduct from placer's balance only when the debt is approved.
+      //    Admins are auto-approved → deduct immediately.
+      //    Regular users: deduction happens later when an admin approves the debt.
+      if (isAdmin) {
+        const { error: ppError } = await supabase.from('personal_payments').insert({
+          user_id: user?.id,
+          paid_to: worker.name,
+          reason: `Worker debt - ${workerDebtDescription || 'Debt'} [WORKER_DEBT:${(insertedDebt as any)?.id}]`,
+          amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          created_by: user?.id,
+        });
+        if (ppError) throw ppError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
