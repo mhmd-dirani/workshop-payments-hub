@@ -2274,6 +2274,43 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </div>
               );
             })()}
+            {/* Repayment mode selector */}
+            <div className="space-y-2">
+              <Label>{t('workers.repaymentMethod', { defaultValue: 'Repayment method' })}</Label>
+              <RadioGroup
+                value={workerDebtRepayMode}
+                onValueChange={(v) => setWorkerDebtRepayMode(v as 'separate' | 'salary')}
+                className="grid grid-cols-1 gap-2"
+              >
+                <label
+                  htmlFor="repay-separate"
+                  className={cn(
+                    'flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors',
+                    workerDebtRepayMode === 'separate' ? 'border-primary bg-primary/5' : 'border-border'
+                  )}
+                >
+                  <RadioGroupItem id="repay-separate" value="separate" className="mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">{t('workers.repayPaidSeparately', { defaultValue: 'Paid separately (cash)' })}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('workers.repayPaidSeparatelyDesc', { defaultValue: 'Worker handed cash. Your balance will be credited back.' })}</p>
+                  </div>
+                </label>
+                <label
+                  htmlFor="repay-salary"
+                  className={cn(
+                    'flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors',
+                    workerDebtRepayMode === 'salary' ? 'border-primary bg-primary/5' : 'border-border'
+                  )}
+                >
+                  <RadioGroupItem id="repay-salary" value="salary" className="mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">{t('workers.repayDeductFromSalary', { defaultValue: 'Deduct from salary' })}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('workers.repayDeductFromSalaryDesc', { defaultValue: "Will be deducted from the worker's next salary payment." })}</p>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+
             <div className="space-y-2">
               <Label>{t('common.amount')} (CFA)</Label>
               <Input
