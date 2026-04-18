@@ -194,15 +194,22 @@ export default function Approvals() {
       const debt = pendingDebts.find((d: any) => d.id === debtId);
       
       if (status === 'rejected') {
-        // Delete the rejected debt and its associated pending payment
+        // Remove any personal_payments deduction tied to this debt (legacy or otherwise)
+        // so the placer's balance is not affected by a rejected debt.
         if (debt) {
-          // Find and delete the associated pending payment (same creator, WORKER_DEBT tag, pending)
+          await supabase
+            .from('personal_payments')
+            .delete()
+            .eq('user_id', (debt as any).created_by)
+            .or(`reason.ilike.%[WORKER_DEBT:${debtId}]%,reason.ilike.%[WORKER_DEBT]%${(debt as any).person_name}%`);
+
+          // Also delete any associated pending payments (older flow)
           const { data: matchingPayments } = await supabase
             .from('payments')
             .select('id')
-            .eq('created_by', debt.created_by)
+            .eq('created_by', (debt as any).created_by)
             .eq('status', 'pending')
-            .ilike('reason', `%${debt.person_name}%[WORKER_DEBT]%`);
+            .ilike('reason', `%${(debt as any).person_name}%[WORKER_DEBT]%`);
           
           if (matchingPayments && matchingPayments.length > 0) {
             await supabase.from('payments').delete().in('id', matchingPayments.map((p: any) => p.id));
@@ -218,14 +225,34 @@ export default function Approvals() {
           .eq('id', debtId);
         if (error) throw error;
         
-        // Also approve the associated pending payment so it shows in dashboard and deducts from user balance
         if (debt) {
+          // Deduct from the placer's balance NOW (on approval) by inserting a personal_payment.
+          // Skip if a deduction already exists for this debt (idempotent / legacy safety).
+          const { data: existing } = await supabase
+            .from('personal_payments')
+            .select('id')
+            .eq('user_id', (debt as any).created_by)
+            .ilike('reason', `%[WORKER_DEBT:${debtId}]%`)
+            .limit(1);
+
+          if (!existing || existing.length === 0) {
+            await supabase.from('personal_payments').insert({
+              user_id: (debt as any).created_by,
+              paid_to: (debt as any).person_name,
+              reason: `Worker debt - ${((debt as any).description || 'Debt').replace('[WORKER_DEBT]', '').trim()} [WORKER_DEBT:${debtId}]`,
+              amount: (debt as any).amount,
+              payment_date: (debt as any).debt_date,
+              created_by: user?.id,
+            });
+          }
+
+          // Also approve any associated pending payment (older flow that pre-created one)
           const { data: matchingPayments } = await supabase
             .from('payments')
             .select('id')
-            .eq('created_by', debt.created_by)
+            .eq('created_by', (debt as any).created_by)
             .eq('status', 'pending')
-            .ilike('reason', `%${debt.person_name}%[WORKER_DEBT]%`);
+            .ilike('reason', `%${(debt as any).person_name}%[WORKER_DEBT]%`);
           
           if (matchingPayments && matchingPayments.length > 0) {
             await supabase
@@ -247,6 +274,7 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       toast({
         title: status === 'approved' ? t('approvals.debtApproved') : t('approvals.debtRejected'),
         description: status === 'approved' ? t('approvals.debtHasBeenApproved') : t('approvals.debtHasBeenRejected'),
