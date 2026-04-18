@@ -2252,11 +2252,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       </Dialog>
 
       {/* Repay Worker Debt Dialog */}
-      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => !open && setWorkerDebtRepayId(null)}>
+      <Dialog open={!!workerDebtRepayId} onOpenChange={(open) => { if (!open) { setWorkerDebtRepayId(null); setWorkerDebtRepayMode('separate'); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{t('workers.repayDebt')}</DialogTitle>
-            <DialogDescription>{t('workers.repayDebtDesc')}</DialogDescription>
+            <DialogDescription>{t('workers.repayDebtChooseMode', { defaultValue: 'How is the worker repaying this debt?' })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {workerDebtRepayId && (() => {
