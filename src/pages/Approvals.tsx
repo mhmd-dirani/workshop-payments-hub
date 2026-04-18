@@ -274,6 +274,7 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['debt-stats'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       toast({
         title: status === 'approved' ? t('approvals.debtApproved') : t('approvals.debtRejected'),
         description: status === 'approved' ? t('approvals.debtHasBeenApproved') : t('approvals.debtHasBeenRejected'),
