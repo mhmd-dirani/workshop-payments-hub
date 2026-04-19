@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { fetchUserBalance } from '@/lib/balance-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,41 +14,18 @@ export default function UserBalanceCard() {
   const { user, role } = useAuth();
   const [isPersonalPaymentOpen, setIsPersonalPaymentOpen] = useState(false);
 
+  // Single source of truth: see src/lib/balance-utils.ts.
+  // The same util powers the admin Team page so the two views can never drift.
   const { data: balance, isLoading } = useQuery({
     queryKey: ['user-global-balance', user?.id],
     queryFn: async () => {
       if (!user) return null;
-
-      // Get total received from team_transfers (global, not per-workshop)
-      const { data: transfers } = await supabase
-        .from('team_transfers')
-        .select('amount')
-        .eq('user_id', user.id);
-      
-      const totalReceived = transfers?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-
-      // Get total spent (approved payments created by this user across ALL workshops)
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('amount')
-        .eq('created_by', user.id)
-        .eq('status', 'approved');
-      
-      const totalSpent = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-      // Get personal payments (outside workshop)
-      const { data: personalPayments } = await supabase
-        .from('personal_payments')
-        .select('amount')
-        .eq('user_id', user.id);
-      
-      const totalPersonal = personalPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
+      const b = await fetchUserBalance(user.id);
       return {
-        spent: totalSpent,
-        personal: totalPersonal,
-        received: totalReceived,
-        balance: totalReceived - totalSpent - totalPersonal,
+        spent: b.workshopSpent,
+        personal: b.personalSpent,
+        received: b.received,
+        balance: b.balance,
       };
     },
     enabled: !!user && role !== 'admin',

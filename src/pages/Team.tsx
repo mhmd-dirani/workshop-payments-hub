@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllUserBalances } from '@/lib/balance-utils';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -71,62 +72,31 @@ export default function Team() {
   });
 
   // Fetch all team members (non-admin users) with their balances
+  // Uses the SAME util as UserBalanceCard so both views always agree.
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ['team-members'],
     queryFn: async () => {
-      // Get all profiles
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name');
 
-      // Get all roles to filter out admins
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id, role');
 
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
-      
-      // Filter to only non-admin users
       const nonAdminProfiles = profiles?.filter(p => roleMap.get(p.user_id) !== 'admin') || [];
 
-      // Get all team transfers
-      const { data: transfers } = await supabase
-        .from('team_transfers')
-        .select('user_id, amount');
+      const balances = await fetchAllUserBalances(nonAdminProfiles.map(p => p.user_id));
 
-      // Get all approved payments
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('created_by, amount')
-        .eq('status', 'approved');
-
-      // Get all personal payments
-      const { data: personalPayments } = await supabase
-        .from('personal_payments')
-        .select('user_id, amount');
-
-      // Calculate balances for each member
       const members: TeamMember[] = nonAdminProfiles.map(profile => {
-        const received = transfers
-          ?.filter(t => t.user_id === profile.user_id)
-          .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-
-        const workshopSpent = payments
-          ?.filter(p => p.created_by === profile.user_id)
-          .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-        const personalSpent = personalPayments
-          ?.filter(p => p.user_id === profile.user_id)
-          .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-        const totalSpent = workshopSpent + personalSpent;
-
+        const b = balances.get(profile.user_id);
         return {
           user_id: profile.user_id,
           full_name: profile.full_name,
-          totalReceived: received,
-          totalSpent: totalSpent,
-          balance: received - totalSpent,
+          totalReceived: b?.received ?? 0,
+          totalSpent: b?.totalSpent ?? 0,
+          balance: b?.balance ?? 0,
         };
       });
 
