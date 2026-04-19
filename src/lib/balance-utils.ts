@@ -1,0 +1,91 @@
+import { supabase } from '@/integrations/supabase/client';
+
+export interface UserBalanceBreakdown {
+  received: number;
+  workshopSpent: number;
+  personalSpent: number;
+  totalSpent: number;
+  balance: number;
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH for a user's global balance.
+ *
+ * Formula:
+ *   balance = SUM(team_transfers.amount where user_id = U)
+ *           - SUM(payments.amount where created_by = U AND status = 'approved')
+ *           - SUM(personal_payments.amount where user_id = U)
+ *
+ * Both the admin Team page and the team-member's UserBalanceCard MUST use this util
+ * so the two views can never drift apart.
+ *
+ * Notes:
+ *  - Worker debts placed by a user create a personal_payments row (on admin approval),
+ *    which is included in personalSpent here.
+ *  - Cash repayments of worker debts insert a team_transfers row crediting the original
+ *    placer, which is included in received here.
+ *  - Salary-deduction repayments do NOT touch the placer's balance (the worker pays
+ *    via a discount on their next salary), which is correct.
+ */
+export async function fetchUserBalance(userId: string): Promise<UserBalanceBreakdown> {
+  const [transfersRes, paymentsRes, personalRes] = await Promise.all([
+    supabase.from('team_transfers').select('amount').eq('user_id', userId),
+    supabase.from('payments').select('amount').eq('created_by', userId).eq('status', 'approved'),
+    supabase.from('personal_payments').select('amount').eq('user_id', userId),
+  ]);
+
+  const received = (transfersRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const workshopSpent = (paymentsRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const personalSpent = (personalRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const totalSpent = workshopSpent + personalSpent;
+
+  return {
+    received,
+    workshopSpent,
+    personalSpent,
+    totalSpent,
+    balance: received - totalSpent,
+  };
+}
+
+/**
+ * Compute balances for many users in a single round-trip (admin Team page).
+ * Uses the same formula as fetchUserBalance(), guaranteeing identical results.
+ */
+export async function fetchAllUserBalances(
+  userIds: string[]
+): Promise<Map<string, UserBalanceBreakdown>> {
+  if (userIds.length === 0) return new Map();
+
+  const [transfersRes, paymentsRes, personalRes] = await Promise.all([
+    supabase.from('team_transfers').select('user_id, amount').in('user_id', userIds),
+    supabase
+      .from('payments')
+      .select('created_by, amount')
+      .in('created_by', userIds)
+      .eq('status', 'approved'),
+    supabase.from('personal_payments').select('user_id, amount').in('user_id', userIds),
+  ]);
+
+  const result = new Map<string, UserBalanceBreakdown>();
+  for (const id of userIds) {
+    const received = (transfersRes.data || [])
+      .filter((r) => r.user_id === id)
+      .reduce((s, r) => s + Number(r.amount), 0);
+    const workshopSpent = (paymentsRes.data || [])
+      .filter((r) => r.created_by === id)
+      .reduce((s, r) => s + Number(r.amount), 0);
+    const personalSpent = (personalRes.data || [])
+      .filter((r) => r.user_id === id)
+      .reduce((s, r) => s + Number(r.amount), 0);
+    const totalSpent = workshopSpent + personalSpent;
+    result.set(id, {
+      received,
+      workshopSpent,
+      personalSpent,
+      totalSpent,
+      balance: received - totalSpent,
+    });
+  }
+  return result;
+}
