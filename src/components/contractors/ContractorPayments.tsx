@@ -897,25 +897,27 @@ export default function ContractorPayments() {
             const wsIds = budgetWorkshops[p.id] || [];
             const advanceWsIds = advanceBudgetWorkshops[p.id] || [];
             const advanceFromBudget = advanceBudgetSums[p.id] || 0;
-            
-            // Workshop filter: budget must have activity in that workshop
-            if (filterWorkshop !== 'all' && !wsIds.includes(filterWorkshop)) return false;
-            
+            const productSpent = Math.max(0, spent - advanceFromBudget);
+
+            // Workshop filter: a budget with NO purchases yet is an unallocated pool —
+            // show it for any workshop. Once it has purchases, only show if any
+            // purchase was tagged to that workshop.
+            if (filterWorkshop !== 'all' && wsIds.length > 0 && !wsIds.includes(filterWorkshop)) return false;
+
             // Payment type filter for budgets
             if (filterPaymentType === 'advance') {
-              // Only show if remaining > 0 OR has advance purchases
               const hasRelevantAdvance = filterWorkshop !== 'all'
-                ? (advanceWsIds.includes(filterWorkshop)) // advance in this specific workshop
-                : (advanceFromBudget > 0);
+                ? advanceWsIds.includes(filterWorkshop)
+                : advanceFromBudget > 0;
               const hasRemaining = remaining > 0;
               if (!hasRelevantAdvance && !hasRemaining) return false;
-              // If workshop filter active AND remaining > 0 but no activity in workshop, hide
-              if (filterWorkshop !== 'all' && !hasRelevantAdvance && hasRemaining && !wsIds.includes(filterWorkshop)) return false;
             } else if (filterPaymentType === 'product') {
-              return false; // Hide budgets in product filter
+              // Show budgets that have actual product purchases (the
+              // productBudgetTotal is added to the displayed total, so they
+              // must appear in the list too — otherwise total ≠ list).
+              if (productSpent <= 0) return false;
             } else if (filterPaymentType === 'material_budget') {
-              // Show only if has actual product purchases (spent - advances > 0)
-              if (Math.max(0, spent - advanceFromBudget) <= 0) return false;
+              if (productSpent <= 0) return false;
             }
           } else {
             // When filtering by workshop, only show payments in that workshop
@@ -942,7 +944,7 @@ export default function ContractorPayments() {
             if (filterPaymentType === 'all') {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
-            } else if (filterPaymentType === 'material_budget') {
+            } else if (filterPaymentType === 'material_budget' || filterPaymentType === 'product') {
               // When filtering by material_budget, only show actual product purchases (not advance, not remaining)
               const spent = allBudgetSums[p.id] || 0;
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
@@ -957,14 +959,9 @@ export default function ContractorPayments() {
           }
           return sum + Number(p.amount);
         }, 0);
-        // When filtering by product, also add budget purchase totals (excluding advance purchases)
-        const productBudgetTotal = filterPaymentType === 'product'
-          ? Object.entries(allBudgetSums as Record<string, number>).reduce((s, [id, v]) => {
-              const advanceAmount = (advanceBudgetSums as Record<string, number>)[id] || 0;
-              return s + v - advanceAmount;
-            }, 0)
-          : 0;
-        const displayTotal = filteredTotal + productBudgetTotal;
+        // Budget product purchases are now counted inside filteredTotal for the
+        // displayed (filtered) budgets, so list and total stay consistent.
+        const displayTotal = filteredTotal;
         return (
           <>
             <Card className="bg-destructive/5 border-destructive/20">
