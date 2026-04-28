@@ -944,7 +944,7 @@ export default function ContractorPayments() {
             if (filterPaymentType === 'all') {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
-            } else if (filterPaymentType === 'material_budget') {
+            } else if (filterPaymentType === 'material_budget' || filterPaymentType === 'product') {
               // When filtering by material_budget, only show actual product purchases (not advance, not remaining)
               const spent = allBudgetSums[p.id] || 0;
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
@@ -959,14 +959,9 @@ export default function ContractorPayments() {
           }
           return sum + Number(p.amount);
         }, 0);
-        // When filtering by product, also add budget purchase totals (excluding advance purchases)
-        const productBudgetTotal = filterPaymentType === 'product'
-          ? Object.entries(allBudgetSums as Record<string, number>).reduce((s, [id, v]) => {
-              const advanceAmount = (advanceBudgetSums as Record<string, number>)[id] || 0;
-              return s + v - advanceAmount;
-            }, 0)
-          : 0;
-        const displayTotal = filteredTotal + productBudgetTotal;
+        // Budget product purchases are now counted inside filteredTotal for the
+        // displayed (filtered) budgets, so list and total stay consistent.
+        const displayTotal = filteredTotal;
         return (
           <>
             <Card className="bg-destructive/5 border-destructive/20">
