@@ -5,7 +5,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { getEffectivePay, buildWorkerPaymentReason } from '@/lib/worker-payment-utils';
+import { getEffectivePay, buildWorkerPaymentReason, PAYMENT_CREDIT_TAG, ADVANCE_CREDIT_TAG, isWorkerPaymentCredit, rewriteCreditReasonAmount } from '@/lib/worker-payment-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -323,7 +323,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
 
   // Calculate total owed (attendance + adjustments)
   const attendanceTotal = unpaidAttendance.reduce((sum, a) => sum + getEffectivePay(a), 0);
-  const ADVANCE_CREDIT_TAG = '[ADVANCE_CREDIT]';
   const bonusTotal = unpaidAdjustments
     .filter((a) => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi')
     .reduce((sum, a) => sum + Number(a.amount), 0);
@@ -332,7 +331,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     .reduce((sum, a) => sum + Number(a.amount), 0);
   // Non-credit discounts only (exclude advance/payment credits for bonus display)
   const realDiscountTotal = unpaidAdjustments
-    .filter((a) => a.adjustment_type === 'discount' && !a.reason?.includes('[PAYMENT_CREDIT]') && !a.reason?.includes('[ADVANCE_CREDIT]'))
+    .filter((a) => a.adjustment_type === 'discount' && !isWorkerPaymentCredit(a.reason))
     .reduce((sum, a) => sum + Number(a.amount), 0);
   const totalOwed = attendanceTotal + bonusTotal - discountTotal;
   // adjustmentNet should only reflect real bonuses/discounts, not payment credits
@@ -349,7 +348,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     const map: Record<string, { name: string; bonuses: number; discounts: number; items: typeof unpaidAdjustments }> = {};
     unpaidAdjustments.forEach((adj) => {
       // Skip payment/advance credit discounts - they belong to salary, not bonus
-      const isCredit = adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]');
+      const isCredit = isWorkerPaymentCredit(adj.reason);
       if (isCredit) return;
       const wid = adj.workshop_id;
       const wname = (adj.workshops as any)?.name || 'Unknown';
