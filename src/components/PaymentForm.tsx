@@ -29,7 +29,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image, Users2 } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image, Users2, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
@@ -80,6 +80,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
   const [selectedContractorId, setSelectedContractorId] = useState<string>('none');
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState<string>(workshopId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
@@ -218,6 +219,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         payment_date: payment.payment_date,
       });
       setSelectedCreatorId(payment.created_by || null);
+      setSelectedWorkshopId(workshopId);
       // Pre-select contractor if linked
       setSelectedContractorId(existingContractorLink?.contractor_id || 'none');
       setSelectedContractId(existingContractLink?.contract_id || 'none');
@@ -229,12 +231,13 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
         payment_date: new Date().toISOString().split('T')[0],
       });
       setSelectedCreatorId(null);
+      setSelectedWorkshopId(workshopId);
       setSelectedContractorId('none');
       setSelectedContractId('none');
     }
     setSelectedFile(null);
     setPreviewUrl(null);
-  }, [payment, open, existingContractorLink, existingContractLink]);
+  }, [payment, open, existingContractorLink, existingContractLink, workshopId]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -330,7 +333,8 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       if (payment?.id) {
         const originalCreatorId = payment.created_by;
         const newCreatorId = selectedCreatorId && role === 'admin' ? selectedCreatorId : originalCreatorId;
-        
+        const workshopChanged = role === 'admin' && selectedWorkshopId && selectedWorkshopId !== workshopId;
+
         const { error } = await supabase
           .from('payments')
           .update({
@@ -339,11 +343,28 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             amount: data.amount,
             payment_date: data.payment_date,
             ...(role === 'admin' && newCreatorId ? { created_by: newCreatorId } : {}),
+            ...(workshopChanged ? { workshop_id: selectedWorkshopId } : {}),
             ...(role !== 'admin' && { status: 'pending' }),
           })
           .eq('id', payment.id);
         if (error) throw error;
-        
+
+        // If admin moved the payment to a different workshop, sync linked records
+        if (workshopChanged) {
+          await supabase
+            .from('user_transfers')
+            .update({ workshop_id: selectedWorkshopId })
+            .eq('payment_id', payment.id);
+          await supabase
+            .from('contractor_payments')
+            .update({ workshop_id: selectedWorkshopId })
+            .eq('payment_id', payment.id);
+          await supabase
+            .from('workshop_files')
+            .update({ workshop_id: selectedWorkshopId })
+            .eq('payment_id', payment.id);
+        }
+
         // If admin changed the creator, update linked user_transfers
         if (role === 'admin' && newCreatorId && originalCreatorId && newCreatorId !== originalCreatorId) {
           await supabase
@@ -432,6 +453,10 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     onSuccess: () => {
       setIsUploading(false);
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
+      if (selectedWorkshopId && selectedWorkshopId !== workshopId) {
+        queryClient.invalidateQueries({ queryKey: ['payments', selectedWorkshopId] });
+        queryClient.invalidateQueries({ queryKey: ['workshop-stats', selectedWorkshopId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
@@ -590,6 +615,26 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+          )}
+
+          {/* Workshop selector - admin only, when editing */}
+          {role === 'admin' && payment?.id && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                {t('payments.changeWorkshop')}
+              </Label>
+              <Select value={selectedWorkshopId} onValueChange={setSelectedWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('payments.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshopsList.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
