@@ -453,6 +453,10 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
     onSuccess: () => {
       setIsUploading(false);
       queryClient.invalidateQueries({ queryKey: ['payments', workshopId] });
+      if (selectedWorkshopId && selectedWorkshopId !== workshopId) {
+        queryClient.invalidateQueries({ queryKey: ['payments', selectedWorkshopId] });
+        queryClient.invalidateQueries({ queryKey: ['workshop-stats', selectedWorkshopId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
       queryClient.invalidateQueries({ queryKey: ['workshop-stats', workshopId] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
