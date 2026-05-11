@@ -515,8 +515,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       // Collect all workshop IDs that have attendance or adjustments
       const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
       
-      // Distribute debt deduction proportionally across workshops
+      // First compute per-workshop raw totals. Negative totals are payment credits
+      // from advances/partial pays, and must reduce the actual salary payment instead
+      // of creating a zero/negative payment row.
       let remainingDeduction = debtDeduction;
+      let remainingCrossWorkshopCredit = 0;
       const workshopTotals: Record<string, number> = {};
       for (const workshopId of allWorkshopIds) {
         const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
@@ -526,8 +529,11 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         workshopTotals[workshopId] = workshopData.total + adjBonuses - adjDiscounts;
+        if (workshopTotals[workshopId] < 0) remainingCrossWorkshopCredit += Math.abs(workshopTotals[workshopId]);
       }
       const grandTotalBeforeDeduction = Object.values(workshopTotals).reduce((s, v) => s + Math.max(v, 0), 0);
+      const deferredDiscountIds: string[] = [];
+      let fallbackPaymentId: string | null = null;
       
       for (const workshopId of allWorkshopIds) {
         const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
@@ -539,8 +545,20 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
         const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
         let finalTotal = total + adjBonuses - adjDiscounts;
+        const rawFinalTotal = finalTotal;
+        const entryIds = entries.map((e: any) => e.id);
+        const bonusIds = bonusAdj.map((a: any) => a.id);
+        const discountIds = discountAdj.map((a: any) => a.id);
+        if (rawFinalTotal <= 0) {
+          deferredDiscountIds.push(...discountIds);
+          continue;
+        }
+        const crossWorkshopCredit = Math.min(finalTotal, remainingCrossWorkshopCredit);
+        if (crossWorkshopCredit > 0) {
+          finalTotal -= crossWorkshopCredit;
+          remainingCrossWorkshopCredit -= crossWorkshopCredit;
+        }
         
-        // Debt deduction is just a note - salary amount remains unchanged
         let workshopDeduction = 0;
         
         if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
@@ -553,13 +571,28 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           reason += `\n[${t('attendance.holidayIncluded')}: +${holidayPay.toLocaleString('fr-FR')} CFA]`;
         }
         if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
-          // Calculate proportional note amount but DON'T deduct from finalTotal
           workshopDeduction = Math.min(
+            finalTotal,
             remainingDeduction,
             Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
           );
           remainingDeduction -= workshopDeduction;
+          finalTotal -= workshopDeduction;
           reason += `\n[${t('workers.debtRepaymentReason')}: ${workshopDeduction.toLocaleString('fr-FR')} CFA]`;
+        }
+        if (crossWorkshopCredit > 0) {
+          reason += `\n[${t('workers.paymentCreditsApplied')}: -${crossWorkshopCredit.toLocaleString('fr-FR')} CFA]`;
+        }
+        const paymentAmount = Math.max(finalTotal, 0);
+        if (paymentAmount <= 0) {
+          if (entryIds.length > 0) {
+            await supabase.from('attendance').update({ is_paid: true, payment_id: null }).in('id', entryIds);
+          }
+          const allAdjIds = [...bonusIds, ...discountIds];
+          if (allAdjIds.length > 0) {
+            await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: null }).in('id', allAdjIds);
+          }
+          continue;
         }
         
         const categoryLabel = 'Travailleur';
@@ -570,7 +603,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             workshop_id: workshopId,
             paid_to: categoryLabel,
             reason,
-            amount: Math.max(finalTotal, 0),
+            amount: paymentAmount,
             payment_date: format(new Date(), 'yyyy-MM-dd'),
             created_by: user?.id,
             status: role === 'admin' ? 'approved' : 'pending',
@@ -579,8 +612,8 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
           .single();
         
         if (paymentError) throw paymentError;
+        if (!fallbackPaymentId) fallbackPaymentId = payment.id;
 
-        const entryIds = entries.map((e: any) => e.id);
         if (entryIds.length > 0) {
           await supabase
             .from('attendance')
@@ -588,7 +621,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             .in('id', entryIds);
         }
 
-        const bonusIds = bonusAdj.map((a: any) => a.id);
         if (bonusIds.length > 0) {
           await supabase
             .from('worker_adjustments')
@@ -596,17 +628,23 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             .in('id', bonusIds);
         }
         
-        const discountIds = discountAdj.map((a: any) => a.id);
         if (discountIds.length > 0) {
           await supabase
             .from('worker_adjustments')
-            .update({ is_paid: true })
+            .update({ is_paid: true, payment_id: payment.id })
             .in('id', discountIds);
         }
         
         delete adjByWorkshop[workshopId];
         
-        results.push({ workshopId, paymentId: payment.id, amount: finalTotal });
+        results.push({ workshopId, paymentId: payment.id, amount: paymentAmount });
+      }
+
+      if (deferredDiscountIds.length > 0 && fallbackPaymentId) {
+        await supabase
+          .from('worker_adjustments')
+          .update({ is_paid: true, payment_id: fallbackPaymentId })
+          .in('id', deferredDiscountIds);
       }
       
       // Record debt repayment if deduction was applied
