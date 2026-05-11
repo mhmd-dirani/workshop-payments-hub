@@ -930,6 +930,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_worker_debt_repayment: {
+        Args: {
+          _amount: number
+          _debt_id: string
+          _description: string
+          _payment_date: string
+          _repayment_mode: string
+          _worker_id?: string
+          _workshop_id?: string
+        }
+        Returns: Json
+      }
       user_has_workshop_access: {
         Args: { _user_id: string; _workshop_id: string }
         Returns: boolean

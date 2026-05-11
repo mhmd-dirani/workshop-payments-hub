@@ -1,6 +1,17 @@
 import { getDay } from 'date-fns';
 
 const SHORT_DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+export const PAYMENT_CREDIT_TAG = '[PAYMENT_CREDIT]';
+export const ADVANCE_CREDIT_TAG = '[ADVANCE_CREDIT]';
+
+export function isWorkerPaymentCredit(reason?: string | null): boolean {
+  return Boolean(reason?.includes(PAYMENT_CREDIT_TAG) || reason?.includes(ADVANCE_CREDIT_TAG));
+}
+
+export function rewriteCreditReasonAmount(reason: string | null | undefined, amount: number): string {
+  const nextAmount = `${amount.toLocaleString('fr-FR')} CFA`;
+  return reason?.replace(/\d[\d\s.,]*\s*CFA/, nextAmount) || `Advance Payment credit: ${nextAmount} applied to balance. ${PAYMENT_CREDIT_TAG}`;
+}
 
 /**
  * Get the effective pay for an attendance entry.
