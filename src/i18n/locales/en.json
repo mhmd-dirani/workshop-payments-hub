@@ -110,6 +110,8 @@
     "addedBy": "Added By",
     "changeCreator": "Change who paid",
     "selectUser": "Select user...",
+    "changeWorkshop": "Change workshop",
+    "selectWorkshop": "Select workshop...",
     "pending": "Pending",
     "approved": "Approved",
     "rejected": "Rejected",

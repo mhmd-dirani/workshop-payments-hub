@@ -109,6 +109,8 @@
     "addedBy": "Ajouté par",
     "changeCreator": "Changer qui a payé",
     "selectUser": "Sélectionner un utilisateur...",
+    "changeWorkshop": "Changer d'atelier",
+    "selectWorkshop": "Sélectionner un atelier...",
     "pending": "En attente",
     "approved": "Approuvé",
     "rejected": "Refusé",
