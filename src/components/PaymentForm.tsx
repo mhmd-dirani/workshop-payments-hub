@@ -614,6 +614,26 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
             </div>
           )}
 
+          {/* Workshop selector - admin only, when editing */}
+          {role === 'admin' && payment?.id && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                {t('payments.changeWorkshop')}
+              </Label>
+              <Select value={selectedWorkshopId} onValueChange={setSelectedWorkshopId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('payments.selectWorkshop')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workshopsList.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Contractor selector - admin only */}
           {role === 'admin' && (
             <>
