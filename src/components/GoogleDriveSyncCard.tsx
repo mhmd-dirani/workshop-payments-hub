@@ -13,6 +13,8 @@ export default function GoogleDriveSyncCard() {
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<Record<string, number> | null>(null);
+  const [lastFilesMirrored, setLastFilesMirrored] = useState<number | null>(null);
+  const [lastFilesSkipped, setLastFilesSkipped] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -34,6 +36,8 @@ export default function GoogleDriveSyncCard() {
       if (data?.spreadsheetUrl) setSpreadsheetUrl(data.spreadsheetUrl);
       if (data?.folderUrl) setFolderUrl(data.folderUrl);
       if (data?.tablesExported) setLastResult(data.tablesExported);
+      setLastFilesMirrored(typeof data?.filesMirrored === 'number' ? data.filesMirrored : null);
+      setLastFilesSkipped(typeof data?.filesSkipped === 'number' ? data.filesSkipped : null);
       toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
@@ -79,9 +83,12 @@ export default function GoogleDriveSyncCard() {
         </div>
 
         {totalRows !== null && (
-          <p className="text-xs text-muted-foreground">
-            {t('gdrive.lastSync', { count: totalRows })}
-          </p>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>{t('gdrive.lastSync', { count: totalRows })}</p>
+            {lastFilesMirrored !== null && (
+              <p>{t('gdrive.filesMirrored', { count: lastFilesMirrored, skipped: lastFilesSkipped ?? 0 })}</p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
 interface WorkshopFilesManagerProps {
   workshopId: string;
@@ -134,16 +135,14 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
 
       queryClient.invalidateQueries({ queryKey: ['workshop-files-all', workshopId] });
 
-      // Fire-and-forget mirror to Google Drive (admin/co-admin only)
-      supabase.functions.invoke('mirror-workshop-file', {
-        body: {
-          workshopId,
-          workshopName,
-          storagePath: fileName,
-          fileName: file.name,
-          fileType: file.type,
-        },
-      }).catch((err) => console.warn('Drive mirror failed:', err));
+      // Fire-and-forget mirror to Google Drive
+      mirrorWorkshopFileToDrive({
+        workshopId,
+        workshopName,
+        storagePath: fileName,
+        fileName: file.name,
+        fileType: file.type,
+      });
 
       toast({
         title: t('files.uploaded'),

@@ -9,6 +9,14 @@ const corsHeaders = {
 const DRIVE_GW = 'https://connector-gateway.lovable.dev/google_drive/drive/v3';
 const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files';
 
+function driveQueryLiteral(value: string) {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+function safeDriveName(value: string) {
+  return value.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Unknown Workshop';
+}
+
 async function findOrCreateFolder(
   name: string,
   parentId: string | null,
@@ -19,8 +27,8 @@ async function findOrCreateFolder(
     Authorization: `Bearer ${lovableKey}`,
     'X-Connection-Api-Key': driveKey,
   };
-  const qParent = parentId ? ` and '${parentId}' in parents` : '';
-  const q = `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
+  const qParent = parentId ? ` and ${driveQueryLiteral(parentId)} in parents` : '';
+  const q = `name=${driveQueryLiteral(name)} and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
   const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
   const sj = await search.json();
   if (sj.files && sj.files.length > 0) return sj.files[0].id;
@@ -37,6 +45,19 @@ async function findOrCreateFolder(
   const cj = await create.json();
   if (!cj.id) throw new Error(`Folder create failed: ${JSON.stringify(cj)}`);
   return cj.id;
+}
+
+async function deleteExistingDriveFiles(name: string, parentId: string, lovableKey: string, driveKey: string) {
+  const headers = {
+    Authorization: `Bearer ${lovableKey}`,
+    'X-Connection-Api-Key': driveKey,
+  };
+  const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(parentId)} in parents and trashed=false`;
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const sj = await search.json();
+  for (const file of sj.files || []) {
+    await fetch(`${DRIVE_GW}/files/${file.id}`, { method: 'DELETE', headers });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -71,7 +92,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { workshopId, workshopName, storagePath, fileName, fileType } = body;
+    const { workshopId, workshopName, storagePath, fileName, fileType, createdAt } = body;
     if (!workshopId || !workshopName || !storagePath || !fileName) {
       return new Response(JSON.stringify({ error: 'Missing fields' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -106,13 +127,15 @@ Deno.serve(async (req) => {
     }
 
     // Workshop subfolder
-    const safeName = workshopName.replace(/[\\/:*?"<>|]/g, '_').trim() || workshopId;
+    const safeName = safeDriveName(workshopName || workshopId);
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 16).replace('T', ' ').replace(':', '-')} - ${safeDriveName(fileName)}`;
+    await deleteExistingDriveFiles(driveFileName, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
 
     // Multipart upload
     const boundary = `----lovable-${Date.now()}`;
     const metadata = {
-      name: fileName,
+      name: driveFileName,
       parents: [workshopFolderId],
     };
     const fileBytes = new Uint8Array(await blob.arrayBuffer());

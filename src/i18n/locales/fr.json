@@ -869,6 +869,7 @@
     "syncDoneDesc": "Le classeur et le dossier Drive sont à jour.",
     "openSheet": "Ouvrir le classeur",
     "openFolder": "Ouvrir le dossier Drive",
-    "lastSync": "Dernière synchro : {{count}} lignes exportées."
+    "lastSync": "Dernière synchro : {{count}} lignes exportées.",
+    "filesMirrored": "Fichiers Drive copiés : {{count}} envoyés, {{skipped}} ignorés."
   }
 }

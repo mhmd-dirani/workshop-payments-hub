@@ -869,6 +869,7 @@
     "syncDoneDesc": "جدول البيانات ومجلد Drive محدثان.",
     "openSheet": "فتح جدول البيانات",
     "openFolder": "فتح مجلد Drive",
-    "lastSync": "آخر مزامنة: {{count}} صف."
+    "lastSync": "آخر مزامنة: {{count}} صف.",
+    "filesMirrored": "ملفات Drive المنسوخة: {{count}} تم رفعها، {{skipped}} تم تخطيها."
   }
 }
