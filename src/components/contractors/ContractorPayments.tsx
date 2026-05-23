@@ -397,6 +397,14 @@ export default function ContractorPayments() {
           uploaded_by: user!.id,
           payment_id: paymentRecord.id,
         });
+
+        mirrorWorkshopFileToDrive({
+          workshopId: purchaseWorkshopId,
+          workshopName,
+          storagePath: fileName,
+          fileName: purchaseReceipt.name,
+          fileType: purchaseReceipt.type,
+        });
       }
 
       const purchaseDesc = purchaseDescription 
