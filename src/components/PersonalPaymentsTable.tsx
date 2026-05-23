@@ -44,14 +44,17 @@ export default function PersonalPaymentsTable() {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['personal-payments', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('personal_payments')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('payment_date', { ascending: false });
-      if (error) throw error;
-      // Filter out worker debt entries - those are tracked separately
-      return (data || []).filter(p => !p.reason?.includes('[WORKER_DEBT]')) as PersonalPayment[];
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('personal_payments')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
+      return data.filter(p => !p.reason?.includes('[WORKER_DEBT]')) as PersonalPayment[];
     },
     enabled: !!user?.id,
   });

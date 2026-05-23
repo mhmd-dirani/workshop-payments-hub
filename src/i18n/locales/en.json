@@ -858,6 +858,7 @@
       "debts": "Debts",
       "debt_payments": "Debt repayments",
       "workshop_files": "Workshop files"
-    }
+    },
+    "overLimit": "Over limit: {{tables}}. All aggregations now paginate, so totals stay accurate — but any new unpaginated query on these tables would silently miss rows. Plan archiving soon."
   }
 }

@@ -58,10 +58,12 @@ export default function ContractsList() {
   const { data: paymentsByContract = {} } = useQuery({
     queryKey: ['contract-payments-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('contractor_payments').select('contract_id, amount');
-      if (error) throw error;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<{ contract_id: string | null; amount: number | string }>((from, to) =>
+        supabase.from('contractor_payments').select('contract_id, amount').order('id').range(from, to)
+      );
       const map: Record<string, number> = {};
-      data?.forEach(p => { if (p.contract_id) map[p.contract_id] = (map[p.contract_id] || 0) + Number(p.amount); });
+      data.forEach(p => { if (p.contract_id) map[p.contract_id] = (map[p.contract_id] || 0) + Number(p.amount); });
       return map;
     },
   });

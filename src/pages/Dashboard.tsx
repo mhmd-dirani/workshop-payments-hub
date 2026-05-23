@@ -124,26 +124,23 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!selectedWorkshop) return null;
       
-      // Fetch approved payments (expenses)
-      const { data: payments, error: paymentsError } = await supabase
-        .from('payments')
-        .select('amount, status')
-        .eq('workshop_id', selectedWorkshop)
-        .eq('status', 'approved');
-      
-      if (paymentsError) throw paymentsError;
-      
+      // Fetch approved payments (expenses) — paginated past PostgREST's 1000-row cap
+      const payments = await fetchAllPages<{ amount: number | string }>((from, to) =>
+        supabase
+          .from('payments')
+          .select('amount, status')
+          .eq('workshop_id', selectedWorkshop)
+          .eq('status', 'approved')
+          .order('id')
+          .range(from, to)
+      );
       const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
-      // Fetch income
-      const { data: income, error: incomeError } = await supabase
-        .from('income')
-        .select('amount')
-        .eq('workshop_id', selectedWorkshop);
-      
-      if (incomeError) throw incomeError;
-      
-      const totalIncome = income?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
+      // Fetch income (paginated)
+      const income = await fetchAllPages<{ amount: number | string }>((from, to) =>
+        supabase.from('income').select('amount').eq('workshop_id', selectedWorkshop).order('id').range(from, to)
+      );
+      const totalIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
       
       return { 
         totalPaid, 

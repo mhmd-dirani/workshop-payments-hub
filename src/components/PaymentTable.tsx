@@ -55,14 +55,17 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', workshopId],
     queryFn: async () => {
-      let query = supabase
-        .from('payments')
-        .select('*')
-        .eq('workshop_id', workshopId)
-        .order('payment_date', { ascending: false });
-      
-      const { data: paymentsData, error: paymentsError } = await query;
-      if (paymentsError) throw paymentsError;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      // Paginate to bypass PostgREST's 1000-row response cap on busy workshops
+      const paymentsData = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select('*')
+          .eq('workshop_id', workshopId)
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
       
       const { data: profilesData } = await supabase
         .from('profiles')

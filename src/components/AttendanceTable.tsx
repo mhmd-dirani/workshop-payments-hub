@@ -93,30 +93,27 @@ export default function AttendanceTable({ workerId, workshopId, onEdit }: Attend
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', timeFilter, filterWorkerId, filterWorkshopId, selectedDate?.toISOString(), selectedWorkerName],
     queryFn: async () => {
-      let query = supabase
-        .from('attendance')
-        .select(`*, workers:worker_id(id, name), workshops:workshop_id(id, name)`)
-        .order('work_date', { ascending: false });
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<any>((from, to) => {
+        let q = supabase
+          .from('attendance')
+          .select(`*, workers:worker_id(id, name), workshops:workshop_id(id, name)`)
+          .order('work_date', { ascending: false })
+          .order('id', { ascending: false });
+        if (isSpecificDate && selectedDate) {
+          q = q.eq('work_date', format(selectedDate, 'yyyy-MM-dd'));
+        } else if (!isAllTime) {
+          q = q
+            .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
+            .lte('work_date', format(weekEnd, 'yyyy-MM-dd'));
+        }
+        if (filterWorkshopId && filterWorkshopId !== 'all') {
+          q = q.eq('workshop_id', filterWorkshopId);
+        }
+        return q.range(from, to);
+      });
 
-      // Apply date filters based on filter type
-      if (isSpecificDate && selectedDate) {
-        query = query.eq('work_date', format(selectedDate, 'yyyy-MM-dd'));
-      } else if (!isAllTime) {
-        query = query
-          .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
-          .lte('work_date', format(weekEnd, 'yyyy-MM-dd'));
-      }
-
-      // For worker filter: search by worker_id OR by name in description (for overtime records)
-      // We'll fetch all and filter client-side to handle the OR condition with description search
-      if (filterWorkshopId && filterWorkshopId !== 'all') {
-        query = query.eq('workshop_id', filterWorkshopId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      let results = data || [];
+      let results = data;
       
       // Client-side filtering for worker - allows matching by worker_id OR by name in description
       if (filterWorkerId && filterWorkerId !== 'all' && selectedWorkerName) {

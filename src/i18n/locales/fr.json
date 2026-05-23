@@ -857,6 +857,7 @@
       "debts": "Dettes",
       "debt_payments": "Remboursements de dettes",
       "workshop_files": "Fichiers du chantier"
-    }
+    },
+    "overLimit": "Au-delà de la limite : {{tables}}. Toutes les agrégations paginent désormais, les totaux restent exacts — mais toute nouvelle requête non paginée sur ces tables manquerait silencieusement des lignes. Prévoir un archivage."
   }
 }

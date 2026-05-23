@@ -58,9 +58,11 @@ export default function DatabaseUsageCard() {
   const rows = TRACKED_TABLES.map((table) => {
     const count = counts?.[table] ?? 0;
     const pct = Math.min(100, (count / SUPABASE_ROW_LIMIT) * 100);
-    return { table, count, pct };
+    const overLimit = count > SUPABASE_ROW_LIMIT;
+    return { table, count, pct, overLimit };
   }).sort((a, b) => b.count - a.count);
 
+  const overLimitRows = rows.filter((r) => r.overLimit);
   const anyWarning = rows.some((r) => r.pct >= 75);
 
   return (
@@ -80,6 +82,18 @@ export default function DatabaseUsageCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
+        {overLimitRows.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] md:text-xs text-destructive flex gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              {t('dbUsage.overLimit', {
+                tables: overLimitRows
+                  .map((r) => t(`dbUsage.tables.${r.table}`, { defaultValue: r.table }))
+                  .join(', '),
+              })}
+            </span>
+          </div>
+        )}
         {isLoading && (
           <p className="text-xs text-muted-foreground">{t('common.loading')}…</p>
         )}
