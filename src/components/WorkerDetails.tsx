@@ -1378,6 +1378,288 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // ===== Day-grouped renderers (unpaid + history) =====
+  type DayKey = string; // 'YYYY-MM-DD'
+
+  const groupByDate = <T extends { work_date: string }>(items: T[]): Record<DayKey, T[]> => {
+    const map: Record<DayKey, T[]> = {};
+    for (const it of items) {
+      const k = it.work_date;
+      if (!map[k]) map[k] = [];
+      map[k].push(it);
+    }
+    return map;
+  };
+
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const renderAttendanceLine = (entry: any) => {
+    const extraAmount = Number(entry.extra_amount) || 0;
+    const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+    const discountAmount = Number(entry.discount_amount) || 0;
+    const hasDiscount = discountAmount > 0;
+    const isOvertime = entry.description?.includes('Overtime');
+    return (
+      <div key={`att-${entry.id}`} className="flex items-start justify-between gap-2 text-xs py-1">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-medium">{t('workers.attendance', { defaultValue: 'Attendance' })}</span>
+            {Number(entry.hours_worked) === 0.5 && (
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-warning border-warning">
+                {t('attendance.halfDay', { defaultValue: '½ Day' })}
+              </Badge>
+            )}
+            {isOvertime && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 gap-0.5">
+                <Clock className="w-2.5 h-2.5" />{t('attendance.overtimeShort', { defaultValue: 'OT' })}
+              </Badge>
+            )}
+          </div>
+          {isOvertime && entry.description && (
+            <p className="text-[10px] text-muted-foreground line-clamp-1">{entry.description}</p>
+          )}
+          {hasExtra && (
+            <p className="text-[10px] text-warning">
+              + {extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+              {entry.extra_reason ? ` — ${entry.extra_reason}` : ''}
+            </p>
+          )}
+          {hasDiscount && (
+            <p className="text-[10px] text-destructive">
+              − {discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+              {entry.discount_reason ? ` — ${entry.discount_reason}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="font-mono font-semibold text-sm">
+            {Number(entry.daily_salary).toLocaleString('fr-FR')}
+          </span>
+          <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(entry)} className="h-6 w-6">
+            <Edit className="w-3 h-3" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setAttendanceToDelete(entry.id)} className="h-6 w-6 text-destructive hover:text-destructive">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdjustmentLine = (adj: any, editable = true) => {
+    const isCredit = adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]');
+    const isBonus = adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi';
+    const Icon = adj.adjustment_type === 'bonus' ? Sparkles : adj.adjustment_type === 'taxi' ? Clock : MinusCircle;
+    const colorCls = isBonus ? 'text-success' : isCredit ? 'text-warning' : 'text-destructive';
+    const label = isCredit
+      ? t('workers.advance', { defaultValue: 'Advance' })
+      : adj.adjustment_type === 'bonus'
+        ? t('workers.bonus', { defaultValue: 'Bonus' })
+        : adj.adjustment_type === 'taxi'
+          ? t('adjustments.taxi', { defaultValue: 'Taxi' })
+          : t('attendance.discount', { defaultValue: 'Discount' });
+    const cleanReason = (adj.reason || '').replace(/\[PAYMENT_CREDIT\]|\[ADVANCE_CREDIT\]/g, '').trim();
+    return (
+      <div key={`adj-${adj.id}`} className="flex items-start justify-between gap-2 text-xs py-1">
+        <div className="flex-1 min-w-0">
+          <div className={cn('flex items-center gap-1 font-medium', colorCls)}>
+            <Icon className="w-3 h-3" />
+            <span>{label}</span>
+          </div>
+          {cleanReason && <p className="text-[10px] text-muted-foreground line-clamp-2">{cleanReason}</p>}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className={cn('font-mono font-semibold text-sm', colorCls)}>
+            {isBonus ? '+' : '−'}{Number(adj.amount).toLocaleString('fr-FR')}
+          </span>
+          {editable && isCredit && adj.payment_id && (
+            <>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async (e) => {
+                e.stopPropagation();
+                const { data: payment } = await supabase
+                  .from('payments').select('created_by, reason').eq('id', adj.payment_id).single();
+                setEditingAdvanceCredit({ ...adj, _payment_created_by: payment?.created_by || '', _payment_reason: payment?.reason || '' });
+                setEditAdvanceAmount(String(adj.amount));
+                setEditAdvanceCreatorId(payment?.created_by || '');
+              }}><Edit className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setAdvanceCreditToDelete(adj); }}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </>
+          )}
+          {editable && !isCredit && (
+            <>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {
+                e.stopPropagation();
+                setEditingBonusAdj(adj);
+                setEditBonusAdjAmount(String(adj.amount));
+                setEditBonusAdjReason(adj.reason || '');
+              }}><Edit className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setBonusAdjToDelete(adj); }}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderUnpaidByDay = (workshopId: string, attendanceEntries: any[]) => {
+    const adjustments = (unpaidAdjustments as any[]).filter(a => a.workshop_id === workshopId);
+    const dates = new Set<string>([
+      ...attendanceEntries.map((e: any) => e.work_date),
+      ...adjustments.map((a: any) => a.work_date),
+    ]);
+    const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
+    if (sortedDates.length === 0) {
+      return <p className="text-xs text-muted-foreground text-center py-2">{t('workers.noPendingPayments')}</p>;
+    }
+    return (
+      <div className="divide-y">
+        {sortedDates.map((date) => {
+          const dayAtt = attendanceEntries.filter((e: any) => e.work_date === date);
+          const dayAdj = adjustments.filter((a: any) => a.work_date === date);
+          const dayTotal =
+            dayAtt.reduce((s: number, e: any) => s + getEffectivePay(e), 0) +
+            dayAdj.reduce((s: number, a: any) => {
+              if (a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi') return s + Number(a.amount);
+              return s - Number(a.amount);
+            }, 0);
+          return (
+            <div key={date} className="py-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold font-mono">
+                  {format(parseLocalDate(date), 'EEE, dd/MM')}
+                </span>
+                <span className={cn('text-xs font-mono font-bold', dayTotal >= 0 ? 'text-foreground' : 'text-destructive')}>
+                  {dayTotal >= 0 ? '' : '−'}{Math.abs(dayTotal).toLocaleString('fr-FR')} CFA
+                </span>
+              </div>
+              <div className="ml-2 pl-2 border-l border-border/60 space-y-0.5">
+                {dayAtt.map(renderAttendanceLine)}
+                {dayAdj.map((a: any) => renderAdjustmentLine(a, true))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // History: combined paid items by week → day
+  type HistoryItem =
+    | { kind: 'att'; date: string; workshopId: string; workshopName: string; entry: any }
+    | { kind: 'adj'; date: string; workshopId: string; workshopName: string; entry: any };
+
+  const historyItems = useMemo<HistoryItem[]>(() => {
+    const items: HistoryItem[] = [];
+    for (const e of filteredPaidAttendance as any[]) {
+      items.push({ kind: 'att', date: e.work_date, workshopId: e.workshop_id, workshopName: (e.workshops as any)?.name || 'Unknown', entry: e });
+    }
+    for (const a of filteredPaidAdjustments as any[]) {
+      items.push({ kind: 'adj', date: a.work_date, workshopId: a.workshop_id, workshopName: (a.workshops as any)?.name || 'Unknown', entry: a });
+    }
+    return items;
+  }, [filteredPaidAttendance, filteredPaidAdjustments]);
+
+  const historyByWeek = useMemo(() => {
+    const groups: Record<string, { weekLabel: string; weekStart: Date; items: HistoryItem[] }> = {};
+    for (const it of historyItems) {
+      const d = parseLocalDate(it.date);
+      const sunday = startOfWeek(d, { weekStartsOn: 0 });
+      const key = format(sunday, 'yyyy-MM-dd');
+      if (!groups[key]) {
+        const saturday = addDays(sunday, 6);
+        groups[key] = {
+          weekStart: sunday,
+          weekLabel: `${format(sunday, 'dd/MM')} – ${format(saturday, 'dd/MM/yyyy')}`,
+          items: [],
+        };
+      }
+      groups[key].items.push(it);
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([k, v]) => ({ key: k, ...v }));
+  }, [historyItems]);
+
+  const renderHistoryWeek = (items: HistoryItem[]) => {
+    // group by workshop, then day
+    const byWorkshop: Record<string, { name: string; items: HistoryItem[] }> = {};
+    for (const it of items) {
+      if (!byWorkshop[it.workshopId]) byWorkshop[it.workshopId] = { name: it.workshopName, items: [] };
+      byWorkshop[it.workshopId].items.push(it);
+    }
+    return (
+      <div className="space-y-3">
+        {Object.entries(byWorkshop).map(([wid, { name, items: wItems }]) => {
+          const dates = Array.from(new Set(wItems.map(i => i.date))).sort((a, b) => b.localeCompare(a));
+          return (
+            <div key={wid} className="rounded-md border bg-card/40">
+              <div className="flex items-center justify-between px-2 py-1.5 border-b bg-muted/40">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs font-medium truncate">{name}</span>
+                </div>
+              </div>
+              <div className="divide-y px-2">
+                {dates.map(date => {
+                  const dayAtt = wItems.filter(i => i.kind === 'att' && i.date === date).map(i => i.entry);
+                  const dayAdj = wItems.filter(i => i.kind === 'adj' && i.date === date).map(i => i.entry);
+                  const dayTotal =
+                    dayAtt.reduce((s: number, e: any) => s + Number(e.daily_salary || 0), 0) +
+                    dayAdj.reduce((s: number, a: any) => {
+                      if (a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi') return s + Number(a.amount);
+                      return s - Number(a.amount);
+                    }, 0);
+                  return (
+                    <div key={date} className="py-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold font-mono">{format(parseLocalDate(date), 'EEE, dd/MM')}</span>
+                        <span className="text-xs font-mono font-bold">{dayTotal.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                      <div className="ml-2 pl-2 border-l border-border/60 space-y-0.5">
+                        {dayAtt.map((entry: any) => {
+                          const isOvertime = entry.description?.includes('Overtime');
+                          return (
+                            <div key={entry.id} className="flex items-center justify-between gap-2 text-xs py-0.5">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className="font-medium">{t('workers.attendance', { defaultValue: 'Attendance' })}</span>
+                                {Number(entry.hours_worked) === 0.5 && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-warning border-warning">½</Badge>
+                                )}
+                                {isOvertime && (
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 gap-0.5"><Clock className="w-2.5 h-2.5" />OT</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="font-mono">{Number(entry.daily_salary).toLocaleString('fr-FR')}</span>
+                                <Button variant="ghost" size="icon" onClick={() => deletePaidAttendance.mutate(entry)} className="h-5 w-5 text-destructive hover:text-destructive">
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {dayAdj.map((adj: any) => renderAdjustmentLine(adj, true))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
