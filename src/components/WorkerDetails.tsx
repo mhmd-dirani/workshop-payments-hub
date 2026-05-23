@@ -1389,38 +1389,75 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="shadow-card">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span className="text-xs">{t('workers.workDays')}</span>
+      {/* Payment Preview — mirrors the dashboard payment exactly */}
+      <Card className="shadow-card">
+        <CardContent className="p-3 md:p-4 space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{t('workers.workDays')}: <span className="font-mono font-semibold text-foreground">{totalDays}</span></span>
             </div>
-            <p className="text-xl md:text-2xl font-bold font-mono mt-1">{totalDays}</p>
-          </CardContent>
-        </Card>
+            {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length > 1 && (
+              <span className="text-[10px]">{paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}</span>
+            )}
+          </div>
 
-        <Card className="shadow-card">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 text-warning">
-              <Wallet className="w-4 h-4" />
-              <span className="text-xs">{t('workers.totalOwed')}</span>
+          <div className="space-y-0.5 text-xs">
+            <div className="flex justify-between"><span className="text-muted-foreground">{t('workers.attendance', { defaultValue: 'Attendance' })}</span><span className="font-mono">+{paymentPlan.totals.attendance.toLocaleString('fr-FR')}</span></div>
+            {paymentPlan.totals.bonuses > 0 && (
+              <div className="flex justify-between text-success"><span>{t('workers.bonuses', { defaultValue: 'Bonuses' })}</span><span className="font-mono">+{paymentPlan.totals.bonuses.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.realDiscounts > 0 && (
+              <div className="flex justify-between text-destructive"><span>{t('workers.discounts', { defaultValue: 'Discounts' })}</span><span className="font-mono">-{paymentPlan.totals.realDiscounts.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.credits > 0 && (
+              <div className="flex justify-between text-warning">
+                <span>{t('workers.advancesApplied', { defaultValue: 'Advances applied' })}</span>
+                <span className="font-mono">-{paymentPlan.totals.creditsApplied.toLocaleString('fr-FR')}{paymentPlan.totals.creditsRemaining > 0 ? ` / -${paymentPlan.totals.credits.toLocaleString('fr-FR')}` : ''}</span>
+              </div>
+            )}
+            {paymentPlan.totals.holidayPay > 0 && (
+              <div className="flex justify-between text-primary"><span>{t('attendance.payHoliday')}</span><span className="font-mono">+{paymentPlan.totals.holidayPay.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.debtDeduction > 0 && (
+              <div className="flex justify-between text-warning"><span>{t('workers.debtRepaymentDeduction')}</span><span className="font-mono">-{paymentPlan.totals.debtDeduction.toLocaleString('fr-FR')}</span></div>
+            )}
+          </div>
+
+          <div className="border-t pt-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">{t('workers.toBePaid', { defaultValue: 'To be paid' })}</span>
+            <span className={cn('text-lg md:text-xl font-bold font-mono', paymentPlan.blocked ? 'text-destructive' : 'text-success')}>
+              {paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA
+            </span>
+          </div>
+
+          {paymentPlan.workshops.length > 1 && (
+            <div className="flex flex-wrap gap-1 pt-1 border-t">
+              {paymentPlan.workshops.map(wp => (
+                <Badge key={wp.workshopId} variant="secondary" className="text-[10px] gap-1 font-mono">
+                  <Building2 className="w-2.5 h-2.5" />
+                  {wp.workshopName}: {wp.paymentAmount.toLocaleString('fr-FR')}
+                </Badge>
+              ))}
             </div>
-            <p className="text-xl md:text-2xl font-bold font-mono text-warning mt-1">
-              {totalOwed.toLocaleString('fr-FR')} CFA
+          )}
+
+          {paymentPlan.blocked && (
+            <p className="text-[11px] text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1.5">
+              {t('workers.advancesExceedEarnings', { defaultValue: 'Advances exceed current earnings. Cannot settle salary — adjust the advance or wait for more attendance.' })}
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Single Pay Button */}
-      <Button 
-        onClick={openPayChoiceDialog} 
+      <Button
+        onClick={openPayChoiceDialog}
+        disabled={paymentPlan.blocked && paymentPlan.totals.toBePaid <= 0}
         className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
       >
         <Wallet className="w-4 h-4" />
-        {t('workers.payWorker')} ({totalOwed.toLocaleString('fr-FR')} CFA)
+        {t('workers.payWorker')} ({paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA)
       </Button>
 
       {/* Tabs for unpaid/history */}
