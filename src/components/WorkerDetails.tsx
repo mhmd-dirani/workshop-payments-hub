@@ -1678,15 +1678,35 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       {/* Payment Preview — mirrors the dashboard payment exactly */}
       <Card className="shadow-card">
         <CardContent className="p-3 md:p-4 space-y-2">
-          <div className="flex items-center justify-between text-muted-foreground text-xs">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{t('workers.workDays')}: <span className="font-mono font-semibold text-foreground">{totalDays}</span></span>
+          {/* Stats grid */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="flex flex-col items-center justify-center rounded-md border bg-muted/30 p-1.5">
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none">{totalDays}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.workDays')}</span>
             </div>
-            {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length > 1 && (
-              <span className="text-[10px]">{paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}</span>
-            )}
+            <div className="flex flex-col items-center justify-center rounded-md border bg-success/5 p-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-success mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-success">+{paymentPlan.totals.bonuses.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.bonuses', { defaultValue: 'Bonuses' })}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-md border bg-destructive/5 p-1.5">
+              <TrendingDown className="w-3.5 h-3.5 text-destructive mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-destructive">−{paymentPlan.totals.realDiscounts.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.discounts', { defaultValue: 'Discounts' })}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-md border bg-warning/5 p-1.5">
+              <MinusCircle className="w-3.5 h-3.5 text-warning mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-warning">−{paymentPlan.totals.credits.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.advance', { defaultValue: 'Advance' })}</span>
+            </div>
           </div>
+          {(paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length) > 1 && (
+            <div className="flex items-center justify-end text-[10px] text-muted-foreground">
+              <Building2 className="w-3 h-3 mr-1" />
+              {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}
+            </div>
+          )}
 
           <div className="space-y-0.5 text-xs">
             <div className="flex justify-between"><span className="text-muted-foreground">{t('workers.attendance', { defaultValue: 'Attendance' })}</span><span className="font-mono">+{paymentPlan.totals.attendance.toLocaleString('fr-FR')}</span></div>
