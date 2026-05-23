@@ -816,6 +816,8 @@
     "addPurchase": "إضافة شراء",
     "purchaseAdded": "تم تسجيل الشراء",
     "purchaseDeleted": "تم حذف الشراء",
+    "editPurchase": "تعديل الشراء",
+    "purchaseUpdated": "تم تحديث الشراء",
     "noPurchases": "لا توجد مشتريات مسجلة",
     "purchaseDescPlaceholder": "ماذا تم شراؤه؟",
     "markAsAdvance": "تحويل المتبقي إلى سلفة",
