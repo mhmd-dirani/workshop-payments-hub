@@ -295,6 +295,20 @@ export default function Users() {
       : <span>{t('users.workshopsSelected', { count })}</span>;
   };
 
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!currentUser || role !== 'admin') {
+    return <Navigate to={!currentUser ? '/auth' : '/'} replace />;
+  }
+
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6">
