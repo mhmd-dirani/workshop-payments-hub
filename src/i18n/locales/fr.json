@@ -825,7 +825,10 @@
     "newPurchase": "Nouvel achat",
     "linkExistingPayment": "Lier paiement",
     "searchExistingPayments": "Rechercher paiements par nom ou atelier...",
-    "linkPayment": "Lier ce paiement"
+    "linkPayment": "Lier ce paiement",
+    "records": "entrées",
+    "budgetAdvanceNote": "Budget {{total}} CFA — seuls {{part}} CFA marqués comme avance",
+    "budgetMaterialsNote": "Budget {{total}} CFA — seuls {{part}} CFA pour les matériaux"
   },
   "days": {
     "sun": "dim",
