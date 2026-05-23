@@ -23,24 +23,74 @@ export function translateReason(reason: string, t: TFunction): string {
   if (!reason) return reason;
   
   let result = reason;
-  
-  // Contractor label
-  result = result.replace(/\[Contractor\]/g, `[${t('contractors.contractor')}]`);
-  
-  // Worker payment reasons (match longer patterns first)
-  result = result.replace(/- Partial salary payment/g, `- ${t('workers.partialPaymentReason')}`);
-  result = result.replace(/- Advance payment/g, `- ${t('workers.advancePaymentReason')}`);
-  result = result.replace(/- Bonus\/Discount payment/g, `- ${t('workers.bonusPaymentReason')}`);
-  result = result.replace(/- Bonus\/Taxi payment/g, `- ${t('workers.bonusPaymentReason')}`);
-  result = result.replace(/- Taxi payment(?!\s*\()/g, `- ${t('workers.taxiPaymentReason', { defaultValue: 'Taxi payment' })}`);
-  result = result.replace(/- Bonus payment(?!\s*\()/g, `- ${t('workers.bonusOnlyPaymentReason', { defaultValue: 'Bonus payment' })}`);
-  result = result.replace(/- Overtime payment/g, `- ${t('workers.overtimePaymentReason')}`);
-  
-  // Contractor payment types (after worker patterns to avoid conflicts)
-  result = result.replace(/- Product\/Material/g, `- ${t('contractors.paymentTypes.product')}`);
-  result = result.replace(/\(Budget remaining\)/g, `(${t('contractors.budgetRemaining')})`);
-  // Contractor advance - only match "- Advance" NOT followed by " payment" (already handled above)
-  result = result.replace(/- Advance(?! payment)/g, `- ${t('contractors.paymentTypes.advance')}`);
+
+  // Capitalize the first letter of a (potentially diacritic) word
+  const cap = (s: string) => (s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : s);
+
+  // ─────────────────────────────────────────────────────────────
+  // Contractor reasons — rewrite the whole line for elegance.
+  //   "[Contractor] mahmoud - Advance (Budget remaining)"
+  //   →  "Mahmoud  ·  Contractor advance  ·  from budget remaining"
+  //
+  //   "[Contractor] mahmoud - Product/Material: cement"
+  //   →  "Mahmoud  ·  Contractor materials  ·  cement"
+  // ─────────────────────────────────────────────────────────────
+  result = result.replace(
+    /\[Contractor\]\s*([^\n\-]+?)\s*-\s*([^\n:]+?)(?:\s*\(([^)]+)\))?(?::\s*(.+?))?(?=\n|$)/g,
+    (_full, name: string, type: string, paren: string | undefined, detail: string | undefined) => {
+      const cleanName = cap(name.trim());
+      const t2 = type.trim();
+      let typeLabel: string;
+      if (/^Advance$/i.test(t2)) typeLabel = t('contractors.contractor') + ' ' + t('contractors.paymentTypes.advance').toLowerCase();
+      else if (/^Product\/?Material$/i.test(t2)) typeLabel = t('contractors.contractor') + ' ' + t('contractors.paymentTypes.product').toLowerCase();
+      else if (/^Material Budget$/i.test(t2)) typeLabel = t('contractors.contractor') + ' ' + t('contractors.paymentTypes.material_budget').toLowerCase();
+      else typeLabel = t('contractors.contractor') + ' · ' + t2;
+
+      const parts = [cleanName, typeLabel];
+      if (paren) {
+        // "Budget remaining" → translated as a soft note
+        const lower = paren.trim();
+        if (/^budget remaining$/i.test(lower)) {
+          parts.push(t('contractors.budgetRemaining').toLowerCase());
+        } else {
+          parts.push(lower);
+        }
+      }
+      if (detail) parts.push(detail.trim());
+      return parts.join('  ·  ');
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Worker direct payments (partial / advance / bonus / taxi / overtime)
+  //   "Aanz - Partial salary payment (3 000 CFA)"
+  //   →  "Aanz  ·  Partial salary  ·  3 000 CFA"
+  // ─────────────────────────────────────────────────────────────
+  const workerKindMap: Array<[RegExp, string]> = [
+    [/Partial salary payment/i, t('workers.partialPaymentReason')],
+    [/Advance payment/i, t('workers.advancePaymentReason')],
+    [/Overtime payment/i, t('workers.overtimePaymentReason')],
+    [/Bonus\/(Discount|Taxi) payment/i, t('workers.bonusPaymentReason')],
+    [/Taxi payment/i, t('workers.taxiPaymentReason', { defaultValue: 'Taxi payment' })],
+    [/Bonus payment/i, t('workers.bonusOnlyPaymentReason', { defaultValue: 'Bonus payment' })],
+  ];
+  result = result.replace(
+    /^([^\n\-\[\]]+?)\s*-\s*([^\n(]+?)(?:\s*\(([^)]+)\))?(?=\n|$)/gm,
+    (full, name: string, kind: string, paren: string | undefined) => {
+      // Skip if this line was already produced by the contractor pass (contains "  ·  ")
+      if (full.includes('  ·  ')) return full;
+      const k = kind.trim();
+      const match = workerKindMap.find(([rx]) => rx.test(k));
+      if (!match) return full; // not one of the known worker kinds — leave untouched
+      const cleanName = cap(name.trim());
+      const parts = [cleanName, match[1]];
+      if (paren) parts.push(paren.trim());
+      return parts.join('  ·  ');
+    },
+  );
+
+  // Catch any leftover contractor tag (legacy fallthroughs)
+  result = result.replace(/\[Contractor\]\s*/g, `${t('contractors.contractor')} · `);
   
   // Worker debt tags - strip internal markers
   result = result.replace(/\s*\[WORKER_DEBT\]/g, '');
