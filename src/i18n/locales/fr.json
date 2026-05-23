@@ -816,6 +816,8 @@
     "addPurchase": "Ajouter un achat",
     "purchaseAdded": "Achat enregistré",
     "purchaseDeleted": "Achat supprimé",
+    "editPurchase": "Modifier l'achat",
+    "purchaseUpdated": "Achat mis à jour",
     "noPurchases": "Aucun achat enregistré",
     "purchaseDescPlaceholder": "Qu'est-ce qui a été acheté?",
     "markAsAdvance": "Marquer le restant comme avance",
