@@ -8,6 +8,26 @@ export interface UserBalanceBreakdown {
   balance: number;
 }
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(
+  queryPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await queryPage(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = data || [];
+    rows.push(...page);
+
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  return rows;
+}
+
 /**
  * SINGLE SOURCE OF TRUTH for a user's global balance.
  *
@@ -28,15 +48,21 @@ export interface UserBalanceBreakdown {
  *    via a discount on their next salary), which is correct.
  */
 export async function fetchUserBalance(userId: string): Promise<UserBalanceBreakdown> {
-  const [transfersRes, paymentsRes, personalRes] = await Promise.all([
-    supabase.from('team_transfers').select('amount').eq('user_id', userId),
-    supabase.from('payments').select('amount').eq('created_by', userId).eq('status', 'approved'),
-    supabase.from('personal_payments').select('amount').eq('user_id', userId),
+  const [transfers, payments, personalPayments] = await Promise.all([
+    fetchAllPages<{ amount: number | string }>((from, to) =>
+      supabase.from('team_transfers').select('amount').eq('user_id', userId).order('id').range(from, to)
+    ),
+    fetchAllPages<{ amount: number | string }>((from, to) =>
+      supabase.from('payments').select('amount').eq('created_by', userId).eq('status', 'approved').order('id').range(from, to)
+    ),
+    fetchAllPages<{ amount: number | string }>((from, to) =>
+      supabase.from('personal_payments').select('amount').eq('user_id', userId).order('id').range(from, to)
+    ),
   ]);
 
-  const received = (transfersRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-  const workshopSpent = (paymentsRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-  const personalSpent = (personalRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const received = transfers.reduce((s, r) => s + Number(r.amount), 0);
+  const workshopSpent = payments.reduce((s, r) => s + Number(r.amount), 0);
+  const personalSpent = personalPayments.reduce((s, r) => s + Number(r.amount), 0);
   const totalSpent = workshopSpent + personalSpent;
 
   return {
@@ -58,24 +84,32 @@ export async function fetchAllUserBalances(
   if (userIds.length === 0) return new Map();
 
   const [transfersRes, paymentsRes, personalRes] = await Promise.all([
-    supabase.from('team_transfers').select('user_id, amount').in('user_id', userIds),
-    supabase
-      .from('payments')
-      .select('created_by, amount')
-      .in('created_by', userIds)
-      .eq('status', 'approved'),
-    supabase.from('personal_payments').select('user_id, amount').in('user_id', userIds),
+    fetchAllPages<{ user_id: string; amount: number | string }>((from, to) =>
+      supabase.from('team_transfers').select('user_id, amount').in('user_id', userIds).order('id').range(from, to)
+    ),
+    fetchAllPages<{ created_by: string; amount: number | string }>((from, to) =>
+      supabase
+        .from('payments')
+        .select('created_by, amount')
+        .in('created_by', userIds)
+        .eq('status', 'approved')
+        .order('id')
+        .range(from, to)
+    ),
+    fetchAllPages<{ user_id: string; amount: number | string }>((from, to) =>
+      supabase.from('personal_payments').select('user_id, amount').in('user_id', userIds).order('id').range(from, to)
+    ),
   ]);
 
   const result = new Map<string, UserBalanceBreakdown>();
   for (const id of userIds) {
-    const received = (transfersRes.data || [])
+    const received = transfersRes
       .filter((r) => r.user_id === id)
       .reduce((s, r) => s + Number(r.amount), 0);
-    const workshopSpent = (paymentsRes.data || [])
+    const workshopSpent = paymentsRes
       .filter((r) => r.created_by === id)
       .reduce((s, r) => s + Number(r.amount), 0);
-    const personalSpent = (personalRes.data || [])
+    const personalSpent = personalRes
       .filter((r) => r.user_id === id)
       .reduce((s, r) => s + Number(r.amount), 0);
     const totalSpent = workshopSpent + personalSpent;
