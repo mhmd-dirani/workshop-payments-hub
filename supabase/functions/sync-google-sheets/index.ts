@@ -229,6 +229,10 @@ function rangePath(sheet: string, range: string) {
   return encodeURI(`${quoteSheet(sheet)}!${range}`);
 }
 
+function rangeA1(sheet: string, range: string) {
+  return `${quoteSheet(sheet)}!${range}`;
+}
+
 function colLetter(index: number) {
   let n = index + 1;
   let s = '';
@@ -472,22 +476,15 @@ Deno.serve(async (req) => {
 
     const tablesExported: Record<string, number> = {};
     const formattingRequests: any[] = [];
+    const clearRanges: string[] = [];
+    const valueUpdates: { range: string; values: any[][] }[] = [];
 
     for (const spec of TABLE_SPECS) {
       const rows = await fetchAll(spec.table, '*');
       const headers = spec.columns.map((c) => c.label);
       const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
-
-      await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values/${rangePath(spec.sheet, 'A:ZZ')}:clear`, {
-        method: 'POST',
-        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      });
-      const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values/${rangePath(spec.sheet, 'A1')}?valueInputOption=USER_ENTERED`, {
-        method: 'PUT',
-        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-        body: JSON.stringify({ values: [headers, ...values] }),
-      });
-      if (!writeRes.ok) throw new Error(`Write ${spec.sheet} failed: ${writeRes.status} ${await writeRes.text()}`);
+      clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
+      valueUpdates.push({ range: rangeA1(spec.sheet, 'A1'), values: [headers, ...values] });
       tablesExported[spec.sheet] = rows.length;
 
       const sheetId = sheetIds.get(spec.sheet);
@@ -507,16 +504,22 @@ Deno.serve(async (req) => {
     }
 
     const dashboardValues = buildDashboardValues(wsRows.map((w: any) => w.name).filter(Boolean));
-    await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values/${rangePath(DASHBOARD_SHEET, 'A:Z')}:clear`, {
+    clearRanges.push(rangeA1(DASHBOARD_SHEET, 'A:Z'));
+    valueUpdates.push({ range: rangeA1(DASHBOARD_SHEET, 'A1'), values: dashboardValues });
+
+    const clearRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchClear`, {
       method: 'POST',
       headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+      body: JSON.stringify({ ranges: clearRanges }),
     });
-    const dashWrite = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values/${rangePath(DASHBOARD_SHEET, 'A1')}?valueInputOption=USER_ENTERED`, {
+    if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
+
+    const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
       method: 'PUT',
       headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      body: JSON.stringify({ values: dashboardValues }),
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
     });
-    if (!dashWrite.ok) throw new Error(`Write Dashboard failed: ${dashWrite.status} ${await dashWrite.text()}`);
+    if (!writeRes.ok) throw new Error(`Write spreadsheet failed: ${writeRes.status} ${await writeRes.text()}`);
 
     const dashId = sheetIds.get(DASHBOARD_SHEET);
     if (dashId !== undefined) {
