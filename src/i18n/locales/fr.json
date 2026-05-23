@@ -65,6 +65,7 @@
     "overtimePaymentDesc": "Payer plusieurs travailleurs pour des heures supplémentaires",
     "overtimeDate": "Date des heures supp.",
     "overtimeReason": "Raison des heures supp.",
+    "overtimeBookedOnSunday": "Sera enregistré le dimanche {{date}}",
     "overtimeReasonPlaceholder": "Pourquoi ont-ils travaillé en heures supp. ?",
     "totalOvertimeAmount": "Montant total (partagé)",
     "perWorker": "par travailleur",

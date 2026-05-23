@@ -65,6 +65,7 @@
     "overtimePaymentDesc": "دفع لعدة عمال مقابل العمل الإضافي مرة واحدة",
     "overtimeDate": "تاريخ العمل الإضافي",
     "overtimeReason": "سبب العمل الإضافي",
+    "overtimeBookedOnSunday": "سيتم تسجيله يوم الأحد {{date}}",
     "overtimeReasonPlaceholder": "لماذا عملوا وقت إضافي؟",
     "totalOvertimeAmount": "المبلغ الإجمالي (مشترك)",
     "perWorker": "لكل عامل",
