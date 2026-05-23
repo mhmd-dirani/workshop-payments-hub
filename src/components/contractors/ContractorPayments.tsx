@@ -465,31 +465,51 @@ export default function ContractorPayments() {
     mutationFn: async () => {
       if (!editingPurchase) return;
       const newAmount = Number(editPurchaseAmount);
-      // Update the purchase row
+
+      // Resolve the linked main-dashboard payment id. Legacy / "mark remaining
+      // as advance" purchases were created without payment_id on the purchase
+      // row itself, but the link still exists via the matching
+      // contractor_payments(budget_purchase) row.
+      let linkedPaymentId: string | null = editingPurchase.payment_id || null;
+      if (!linkedPaymentId) {
+        const { data: cpRow } = await supabase
+          .from('contractor_payments')
+          .select('payment_id')
+          .eq('payment_type', 'budget_purchase')
+          .eq('payment_date', editingPurchase.purchase_date)
+          .eq('amount', editingPurchase.amount)
+          .not('payment_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        linkedPaymentId = cpRow?.payment_id || null;
+      }
+
+      // Update the purchase row (and persist the resolved link for next time)
       const { error } = await supabase.from('contractor_budget_purchases')
         .update({
           amount: newAmount,
           purchase_date: editPurchaseDate,
           description: editPurchaseDescription,
+          ...(linkedPaymentId && !editingPurchase.payment_id ? { payment_id: linkedPaymentId } : {}),
         })
         .eq('id', editingPurchase.id);
       if (error) throw error;
 
       // Cascade to the linked main dashboard payment + contractor_payments(budget_purchase) row
-      if (editingPurchase.payment_id) {
+      if (linkedPaymentId) {
         await supabase.from('payments')
           .update({
             amount: newAmount,
             payment_date: editPurchaseDate,
           })
-          .eq('id', editingPurchase.payment_id);
+          .eq('id', linkedPaymentId);
         await supabase.from('contractor_payments')
           .update({
             amount: newAmount,
             payment_date: editPurchaseDate,
             description: editPurchaseDescription,
           })
-          .eq('payment_id', editingPurchase.payment_id)
+          .eq('payment_id', linkedPaymentId)
           .eq('payment_type', 'budget_purchase');
       }
     },
@@ -574,6 +594,7 @@ export default function ContractorPayments() {
         purchase_date: format(new Date(), 'yyyy-MM-dd'),
         description: `[${workshopName}] ${t('contractors.budgetRemaining')}: ${remaining.toLocaleString('fr-FR')} CFA`,
         created_by: user!.id,
+        payment_id: paymentRecord.id,
       });
       if (error) throw error;
 
