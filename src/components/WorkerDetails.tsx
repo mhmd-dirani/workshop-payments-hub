@@ -889,6 +889,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       const typeLabel = overtimeType === 'sunday' ? t('workers.overtimeSunday', { defaultValue: 'Sunday work' }) : t('workers.overtimeHours', { defaultValue: 'Extra hours' }) + (hours > 1 ? ` (${hours}h)` : '');
       const reason = `${worker.name} - ${t('workers.payOvertime', { defaultValue: 'Overtime' })}: ${typeLabel}`;
 
+      // For Sunday-type overtime, anchor the work_date to the previous Sunday (or today if Sunday).
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      let workDateStr = todayStr;
+      if (overtimeType === 'sunday') {
+        const dow = today.getDay();
+        const sunday = dow === 0 ? today : addDays(today, -dow);
+        workDateStr = format(sunday, 'yyyy-MM-dd');
+      }
+
       if (overtimePaidNow) {
         // Paid now: create payment + paid attendance entry
         const { data: payment, error: paymentError } = await supabase
@@ -898,7 +908,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
             paid_to: categoryLabel,
             reason,
             amount,
-            payment_date: format(new Date(), 'yyyy-MM-dd'),
+            payment_date: todayStr,
             created_by: user?.id,
             status: role === 'admin' ? 'approved' : 'pending',
           }])
@@ -910,7 +920,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         await supabase.from('attendance').insert({
           worker_id: worker.id,
           workshop_id: overtimeWorkshopId,
-          work_date: format(new Date(), 'yyyy-MM-dd'),
+          work_date: workDateStr,
           hours_worked: 1,
           hourly_rate: amount,
           has_extra: false,
@@ -927,7 +937,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         await supabase.from('attendance').insert({
           worker_id: worker.id,
           workshop_id: overtimeWorkshopId,
-          work_date: format(new Date(), 'yyyy-MM-dd'),
+          work_date: workDateStr,
           hours_worked: 1,
           hourly_rate: amount,
           has_extra: false,
