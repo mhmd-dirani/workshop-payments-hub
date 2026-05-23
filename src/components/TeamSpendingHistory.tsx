@@ -30,13 +30,18 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
     queryFn: async () => {
       // Get all approved payments by this user
       const { data: paymentsData, error } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('created_by', userId)
-        .eq('status', 'approved')
-        .order('payment_date', { ascending: false });
-
-      if (error) throw error;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select('*')
+          .eq('created_by', userId)
+          .eq('status', 'approved')
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
+      const error = null as any;
 
       // Get workshop names
       const workshopIds = [...new Set(paymentsData?.map(p => p.workshop_id) || [])];
