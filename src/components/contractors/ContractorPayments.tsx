@@ -904,6 +904,36 @@ export default function ContractorPayments() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Purchase Dialog */}
+      <Dialog open={!!editingPurchase} onOpenChange={(open) => { if (!open) setEditingPurchase(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.editPurchase')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t('common.amount')}</Label>
+              <Input type="number" inputMode="decimal" value={editPurchaseAmount} onChange={e => setEditPurchaseAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t('common.date')}</Label>
+              <Input type="date" value={editPurchaseDate} onChange={e => setEditPurchaseDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t('common.description')}</Label>
+              <Textarea rows={2} value={editPurchaseDescription} onChange={e => setEditPurchaseDescription(e.target.value)} />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => editPurchaseMutation.mutate()}
+              disabled={editPurchaseAmount === '' || Number(editPurchaseAmount) < 0 || !editPurchaseDate || editPurchaseMutation.isPending}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Mark Remaining as Advance Confirmation */}
       <Dialog open={!!markAdvancePayment} onOpenChange={(open) => { if (!open) setMarkAdvancePayment(null); }}>
         <DialogContent className="max-w-xs">
