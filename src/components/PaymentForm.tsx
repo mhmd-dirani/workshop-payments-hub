@@ -33,6 +33,7 @@ import { Loader2, Check, ChevronsUpDown, Camera, Upload, X, Image, Users2, Build
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
+import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
 const paymentSchema = z.object({
   paid_to: z.string().trim().min(1, 'Paid to is required').max(200, 'Paid to must be less than 200 characters'),
@@ -324,6 +325,14 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       });
     
     if (dbError) throw dbError;
+
+    mirrorWorkshopFileToDrive({
+      workshopId,
+      workshopName,
+      storagePath: fileName,
+      fileName: selectedFile.name,
+      fileType: selectedFile.type,
+    });
   };
 
   const saveMutation = useMutation({

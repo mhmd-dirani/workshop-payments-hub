@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Camera, Upload, X, Image } from 'lucide-react';
 import { z } from 'zod';
+import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
 const incomeSchema = z.object({
   amount: z.number()
@@ -136,6 +137,14 @@ export default function IncomeForm({ workshopId, workshopName, open, onOpenChang
       });
     
     if (dbError) throw dbError;
+
+    mirrorWorkshopFileToDrive({
+      workshopId,
+      workshopName,
+      storagePath: fileName,
+      fileName: selectedFile.name,
+      fileType: selectedFile.type,
+    });
   };
 
   const saveMutation = useMutation({
