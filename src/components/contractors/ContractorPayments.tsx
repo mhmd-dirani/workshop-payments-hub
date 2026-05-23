@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Plus, Trash2, Upload, Camera, Search, ChevronDown, ChevronUp, Edit2, DollarSign, Link, Wallet, Package, HandCoins, X, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
 const PAYMENT_TYPES = ['advance', 'product', 'material_budget'];
 
@@ -219,6 +220,14 @@ export default function ContractorPayments() {
       payment_id: paymentId,
     });
     if (dbError) throw dbError;
+
+    mirrorWorkshopFileToDrive({
+      workshopId: workshopForPayment,
+      workshopName,
+      storagePath: fileName,
+      fileName: file.name,
+      fileType: file.type,
+    });
 
     return fileName;
   };
