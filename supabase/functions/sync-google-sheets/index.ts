@@ -263,7 +263,9 @@ function driveQueryLiteral(value: string) {
 }
 
 function driveFileName(row: any) {
-  const date = row.created_at ? String(row.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const date = row.created_at
+    ? String(row.created_at).slice(0, 16).replace('T', ' ').replace(':', '-')
+    : new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '-');
   const original = safeDriveName(row.file_name || 'file');
   return `${date} - ${original}`;
 }
