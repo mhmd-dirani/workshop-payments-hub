@@ -16,9 +16,11 @@ import UserWorkshopPayments from '@/components/UserWorkshopPayments';
 import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import WorkshopFilesManager from '@/components/WorkshopFilesManager';
 import UserDebtTracker from '@/components/UserDebtTracker';
+import DatabaseUsageCard from '@/components/DatabaseUsageCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
+import { fetchAllPages } from '@/lib/paginate';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -43,59 +45,59 @@ export default function Dashboard() {
   const { data: globalStats } = useQuery({
     queryKey: ['global-wealth-stats'],
     queryFn: async () => {
-      // Get all workshops income
-      const { data: allIncome } = await supabase
-        .from('income')
-        .select('amount');
-      const totalIncome = allIncome?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
+      // Get all workshops income (paginated — bypasses the 1000-row PostgREST cap)
+      const allIncome = await fetchAllPages<{ amount: number | string }>((from, to) =>
+        supabase.from('income').select('amount').order('id').range(from, to)
+      );
+      const totalIncome = allIncome.reduce((sum, i) => sum + Number(i.amount), 0);
 
-      // Get all approved payments
-      const { data: allPayments } = await supabase
-        .from('payments')
-        .select('amount')
-        .eq('status', 'approved');
-      const totalPaid = allPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      // Get all approved payments (paginated)
+      const allPayments = await fetchAllPages<{ amount: number | string }>((from, to) =>
+        supabase.from('payments').select('amount').eq('status', 'approved').order('id').range(from, to)
+      );
+      const totalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
       // Total balance across all workshops
       const totalBalance = totalIncome - totalPaid;
 
       // Get debts - what others owe me (they_owe type)
-      const { data: theyOweDebts } = await supabase
-        .from('debts')
-        .select('amount, is_settled')
-        .eq('debt_type', 'they_owe')
-        .eq('is_settled', false);
-      
-      // Get debt payments for they_owe
-      const theyOweIds = theyOweDebts?.map(d => d) || [];
-      const { data: theyOwePayments } = await supabase
-        .from('debt_payments')
-        .select('amount, debt_id');
-      
-      // Calculate net they owe (original - payments made)
-      const { data: allTheyOweDebts } = await supabase
-        .from('debts')
-        .select('id, amount')
-        .eq('debt_type', 'they_owe')
-        .eq('is_settled', false);
+      // Debt payments (paginated)
+      const theyOwePayments = await fetchAllPages<{ amount: number | string; debt_id: string }>((from, to) =>
+        supabase.from('debt_payments').select('amount, debt_id').order('id').range(from, to)
+      );
+
+      // they_owe debts (paginated)
+      const allTheyOweDebts = await fetchAllPages<{ id: string; amount: number | string }>((from, to) =>
+        supabase
+          .from('debts')
+          .select('id, amount')
+          .eq('debt_type', 'they_owe')
+          .eq('is_settled', false)
+          .order('id')
+          .range(from, to)
+      );
       
       let theyOweTotal = 0;
-      allTheyOweDebts?.forEach(debt => {
-        const payments = theyOwePayments?.filter(p => p.debt_id === debt.id) || [];
+      allTheyOweDebts.forEach(debt => {
+        const payments = theyOwePayments.filter(p => p.debt_id === debt.id);
         const paidSoFar = payments.reduce((sum, p) => sum + Number(p.amount), 0);
         theyOweTotal += Number(debt.amount) - paidSoFar;
       });
 
-      // Get debts - what I owe others (i_owe type)
-      const { data: allIOweDebts } = await supabase
-        .from('debts')
-        .select('id, amount')
-        .eq('debt_type', 'i_owe')
-        .eq('is_settled', false);
+      // i_owe debts (paginated)
+      const allIOweDebts = await fetchAllPages<{ id: string; amount: number | string }>((from, to) =>
+        supabase
+          .from('debts')
+          .select('id, amount')
+          .eq('debt_type', 'i_owe')
+          .eq('is_settled', false)
+          .order('id')
+          .range(from, to)
+      );
       
       let iOweTotal = 0;
-      allIOweDebts?.forEach(debt => {
-        const payments = theyOwePayments?.filter(p => p.debt_id === debt.id) || [];
+      allIOweDebts.forEach(debt => {
+        const payments = theyOwePayments.filter(p => p.debt_id === debt.id);
         const paidSoFar = payments.reduce((sum, p) => sum + Number(p.amount), 0);
         iOweTotal += Number(debt.amount) - paidSoFar;
       });
@@ -402,6 +404,8 @@ export default function Dashboard() {
             )}
           </>
         )}
+
+        {role === 'admin' && <DatabaseUsageCard />}
       </div>
     </Layout>
   );

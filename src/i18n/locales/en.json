@@ -841,5 +841,23 @@
     "thu": "thu",
     "fri": "fri",
     "sat": "sat"
+  },
+  "dbUsage": {
+    "title": "Database Usage",
+    "description": "Live row counts. Each query is capped at {{limit}} rows by the database — pagination is enabled, but watch for tables approaching the limit.",
+    "note": "All aggregations in the app already paginate through this cap, so totals stay accurate. This panel is a heads-up to plan archiving when a table grows large.",
+    "tables": {
+      "payments": "Payments",
+      "personal_payments": "Personal payments",
+      "team_transfers": "Team transfers",
+      "attendance": "Attendance entries",
+      "worker_adjustments": "Worker adjustments",
+      "contractor_payments": "Contractor payments",
+      "contractor_budget_purchases": "Material purchases",
+      "income": "Income",
+      "debts": "Debts",
+      "debt_payments": "Debt repayments",
+      "workshop_files": "Workshop files"
+    }
   }
 }

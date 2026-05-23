@@ -840,5 +840,23 @@
     "thu": "jeu",
     "fri": "ven",
     "sat": "sam"
+  },
+  "dbUsage": {
+    "title": "Utilisation de la base",
+    "description": "Compteurs en direct. Chaque requête est limitée à {{limit}} lignes par la base — la pagination est activée, surveillez les tables qui approchent la limite.",
+    "note": "Toutes les agrégations de l'application paginent déjà au-delà de cette limite, donc les totaux restent exacts. Ce panneau vous prévient pour archiver à temps.",
+    "tables": {
+      "payments": "Paiements",
+      "personal_payments": "Paiements personnels",
+      "team_transfers": "Transferts d'équipe",
+      "attendance": "Pointages",
+      "worker_adjustments": "Ajustements ouvriers",
+      "contractor_payments": "Paiements sous-traitants",
+      "contractor_budget_purchases": "Achats de matériaux",
+      "income": "Revenus",
+      "debts": "Dettes",
+      "debt_payments": "Remboursements de dettes",
+      "workshop_files": "Fichiers du chantier"
+    }
   }
 }
