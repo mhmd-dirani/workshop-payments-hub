@@ -436,14 +436,72 @@ export default function ContractorPayments() {
       if (purchase.receipt_file_path) {
         await supabase.storage.from('workshop-files').remove([purchase.receipt_file_path]);
       }
+      // Cascade: if this purchase is linked to a main dashboard payment, remove that
+      // payment and its contractor_payments(budget_purchase) row so the dashboard
+      // total and balances stay in sync.
+      if (purchase.payment_id) {
+        await supabase.from('contractor_payments')
+          .delete()
+          .eq('payment_id', purchase.payment_id)
+          .eq('payment_type', 'budget_purchase');
+        await supabase.from('workshop_files').delete().eq('payment_id', purchase.payment_id);
+        await supabase.from('payments').delete().eq('id', purchase.payment_id);
+      }
       const { error } = await supabase.from('contractor_budget_purchases').delete().eq('id', purchase.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-payments-for-budget'] });
       toast({ title: t('contractors.purchaseDeleted') });
     },
+  });
+
+  const editPurchaseMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPurchase) return;
+      const newAmount = Number(editPurchaseAmount);
+      // Update the purchase row
+      const { error } = await supabase.from('contractor_budget_purchases')
+        .update({
+          amount: newAmount,
+          purchase_date: editPurchaseDate,
+          description: editPurchaseDescription,
+        })
+        .eq('id', editingPurchase.id);
+      if (error) throw error;
+
+      // Cascade to the linked main dashboard payment + contractor_payments(budget_purchase) row
+      if (editingPurchase.payment_id) {
+        await supabase.from('payments')
+          .update({
+            amount: newAmount,
+            payment_date: editPurchaseDate,
+          })
+          .eq('id', editingPurchase.payment_id);
+        await supabase.from('contractor_payments')
+          .update({
+            amount: newAmount,
+            payment_date: editPurchaseDate,
+            description: editPurchaseDescription,
+          })
+          .eq('payment_id', editingPurchase.payment_id)
+          .eq('payment_type', 'budget_purchase');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-payments-for-budget'] });
+      toast({ title: t('contractors.purchaseUpdated') });
+      setEditingPurchase(null);
+    },
+    onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
   });
 
   const editBudgetMutation = useMutation({
