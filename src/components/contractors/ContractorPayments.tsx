@@ -58,6 +58,10 @@ export default function ContractorPayments() {
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'existing'>('new');
   const [selectedExistingPaymentId, setSelectedExistingPaymentId] = useState('');
   const [existingPaymentSearch, setExistingPaymentSearch] = useState('');
+  const [editingPurchase, setEditingPurchase] = useState<any>(null);
+  const [editPurchaseAmount, setEditPurchaseAmount] = useState('');
+  const [editPurchaseDate, setEditPurchaseDate] = useState('');
+  const [editPurchaseDescription, setEditPurchaseDescription] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
