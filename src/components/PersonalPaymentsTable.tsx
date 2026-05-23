@@ -44,7 +44,6 @@ export default function PersonalPaymentsTable() {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['personal-payments', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
       const { fetchAllPages } = await import('@/lib/paginate');
       const data = await fetchAllPages<any>((from, to) =>
         supabase
