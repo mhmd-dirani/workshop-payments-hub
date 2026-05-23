@@ -45,6 +45,7 @@ import {
 import WorkshopAssignments from '@/components/WorkshopAssignments';
 import MemberAssignments from '@/components/MemberAssignments';
 import { useAuth } from '@/lib/auth';
+import { Navigate } from 'react-router-dom';
 import { z } from 'zod';
 
 // Validation schema
