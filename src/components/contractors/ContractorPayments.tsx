@@ -936,9 +936,10 @@ export default function ContractorPayments() {
               // productBudgetTotal is added to the displayed total, so they
               // must appear in the list too — otherwise total ≠ list).
               if (productSpent <= 0) return false;
-            } else if (filterPaymentType === 'material_budget') {
-              if (productSpent <= 0) return false;
             }
+            // material_budget filter: always show every budget, whether
+            // unspent, partially spent, or fully consumed (as products or
+            // advance). The total above reflects budget − advance portion.
           } else {
             // When filtering by workshop, only show payments in that workshop
             if (filterWorkshop !== 'all' && p.workshop_id !== filterWorkshop) return false;
