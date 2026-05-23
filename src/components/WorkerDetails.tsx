@@ -1871,328 +1871,54 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </Select>
               </div>
 
-              {/* Paid Adjustments (Bonuses/Discounts) Section - filtered */}
-              {filteredPaidAdjustments.length > 0 && (
-                <Card className="shadow-card">
-                  <CardHeader className="pb-2 px-3 pt-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-warning" />
-                      {t('workers.paidAdjustments', { defaultValue: 'Paid Bonuses & Discounts' })}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <div className="space-y-1">
-                      {filteredPaidAdjustments.map((adj) => (
-                        <div key={adj.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                          <div className="flex flex-col">
-                            <span className="font-mono text-xs">
-                              {format(new Date(adj.work_date), 'EEE, dd/MM')}
-                            </span>
-                            <Badge variant="outline" className="text-[10px] mt-1 w-fit">
-                              {(adj.workshops as any)?.name}
-                            </Badge>
-                            {adj.reason && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{adj.reason}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi' ? (
-                              <Badge variant="secondary" className="gap-1 font-mono">
-                                <Sparkles className="w-3 h-3" />
-                                +{Number(adj.amount).toLocaleString('fr-FR')}
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive" className="gap-1 font-mono">
-                                <MinusCircle className="w-3 h-3" />
-                                -{Number(adj.amount).toLocaleString('fr-FR')}
-                              </Badge>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingBonusAdj(adj);
-                                setEditBonusAdjAmount(String(adj.amount));
-                                setEditBonusAdjReason(adj.reason || '');
-                              }}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setBonusAdjToDelete(adj);
-                              }}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {filteredPaidAttendance.length === 0 && filteredPaidAdjustments.length === 0 ? (
+              {historyByWeek.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <p>{t('workers.noPaymentHistory')}</p>
                   </CardContent>
                 </Card>
-              ) : filteredPaidAttendance.length > 0 ? (
-                <Card className="shadow-card">
-                  <CardContent className="p-0">
-                    <div className="md:hidden">
-                      {filteredPaidAttendance.map((entry) => {
-                        const isOvertime = entry.description?.includes('Overtime');
-                        const extraAmount = Number(entry.extra_amount) || 0;
-                        const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                        const discountAmount = Number(entry.discount_amount) || 0;
-                        const hasDiscount = discountAmount > 0;
-                        const extraReason = entry.extra_reason?.trim();
-                        const discountReason = entry.discount_reason?.trim();
-                        const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                        const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
-                        const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
-                        return (
-                          <div key={entry.id} className="p-3 border-b last:border-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <p className="font-mono text-xs">
-                                    {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
-                                  </p>
-                                  {Number(entry.hours_worked) === 0.5 && (
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                      {t('attendance.halfDay', { defaultValue: '½ Day' })}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
-                                  <span className="truncate">{(entry.workshops as any)?.name}</span>
-                                </Badge>
-                                {entry.description && (
-                                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-                                    {entry.description}
-                                  </p>
-                                )}
-                                {hasExtra && !isOvertime && (
-                                  <div className="flex flex-col gap-0.5 mt-1">
-                                    <div className="flex items-center gap-1">
-                                      <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
-                                      <span className="text-[10px] text-warning">
-                                        +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                      </span>
-                                    </div>
-                                    {extraReason && (
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                        {extraReason}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                                {hasDiscount && (
-                                  <div className="flex flex-col gap-0.5 mt-1">
-                                    <div className="flex items-center gap-1">
-                                      <MinusCircle className="w-3 h-3 text-destructive" />
-                                      <span className="text-[10px] text-destructive">
-                                        -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                      </span>
-                                    </div>
-                                    {discountReason && (
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                        {discountReason}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                                {showLinkedAdj && linkedAdj.map((adj) => (
-                                  <div key={adj.id} className="flex items-center gap-1 mt-1">
-                                    {adj.adjustment_type === 'bonus' ? (
-                                      <Sparkles className="w-3 h-3 text-success flex-shrink-0" />
-                                    ) : (
-                                      <MinusCircle className="w-3 h-3 text-destructive flex-shrink-0" />
-                                    )}
-                                    <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
-                                      {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                    </span>
-                                    {adj.reason && (
-                                      <span className="text-[10px] text-muted-foreground truncate">({adj.reason})</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <div className="text-right">
-                                  <p className="font-mono font-medium text-muted-foreground">
-                                    {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                                  </p>
-                                  {isOvertime && (
-                                    <Badge variant="secondary" className="text-[10px] mt-1 gap-1">
-                                      <Clock className="w-2.5 h-2.5" />
-                                      {t('attendance.overtimeShort')}
-                                    </Badge>
-                                  )}
-                                  {!isOvertime && (
-                                    <Badge 
-                                      variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                                      className="text-[10px] mt-1"
-                                    >
-                                      {(entry.payments as any)?.status || 'paid'}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deletePaidAttendance.mutate(entry)}
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+              ) : (
+                <Accordion type="multiple" defaultValue={historyByWeek.slice(0, 1).map(w => w.key)} className="space-y-2">
+                  {historyByWeek.map((week) => {
+                    const weekAttTotal = week.items
+                      .filter(i => i.kind === 'att')
+                      .reduce((s, i) => s + Number((i.entry as any).daily_salary || 0), 0);
+                    const weekAdjTotal = week.items
+                      .filter(i => i.kind === 'adj')
+                      .reduce((s, i) => {
+                        const a: any = i.entry;
+                        return a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi'
+                          ? s + Number(a.amount)
+                          : s - Number(a.amount);
+                      }, 0);
+                    const weekTotal = weekAttTotal + weekAdjTotal;
+                    const dayCount = new Set(week.items.map(i => i.date)).size;
+                    return (
+                      <AccordionItem key={week.key} value={week.key} className="border rounded-md bg-card shadow-card">
+                        <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                          <div className="flex items-center justify-between w-full gap-2 pr-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <CalendarDays className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <div className="text-left min-w-0">
+                                <p className="text-xs font-semibold font-mono truncate">{week.weekLabel}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {dayCount} {t('workers.daysShort', { defaultValue: 'd' })} · {week.items.length} {t('workers.itemsShort', { defaultValue: 'items' })}
+                                </p>
                               </div>
                             </div>
+                            <span className="text-sm font-mono font-bold flex-shrink-0">
+                              {weekTotal.toLocaleString('fr-FR')} CFA
+                            </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <div className="hidden md:block">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{t('common.date')}</TableHead>
-                            <TableHead>{t('common.workshop')}</TableHead>
-                            <TableHead>{t('attendance.dailySalary')}</TableHead>
-                            <TableHead>{t('common.description')}</TableHead>
-                            <TableHead>{t('common.status')}</TableHead>
-                            <TableHead className="text-right">{t('common.actions')}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredPaidAttendance.map((entry) => {
-                            const isOvertime = entry.description?.includes('Overtime');
-                            const extraAmount = Number(entry.extra_amount) || 0;
-                            const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                            const discountAmount = Number(entry.discount_amount) || 0;
-                            const hasDiscount = discountAmount > 0;
-                            const extraReason = entry.extra_reason?.trim();
-                            const discountReason = entry.discount_reason?.trim();
-                            const description = entry.description?.trim();
-                            const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                            const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
-                            const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell className="font-mono">
-                                  <div className="flex items-center gap-1.5">
-                                    {format(new Date(entry.work_date), 'MMM d, yyyy')}
-                                    {Number(entry.hours_worked) === 0.5 && (
-                                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                        ½
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                                </TableCell>
-                                <TableCell className="max-w-[200px]">
-                                  {isOvertime ? (
-                                    <div className="flex items-center gap-1">
-                                      <Badge variant="secondary" className="gap-1 flex-shrink-0">
-                                        <Clock className="w-3 h-3" />
-                                        {t('attendance.overtimeShort')}
-                                      </Badge>
-                                      {description && (
-                                        <span className="text-xs text-muted-foreground truncate" title={description}>
-                                          {description}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-1">
-                                      {hasExtra || hasDiscount ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {hasExtra && (
-                                            <Badge variant="secondary" className="gap-1">
-                                              <Sparkles className="w-3 h-3" />
-                                              +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                            </Badge>
-                                          )}
-                                          {hasDiscount && (
-                                            <Badge variant="destructive" className="gap-1">
-                                              <MinusCircle className="w-3 h-3" />
-                                              -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                      {description && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2" title={description}>
-                                          {description}
-                                        </p>
-                                      )}
-                                      {extraReason && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                          {extraReason}
-                                        </p>
-                                      )}
-                                      {discountReason && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                          {discountReason}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                  {showLinkedAdj && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {linkedAdj.map((adj) => (
-                                        <Badge key={adj.id} variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1">
-                                          {adj.adjustment_type === 'bonus' ? <Sparkles className="w-3 h-3" /> : <MinusCircle className="w-3 h-3" />}
-                                          {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                          {adj.reason && <span className="text-[10px] opacity-70">({adj.reason})</span>}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                                  >
-                                    {(entry.payments as any)?.status || 'paid'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => deletePaidAttendance.mutate(entry)}
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
+                        </AccordionTrigger>
+                        <AccordionContent className="px-3 pb-3">
+                          {renderHistoryWeek(week.items)}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              )}
             </div>
           )}
         </TabsContent>
