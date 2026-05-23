@@ -65,6 +65,7 @@
     "overtimePaymentDesc": "Pay multiple workers for overtime work at once",
     "overtimeDate": "Overtime Date",
     "overtimeReason": "Reason for Overtime",
+    "overtimeBookedOnSunday": "Will be recorded on Sunday {{date}}",
     "overtimeReasonPlaceholder": "Why did they work overtime?",
     "totalOvertimeAmount": "Total Amount (shared)",
     "perWorker": "per worker",
