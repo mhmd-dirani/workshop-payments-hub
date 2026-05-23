@@ -5,7 +5,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { getEffectivePay, buildWorkerPaymentReason, PAYMENT_CREDIT_TAG, ADVANCE_CREDIT_TAG, isWorkerPaymentCredit, rewriteCreditReasonAmount } from '@/lib/worker-payment-utils';
+import { getEffectivePay, buildWorkerPaymentReason, PAYMENT_CREDIT_TAG, ADVANCE_CREDIT_TAG, isWorkerPaymentCredit, rewriteCreditReasonAmount, buildPaymentPlan } from '@/lib/worker-payment-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -337,6 +337,26 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // adjustmentNet should only reflect real bonuses/discounts, not payment credits
   const adjustmentNet = bonusTotal - realDiscountTotal;
 
+  // Live payment plan — single source of truth used by both the worker-card
+  // summary preview and createPayment so the dashboard amount always matches
+  // what the admin sees on the card.
+  const paymentPlan = useMemo(() => {
+    const workshopNames: Record<string, string> = {};
+    unpaidAttendance.forEach((e: any) => {
+      if (e.workshop_id) workshopNames[e.workshop_id] = (e.workshops as any)?.name || workshopNames[e.workshop_id] || 'Unknown';
+    });
+    unpaidAdjustments.forEach((a: any) => {
+      if (a.workshop_id) workshopNames[a.workshop_id] = (a.workshops as any)?.name || workshopNames[a.workshop_id] || 'Unknown';
+    });
+    return buildPaymentPlan({
+      attendance: unpaidAttendance as any,
+      adjustments: unpaidAdjustments as any,
+      workshopNames,
+      holidayPay: includeHolidayPay ? worker.hourly_rate : 0,
+      debtDeduction: debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0,
+    });
+  }, [unpaidAttendance, unpaidAdjustments, includeHolidayPay, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
+
    // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
     (e) => e.description?.includes('Overtime')
@@ -493,161 +513,127 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // Create FULL payment mutation - pays ALL unpaid work across ALL workshops
   const createPayment = useMutation({
     mutationFn: async () => {
-      const results: any[] = [];
+      const plan = paymentPlan;
+      const debtDeduction = plan.totals.debtDeduction;
       const workerNames: Record<string, string> = { [worker.id]: worker.name };
-      const debtDeduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-      const holidayPay = includeHolidayPay ? worker.hourly_rate : 0;
-      const adjByWorkshop: Record<string, any[]> = {};
-      unpaidAdjustments.forEach((adj) => {
-        if (!adjByWorkshop[adj.workshop_id]) adjByWorkshop[adj.workshop_id] = [];
-        adjByWorkshop[adj.workshop_id].push(adj);
-      });
+      const results: any[] = [];
 
-      // Group all attendance by workshop (not by week) - one payment per workshop
-      const byWorkshop = unpaidAttendance.reduce((acc, entry) => {
-        const workshopId = entry.workshop_id;
-        if (!acc[workshopId]) acc[workshopId] = { entries: [], total: 0 };
-        acc[workshopId].entries.push(entry);
-        acc[workshopId].total += getEffectivePay(entry);
-        return acc;
-      }, {} as Record<string, { entries: any[]; total: number }>);
-      
-      // Collect all workshop IDs that have attendance or adjustments
-      const allWorkshopIds = new Set([...Object.keys(byWorkshop), ...Object.keys(adjByWorkshop)]);
-      
-      // First compute per-workshop raw totals. Negative totals are payment credits
-      // from advances/partial pays, and must reduce the actual salary payment instead
-      // of creating a zero/negative payment row.
-      let remainingDeduction = debtDeduction;
-      let remainingCrossWorkshopCredit = 0;
-      const workshopTotals: Record<string, number> = {};
-      for (const workshopId of allWorkshopIds) {
-        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
-        const workshopAdj = adjByWorkshop[workshopId] || [];
-        const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
-        const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
-        const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
-        const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
-        workshopTotals[workshopId] = workshopData.total + adjBonuses - adjDiscounts;
-        if (workshopTotals[workshopId] < 0) remainingCrossWorkshopCredit += Math.abs(workshopTotals[workshopId]);
+      // Hard block: credits exceed earnings. Do not mark anything paid — would
+      // either lose the advance or silently overpay later.
+      if (plan.blocked) {
+        throw new Error(t('workers.advancesExceedEarnings', { defaultValue: 'Advances exceed current earnings. Cannot settle salary — adjust the advance or wait for more attendance.' }));
       }
-      const grandTotalBeforeDeduction = Object.values(workshopTotals).reduce((s, v) => s + Math.max(v, 0), 0);
-      const deferredDiscountIds: string[] = [];
+
+      // Refuse to silently mark adjustments paid when there is nothing to do.
+      if (plan.workshops.length === 0 && plan.emptyWorkshops.length === 0) {
+        throw new Error(t('workers.nothingToPay', { defaultValue: 'Nothing to pay.' }));
+      }
+
       let fallbackPaymentId: string | null = null;
-      
-      for (const workshopId of allWorkshopIds) {
-        const workshopData = byWorkshop[workshopId] || { entries: [], total: 0 };
-        const { entries, total } = workshopData;
-        
-        const workshopAdj = adjByWorkshop[workshopId] || [];
-        const bonusAdj = workshopAdj.filter(a => a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi');
-        const discountAdj = workshopAdj.filter(a => a.adjustment_type === 'discount');
-        const adjBonuses = bonusAdj.reduce((s, a) => s + Number(a.amount), 0);
-        const adjDiscounts = discountAdj.reduce((s, a) => s + Number(a.amount), 0);
-        let finalTotal = total + adjBonuses - adjDiscounts;
-        const rawFinalTotal = finalTotal;
-        const entryIds = entries.map((e: any) => e.id);
-        const bonusIds = bonusAdj.map((a: any) => a.id);
-        const discountIds = discountAdj.map((a: any) => a.id);
-        if (rawFinalTotal <= 0) {
-          deferredDiscountIds.push(...discountIds);
-          continue;
+
+      // 1. Create one payment per workshop with positive paymentAmount.
+      for (const wp of plan.workshops) {
+        const wEntries = (unpaidAttendance as any[]).filter(e => e.workshop_id === wp.workshopId);
+        const wAdj = (unpaidAdjustments as any[]).filter(a => a.workshop_id === wp.workshopId);
+        const wBonusAndReal = wAdj.filter(a =>
+          a.adjustment_type === 'bonus' ||
+          a.adjustment_type === 'taxi' ||
+          (a.adjustment_type === 'discount' && !isWorkerPaymentCredit(a.reason))
+        );
+
+        let reason = buildWorkerPaymentReason(wEntries, workerNames, wBonusAndReal);
+        if (wp.holidayPay > 0) {
+          reason += `\n[${t('attendance.holidayIncluded')}: +${wp.holidayPay.toLocaleString('fr-FR')} CFA]`;
         }
-        const crossWorkshopCredit = Math.min(finalTotal, remainingCrossWorkshopCredit);
-        if (crossWorkshopCredit > 0) {
-          finalTotal -= crossWorkshopCredit;
-          remainingCrossWorkshopCredit -= crossWorkshopCredit;
-        }
-        
-        let workshopDeduction = 0;
-        
-        if (finalTotal <= 0 && entries.length === 0 && workshopAdj.length === 0) continue;
-        
-        let reason = buildWorkerPaymentReason(entries, workerNames, workshopAdj);
-        
-        // Add holiday pay to the first workshop
-        if (holidayPay > 0 && workshopId === Array.from(allWorkshopIds)[0]) {
-          finalTotal += holidayPay;
-          reason += `\n[${t('attendance.holidayIncluded')}: +${holidayPay.toLocaleString('fr-FR')} CFA]`;
-        }
-        if (debtDeduction > 0 && finalTotal > 0 && grandTotalBeforeDeduction > 0) {
-          workshopDeduction = Math.min(
-            finalTotal,
-            remainingDeduction,
-            Math.round((finalTotal / grandTotalBeforeDeduction) * debtDeduction)
-          );
-          remainingDeduction -= workshopDeduction;
-          finalTotal -= workshopDeduction;
-          reason += `\n[${t('workers.debtRepaymentReason')}: ${workshopDeduction.toLocaleString('fr-FR')} CFA]`;
-        }
-        if (crossWorkshopCredit > 0) {
-          reason += `\n[${t('workers.paymentCreditsApplied')}: -${crossWorkshopCredit.toLocaleString('fr-FR')} CFA]`;
-        }
-        const paymentAmount = Math.max(finalTotal, 0);
-        if (paymentAmount <= 0) {
-          if (entryIds.length > 0) {
-            await supabase.from('attendance').update({ is_paid: true, payment_id: null }).in('id', entryIds);
+        if (wp.crossCreditApplied > 0 || wp.selfCredit > 0) {
+          const totalCreditApplied = wp.crossCreditApplied + Math.min(wp.selfCredit, wp.attendance + wp.bonuses - wp.realDiscounts);
+          if (totalCreditApplied > 0) {
+            reason += `\n[${t('workers.paymentCreditsApplied')}: -${totalCreditApplied.toLocaleString('fr-FR')} CFA]`;
           }
-          const allAdjIds = [...bonusIds, ...discountIds];
-          if (allAdjIds.length > 0) {
-            await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: null }).in('id', allAdjIds);
-          }
-          continue;
         }
-        
-        const categoryLabel = 'Travailleur';
+        if (wp.debtDeduction > 0) {
+          reason += `\n[${t('workers.debtRepaymentReason')}: ${wp.debtDeduction.toLocaleString('fr-FR')} CFA]`;
+        }
 
         const { data: payment, error: paymentError } = await supabase
           .from('payments')
           .insert([{
-            workshop_id: workshopId,
-            paid_to: categoryLabel,
+            workshop_id: wp.workshopId,
+            paid_to: 'Travailleur',
             reason,
-            amount: paymentAmount,
+            amount: wp.paymentAmount,
             payment_date: format(new Date(), 'yyyy-MM-dd'),
             created_by: user?.id,
             status: role === 'admin' ? 'approved' : 'pending',
           }])
           .select()
           .single();
-        
         if (paymentError) throw paymentError;
         if (!fallbackPaymentId) fallbackPaymentId = payment.id;
 
-        if (entryIds.length > 0) {
-          await supabase
-            .from('attendance')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', entryIds);
+        if (wp.entryIds.length > 0) {
+          await supabase.from('attendance').update({ is_paid: true, payment_id: payment.id }).in('id', wp.entryIds);
+        }
+        if (wp.bonusIds.length > 0) {
+          await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: payment.id }).in('id', wp.bonusIds);
+        }
+        if (wp.realDiscountIds.length > 0) {
+          await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: payment.id }).in('id', wp.realDiscountIds);
         }
 
-        if (bonusIds.length > 0) {
-          await supabase
-            .from('worker_adjustments')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', bonusIds);
-        }
-        
-        if (discountIds.length > 0) {
-          await supabase
-            .from('worker_adjustments')
-            .update({ is_paid: true, payment_id: payment.id })
-            .in('id', discountIds);
-        }
-        
-        delete adjByWorkshop[workshopId];
-        
-        results.push({ workshopId, paymentId: payment.id, amount: paymentAmount });
+        results.push({ workshopId: wp.workshopId, paymentId: payment.id, amount: wp.paymentAmount });
       }
 
-      if (deferredDiscountIds.length > 0 && fallbackPaymentId) {
-        await supabase
-          .from('worker_adjustments')
-          .update({ is_paid: true, payment_id: fallbackPaymentId })
-          .in('id', deferredDiscountIds);
+      // 2. Empty workshops (paymentAmount == 0): mark their attendance/bonus/real-discount
+      //    rows as paid against the fallback payment so they don't reappear next pay.
+      for (const wp of plan.emptyWorkshops) {
+        if (wp.entryIds.length > 0) {
+          await supabase.from('attendance').update({ is_paid: true, payment_id: fallbackPaymentId }).in('id', wp.entryIds);
+        }
+        if (wp.bonusIds.length > 0) {
+          await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: fallbackPaymentId }).in('id', wp.bonusIds);
+        }
+        if (wp.realDiscountIds.length > 0) {
+          await supabase.from('worker_adjustments').update({ is_paid: true, payment_id: fallbackPaymentId }).in('id', wp.realDiscountIds);
+        }
       }
-      
-      // Record debt repayment if deduction was applied
+
+      // 3. Reconcile credit adjustments (split partial consumption).
+      for (const cc of plan.creditConsumption) {
+        if (cc.consumed <= 0) continue; // not touched this round, keep as-is
+        const original = (unpaidAdjustments as any[]).find(a => a.id === cc.creditId);
+        if (!original) continue;
+
+        if (cc.remaining <= 0) {
+          // Fully consumed: mark paid, link to a payment row from this round.
+          await supabase.from('worker_adjustments')
+            .update({ is_paid: true, payment_id: fallbackPaymentId })
+            .eq('id', cc.creditId);
+        } else {
+          // Partially consumed: shrink the original to the remaining unpaid amount,
+          // and insert a new "paid" credit row recording the consumed portion.
+          await supabase.from('worker_adjustments')
+            .update({
+              amount: cc.remaining,
+              reason: rewriteCreditReasonAmount(original.reason, cc.remaining),
+            })
+            .eq('id', cc.creditId);
+
+          await supabase.from('worker_adjustments').insert({
+            worker_id: worker.id,
+            workshop_id: cc.workshopId,
+            work_date: original.work_date || format(new Date(), 'yyyy-MM-dd'),
+            adjustment_type: 'discount',
+            amount: cc.consumed,
+            reason: rewriteCreditReasonAmount(original.reason, cc.consumed),
+            is_paid: true,
+            payment_id: fallbackPaymentId,
+            created_by: user?.id,
+          });
+        }
+      }
+
+      // 4. Record debt repayment if deduction was applied
       if (debtDeduction > 0 && selectedDebtForDeduction) {
         const creatorProfile = allProfiles.find(p => p.user_id === user?.id);
         const creatorName = creatorProfile?.full_name || 'Unknown';
@@ -1403,38 +1389,75 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="shadow-card">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span className="text-xs">{t('workers.workDays')}</span>
+      {/* Payment Preview — mirrors the dashboard payment exactly */}
+      <Card className="shadow-card">
+        <CardContent className="p-3 md:p-4 space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{t('workers.workDays')}: <span className="font-mono font-semibold text-foreground">{totalDays}</span></span>
             </div>
-            <p className="text-xl md:text-2xl font-bold font-mono mt-1">{totalDays}</p>
-          </CardContent>
-        </Card>
+            {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length > 1 && (
+              <span className="text-[10px]">{paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}</span>
+            )}
+          </div>
 
-        <Card className="shadow-card">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 text-warning">
-              <Wallet className="w-4 h-4" />
-              <span className="text-xs">{t('workers.totalOwed')}</span>
+          <div className="space-y-0.5 text-xs">
+            <div className="flex justify-between"><span className="text-muted-foreground">{t('workers.attendance', { defaultValue: 'Attendance' })}</span><span className="font-mono">+{paymentPlan.totals.attendance.toLocaleString('fr-FR')}</span></div>
+            {paymentPlan.totals.bonuses > 0 && (
+              <div className="flex justify-between text-success"><span>{t('workers.bonuses', { defaultValue: 'Bonuses' })}</span><span className="font-mono">+{paymentPlan.totals.bonuses.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.realDiscounts > 0 && (
+              <div className="flex justify-between text-destructive"><span>{t('workers.discounts', { defaultValue: 'Discounts' })}</span><span className="font-mono">-{paymentPlan.totals.realDiscounts.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.credits > 0 && (
+              <div className="flex justify-between text-warning">
+                <span>{t('workers.advancesApplied', { defaultValue: 'Advances applied' })}</span>
+                <span className="font-mono">-{paymentPlan.totals.creditsApplied.toLocaleString('fr-FR')}{paymentPlan.totals.creditsRemaining > 0 ? ` / -${paymentPlan.totals.credits.toLocaleString('fr-FR')}` : ''}</span>
+              </div>
+            )}
+            {paymentPlan.totals.holidayPay > 0 && (
+              <div className="flex justify-between text-primary"><span>{t('attendance.payHoliday')}</span><span className="font-mono">+{paymentPlan.totals.holidayPay.toLocaleString('fr-FR')}</span></div>
+            )}
+            {paymentPlan.totals.debtDeduction > 0 && (
+              <div className="flex justify-between text-warning"><span>{t('workers.debtRepaymentDeduction')}</span><span className="font-mono">-{paymentPlan.totals.debtDeduction.toLocaleString('fr-FR')}</span></div>
+            )}
+          </div>
+
+          <div className="border-t pt-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">{t('workers.toBePaid', { defaultValue: 'To be paid' })}</span>
+            <span className={cn('text-lg md:text-xl font-bold font-mono', paymentPlan.blocked ? 'text-destructive' : 'text-success')}>
+              {paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA
+            </span>
+          </div>
+
+          {paymentPlan.workshops.length > 1 && (
+            <div className="flex flex-wrap gap-1 pt-1 border-t">
+              {paymentPlan.workshops.map(wp => (
+                <Badge key={wp.workshopId} variant="secondary" className="text-[10px] gap-1 font-mono">
+                  <Building2 className="w-2.5 h-2.5" />
+                  {wp.workshopName}: {wp.paymentAmount.toLocaleString('fr-FR')}
+                </Badge>
+              ))}
             </div>
-            <p className="text-xl md:text-2xl font-bold font-mono text-warning mt-1">
-              {totalOwed.toLocaleString('fr-FR')} CFA
+          )}
+
+          {paymentPlan.blocked && (
+            <p className="text-[11px] text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1.5">
+              {t('workers.advancesExceedEarnings', { defaultValue: 'Advances exceed current earnings. Cannot settle salary — adjust the advance or wait for more attendance.' })}
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Single Pay Button */}
-      <Button 
-        onClick={openPayChoiceDialog} 
+      <Button
+        onClick={openPayChoiceDialog}
+        disabled={paymentPlan.blocked && paymentPlan.totals.toBePaid <= 0}
         className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
       >
         <Wallet className="w-4 h-4" />
-        {t('workers.payWorker')} ({totalOwed.toLocaleString('fr-FR')} CFA)
+        {t('workers.payWorker')} ({paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA)
       </Button>
 
       {/* Tabs for unpaid/history */}
@@ -2432,12 +2455,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
                 onClick={() => setPayMode('full')}
-                disabled={totalOwed <= 0}
+                disabled={paymentPlan.totals.toBePaid <= 0 || paymentPlan.blocked}
               >
                 <Wallet className="w-5 h-5 text-success flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payFullSalary')}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{totalOwed.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground font-mono">{paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA</p>
                 </div>
               </Button>
 
