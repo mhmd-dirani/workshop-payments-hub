@@ -5,7 +5,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { getEffectivePay, buildWorkerPaymentReason, PAYMENT_CREDIT_TAG, ADVANCE_CREDIT_TAG, isWorkerPaymentCredit, rewriteCreditReasonAmount } from '@/lib/worker-payment-utils';
+import { getEffectivePay, buildWorkerPaymentReason, PAYMENT_CREDIT_TAG, ADVANCE_CREDIT_TAG, isWorkerPaymentCredit, rewriteCreditReasonAmount, buildPaymentPlan } from '@/lib/worker-payment-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
