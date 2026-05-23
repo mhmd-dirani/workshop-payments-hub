@@ -166,12 +166,20 @@ export default function OvertimePaymentForm() {
         throw new Error(t('errors.fillAllFields', { defaultValue: 'Please fill all fields' }));
       }
 
+      // Overtime represents Sunday work — anchor work_date to the previous Sunday
+      // (or the selected date itself if it is already a Sunday).
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const localDate = new Date(y, (m || 1) - 1, d || 1);
+      const dow = localDate.getDay();
+      const sundayDate = dow === 0 ? localDate : addDays(localDate, -dow);
+      const sundayStr = format(sundayDate, 'yyyy-MM-dd');
+
       const entries = selectedWorkers.map(([workerId, data]) => {
         const worker = workers.find(w => w.id === workerId);
         return {
           worker_id: workerId,
           workshop_id: selectedWorkshop,
-          work_date: selectedDate,
+          work_date: sundayStr,
           hours_worked: 1,
           hourly_rate: data.amount, // Use the overtime amount as hourly_rate to satisfy CHECK > 0
           has_extra: false,
