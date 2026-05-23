@@ -305,37 +305,42 @@ export function buildWorkerPaymentReason(
       const workerData = byWorker[name];
       const adj = adjByWorker[name];
       const salary = workerData?.salary || 0;
-      
+
+      // Header: name and days worked  →  "Aanz — Sun, Mon"
       let line = name;
       if (workerData && workerData.days.size > 0) {
         const sortedDays = Array.from(workerData.days).sort(
           (a, b) => dayOrder.indexOf(a.replace('½', '')) - dayOrder.indexOf(b.replace('½', ''))
         );
-        line += ` (${sortedDays.join(' ')})`;
+        line += ` — ${sortedDays.join(', ')}`;
       }
-      
-      // Show base salary
-      if (salary > 0) line += ` ${salary.toLocaleString('fr-FR')}`;
-      
+
+      // Base salary  →  "  · 5 000 CFA"
+      if (salary > 0) line += ` · ${salary.toLocaleString('fr-FR')} CFA`;
+
       let netTotal = salary;
+      const parts: string[] = [];
       if (adj) {
-        if (adj.bonuses > 0) { line += ` [+${adj.bonuses.toLocaleString('fr-FR')}]`; netTotal += adj.bonuses; }
-        if (adj.taxi > 0) { line += ` [🚕${adj.taxi.toLocaleString('fr-FR')}]`; netTotal += adj.taxi; }
-        if (adj.discounts > 0) { line += ` [-${adj.discounts.toLocaleString('fr-FR')}]`; netTotal -= adj.discounts; }
+        if (adj.bonuses > 0) { parts.push(`+${adj.bonuses.toLocaleString('fr-FR')} bonus`); netTotal += adj.bonuses; }
+        if (adj.taxi > 0) { parts.push(`+${adj.taxi.toLocaleString('fr-FR')} taxi`); netTotal += adj.taxi; }
+        if (adj.discounts > 0) { parts.push(`−${adj.discounts.toLocaleString('fr-FR')} discount`); netTotal -= adj.discounts; }
       }
-      
-      // Show net total if different from salary (i.e. there are adjustments)
-      if (adj && (adj.bonuses > 0 || adj.taxi > 0 || adj.discounts > 0)) {
-        line += ` ${netTotal.toLocaleString('fr-FR')}`;
+      if (parts.length) {
+        line += `  (${parts.join(' · ')})`;
       }
-      
+      // Show net total only when adjustments changed it
+      if (parts.length && netTotal !== salary) {
+        line += ` = ${netTotal.toLocaleString('fr-FR')} CFA`;
+      }
+
       grandTotal += netTotal;
       return line;
     });
 
   // Add grand total line if more than one worker
   if (lines.length > 1) {
-    lines.push(grandTotal.toLocaleString('fr-FR'));
+    lines.push(`──────────────`);
+    lines.push(`Total · ${grandTotal.toLocaleString('fr-FR')} CFA`);
   }
   
   return lines.join('\n');
