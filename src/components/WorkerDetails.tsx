@@ -2455,12 +2455,12 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 variant="outline"
                 className="w-full justify-start gap-3 h-auto py-3"
                 onClick={() => setPayMode('full')}
-                disabled={totalOwed <= 0}
+                disabled={paymentPlan.totals.toBePaid <= 0 || paymentPlan.blocked}
               >
                 <Wallet className="w-5 h-5 text-success flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-medium text-sm">{t('workers.payFullSalary')}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{totalOwed.toLocaleString('fr-FR')} CFA</p>
+                  <p className="text-xs text-muted-foreground font-mono">{paymentPlan.totals.toBePaid.toLocaleString('fr-FR')} CFA</p>
                 </div>
               </Button>
 
