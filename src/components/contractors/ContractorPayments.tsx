@@ -1353,7 +1353,7 @@ export default function ContractorPayments() {
                                   <Button size="sm" variant="outline" className="flex-1 h-9" onClick={resetPurchaseForm}>
                                     {t('common.cancel')}
                                   </Button>
-                                  <Button size="sm" className="flex-1 h-9 gap-1 shadow-sm" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
+                                  <Button size="sm" className="flex-1 h-9 gap-1 shadow-sm" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || purchaseAmount === '' || Number(purchaseAmount) < 0 || addPurchaseMutation.isPending}>
                                     <Plus className="w-3.5 h-3.5" />
                                     {t('common.save')}
                                   </Button>
