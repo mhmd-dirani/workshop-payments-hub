@@ -28,10 +28,9 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
   const { data: workshopData, isLoading: loadingWorkshop } = useQuery({
     queryKey: ['team-spending', userId],
     queryFn: async () => {
-      // Get all approved payments by this user
-      const { data: paymentsData, error } = await supabase
+      // Get all approved payments by this user (paginated past 1000-row PostgREST cap)
       const { fetchAllPages } = await import('@/lib/paginate');
-      const data = await fetchAllPages<any>((from, to) =>
+      const paymentsData = await fetchAllPages<any>((from, to) =>
         supabase
           .from('payments')
           .select('*')
@@ -41,10 +40,9 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
           .order('id', { ascending: false })
           .range(from, to)
       );
-      const error = null as any;
 
       // Get workshop names
-      const workshopIds = [...new Set(paymentsData?.map(p => p.workshop_id) || [])];
+      const workshopIds = [...new Set(paymentsData.map(p => p.workshop_id))] as string[];
       if (workshopIds.length === 0) return { payments: [], workshops: [] };
 
       const { data: workshops } = await supabase
@@ -55,10 +53,10 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
       const workshopMap = new Map(workshops?.map(w => [w.id, w.name]) || []);
 
       return {
-        payments: paymentsData?.map(p => ({
+        payments: paymentsData.map(p => ({
           ...p,
           workshop_name: workshopMap.get(p.workshop_id) || 'Unknown Workshop',
-        })) || [],
+        })),
         workshops: workshops || [],
       };
     },
@@ -68,14 +66,16 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
   const { data: personalPayments = [], isLoading: loadingPersonal } = useQuery({
     queryKey: ['team-personal-spending', userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('personal_payments')
-        .select('*')
-        .eq('user_id', userId)
-        .order('payment_date', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
+      const { fetchAllPages } = await import('@/lib/paginate');
+      return await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('personal_payments')
+          .select('*')
+          .eq('user_id', userId)
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
     },
   });
 
