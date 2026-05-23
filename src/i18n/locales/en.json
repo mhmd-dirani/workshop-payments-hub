@@ -826,7 +826,10 @@
     "newPurchase": "New Purchase",
     "linkExistingPayment": "Link Payment",
     "searchExistingPayments": "Search payments by name or workshop...",
-    "linkPayment": "Link This Payment"
+    "linkPayment": "Link This Payment",
+    "records": "records",
+    "budgetAdvanceNote": "Budget {{total}} CFA — only {{part}} CFA marked as advance",
+    "budgetMaterialsNote": "Budget {{total}} CFA — only {{part}} CFA for materials"
   },
   "days": {
     "sun": "sun",

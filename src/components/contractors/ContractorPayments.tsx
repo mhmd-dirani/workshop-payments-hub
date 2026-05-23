@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Trash2, Upload, Camera, Search, ChevronDown, ChevronUp, Edit2, DollarSign, Link } from 'lucide-react';
+import { Plus, Trash2, Upload, Camera, Search, ChevronDown, ChevronUp, Edit2, DollarSign, Link, Wallet, Package, HandCoins, X, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -626,17 +626,26 @@ export default function ContractorPayments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('contractors.searchPayments')}
-            className="pl-8 h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-2">
+      <Card className="border-border/60 bg-card/50 backdrop-blur">
+        <CardContent className="p-3 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('contractors.searchPayments')}
+              className="pl-8 pr-8 h-9 text-sm bg-background"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="clear"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-1.5 md:flex md:gap-2">
             <Select value={filterContractor} onValueChange={setFilterContractor}>
               <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
@@ -672,10 +681,21 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {(filterContractor !== 'all' || filterWorkshop !== 'all' || filterPaymentType !== 'all') ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px] text-muted-foreground gap-1"
+                onClick={() => { setFilterContractor('all'); setFilterWorkshop('all'); setFilterPaymentType('all'); }}
+              >
+                <X className="w-3 h-3" />
+                {t('common.clear', { defaultValue: 'Clear filters' })}
+              </Button>
+            ) : <span />}
           <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1">
+              <Button size="sm" className="gap-1 shadow-sm">
                 <Plus className="w-4 h-4" />
                 {t('contractors.addPayment')}
               </Button>
@@ -799,8 +819,8 @@ export default function ContractorPayments() {
             </DialogContent>
           </Dialog>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Edit Budget Amount Dialog */}
       <Dialog open={!!editingBudget} onOpenChange={(open) => { if (!open) setEditingBudget(null); }}>
@@ -906,11 +926,11 @@ export default function ContractorPayments() {
 
             // Payment type filter for budgets
             if (filterPaymentType === 'advance') {
+              // Only show budgets that actually have a portion marked as advance
               const hasRelevantAdvance = filterWorkshop !== 'all'
                 ? advanceWsIds.includes(filterWorkshop)
                 : advanceFromBudget > 0;
-              const hasRemaining = remaining > 0;
-              if (!hasRelevantAdvance && !hasRemaining) return false;
+              if (!hasRelevantAdvance) return false;
             } else if (filterPaymentType === 'product') {
               // Show budgets that have actual product purchases (the
               // productBudgetTotal is added to the displayed total, so they
@@ -945,15 +965,14 @@ export default function ContractorPayments() {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
             } else if (filterPaymentType === 'material_budget' || filterPaymentType === 'product') {
-              // When filtering by material_budget, only show actual product purchases (not advance, not remaining)
-              const spent = allBudgetSums[p.id] || 0;
+              // For product/material filter: total = budget amount - advance-marked portion
+              // (i.e. the part of the budget not converted to a contractor advance)
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
-              return sum + Math.max(0, spent - advanceFromBudget);
+              return sum + Math.max(0, Number(p.amount) - advanceFromBudget);
             } else if (filterPaymentType === 'advance') {
-              // In advance filter, remaining balance + advance purchases from budget
-              const spent = allBudgetSums[p.id] || 0;
+              // Only the portion that was actually marked as advance counts
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
-              return sum + Math.max(0, Number(p.amount) - spent) + advanceFromBudget;
+              return sum + advanceFromBudget;
             }
             return sum;
           }
@@ -962,18 +981,36 @@ export default function ContractorPayments() {
         // Budget product purchases are now counted inside filteredTotal for the
         // displayed (filtered) budgets, so list and total stay consistent.
         const displayTotal = filteredTotal;
+        const totalIcon = filterPaymentType === 'advance' ? HandCoins
+          : filterPaymentType === 'product' ? Package
+          : filterPaymentType === 'material_budget' ? Wallet
+          : DollarSign;
+        const TotalIcon = totalIcon;
+        const totalLabel = filterPaymentType === 'advance' ? t('contractors.paymentTypes.advance')
+          : filterPaymentType === 'product' ? t('contractors.paymentTypes.product')
+          : filterPaymentType === 'material_budget' ? t('contractors.paymentTypes.material_budget')
+          : t('common.total');
         return (
           <>
-            <Card className="bg-destructive/5 border-destructive/20">
-              <CardContent className="py-3 px-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-destructive/10">
-                    <DollarSign className="w-4 h-4 text-destructive" />
+            <Card className="overflow-hidden border-destructive/30 bg-gradient-to-br from-destructive/10 via-destructive/5 to-transparent shadow-sm">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-xl bg-destructive/15 ring-1 ring-destructive/20">
+                      <TotalIcon className="w-4 h-4 text-destructive" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-destructive/80 font-semibold">
+                        {totalLabel}
+                      </p>
+                      <p className="text-lg font-bold font-mono text-destructive leading-tight truncate">
+                        {displayTotal.toLocaleString('fr-FR')} <span className="text-xs font-medium">CFA</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-destructive font-medium">{t('common.total')} ({filteredPayments.length})</p>
-                    <p className="text-base font-bold font-mono text-destructive">{displayTotal.toLocaleString('fr-FR')} CFA</p>
-                  </div>
+                  <Badge variant="outline" className="bg-background/60 border-destructive/30 text-destructive text-[10px] font-semibold whitespace-nowrap">
+                    {filteredPayments.length} {t('contractors.records', { defaultValue: 'records' })}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
@@ -988,16 +1025,30 @@ export default function ContractorPayments() {
               const budgetTotal = Number(p.amount);
               const budgetRemaining = budgetTotal - budgetSpent;
               const budgetProgress = budgetTotal > 0 ? Math.min((budgetSpent / budgetTotal) * 100, 100) : 0;
+              const budgetAdvancePortion = advanceBudgetSums[p.id] || 0;
+              const budgetMaterialsPortion = Math.max(0, budgetTotal - budgetAdvancePortion);
+              const budgetProductSpent = Math.max(0, budgetSpent - budgetAdvancePortion);
+              // Headline value depends on the active filter
+              const headlineAmount = !isBudget
+                ? budgetTotal
+                : filterPaymentType === 'advance'
+                  ? budgetAdvancePortion
+                  : (filterPaymentType === 'product' || filterPaymentType === 'material_budget')
+                    ? budgetMaterialsPortion
+                    : budgetTotal;
 
               return (
-                <Card key={p.id} className={isBudget ? 'border-primary/30' : ''}>
+                <Card key={p.id} className={`transition-shadow hover:shadow-md ${isBudget ? 'border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent' : ''}`}>
                   <CardContent className="p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className={`min-w-0 flex-1 ${isBudget ? 'cursor-pointer' : ''}`} onClick={() => isBudget && toggleBudgetExpand(p.id)}>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm">{getContractorName(p.contractor_id)}</span>
-                          {p.workshop_id && <Badge variant="outline" className="text-xs">{getWorkshopName(p.workshop_id)}</Badge>}
-                          <Badge variant={isBudget ? 'default' : 'secondary'} className="text-xs">
+                          <span className="font-semibold text-sm truncate max-w-[140px]">{getContractorName(p.contractor_id)}</span>
+                          {p.workshop_id && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{getWorkshopName(p.workshop_id)}</Badge>}
+                          <Badge variant={isBudget ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 gap-1">
+                            {p.payment_type === 'advance' && <HandCoins className="w-2.5 h-2.5" />}
+                            {p.payment_type === 'product' && <Package className="w-2.5 h-2.5" />}
+                            {p.payment_type === 'material_budget' && <Wallet className="w-2.5 h-2.5" />}
                             {t(`contractors.paymentTypes.${p.payment_type}`)}
                           </Badge>
                         </div>
@@ -1006,17 +1057,59 @@ export default function ContractorPayments() {
                           {p.description && <span>· {p.description}</span>}
                         </div>
                         {isBudget && (
-                          <div className="mt-2 space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span>{t('contractors.spent')}: {budgetSpent.toLocaleString('fr-FR')} / {budgetTotal.toLocaleString('fr-FR')} CFA</span>
-                              <span>{t('contractors.remaining')}: {budgetRemaining.toLocaleString('fr-FR')}</span>
+                          <div className="mt-2 space-y-1.5">
+                            <div className="flex justify-between text-[11px] font-mono">
+                              <span className="text-muted-foreground">{budgetSpent.toLocaleString('fr-FR')} / {budgetTotal.toLocaleString('fr-FR')} CFA</span>
+                              <span className={budgetRemaining > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}>
+                                {t('contractors.remaining')} {budgetRemaining.toLocaleString('fr-FR')}
+                              </span>
                             </div>
                             <Progress value={budgetProgress} className="h-1.5" />
+                            {(budgetAdvancePortion > 0 || budgetProductSpent > 0) && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {budgetProductSpent > 0 && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                                    <Package className="w-2.5 h-2.5" />
+                                    {budgetProductSpent.toLocaleString('fr-FR')}
+                                  </span>
+                                )}
+                                {budgetAdvancePortion > 0 && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                                    <HandCoins className="w-2.5 h-2.5" />
+                                    {budgetAdvancePortion.toLocaleString('fr-FR')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {(filterPaymentType === 'advance' || filterPaymentType === 'product' || filterPaymentType === 'material_budget') && (
+                              <p className="text-[10px] text-muted-foreground italic pt-0.5">
+                                {filterPaymentType === 'advance'
+                                  ? t('contractors.budgetAdvanceNote', {
+                                      defaultValue: 'Budget {{total}} CFA — only {{part}} CFA marked as advance',
+                                      total: budgetTotal.toLocaleString('fr-FR'),
+                                      part: budgetAdvancePortion.toLocaleString('fr-FR'),
+                                    })
+                                  : t('contractors.budgetMaterialsNote', {
+                                      defaultValue: 'Budget {{total}} CFA — only {{part}} CFA for materials',
+                                      total: budgetTotal.toLocaleString('fr-FR'),
+                                      part: budgetMaterialsPortion.toLocaleString('fr-FR'),
+                                    })}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="font-bold text-sm whitespace-nowrap">{budgetTotal.toLocaleString('fr-FR')} CFA</span>
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="font-bold text-sm font-mono whitespace-nowrap">
+                            {headlineAmount.toLocaleString('fr-FR')} <span className="text-[10px] font-medium text-muted-foreground">CFA</span>
+                          </span>
+                          {isBudget && headlineAmount !== budgetTotal && (
+                            <span className="text-[9px] text-muted-foreground font-mono">
+                              / {budgetTotal.toLocaleString('fr-FR')}
+                            </span>
+                          )}
+                        </div>
                         {isBudget && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleBudgetExpand(p.id)}>
                             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

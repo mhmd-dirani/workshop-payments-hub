@@ -825,7 +825,10 @@
     "newPurchase": "شراء جديد",
     "linkExistingPayment": "ربط دفعة",
     "searchExistingPayments": "البحث في المدفوعات بالاسم أو الورشة...",
-    "linkPayment": "ربط هذه الدفعة"
+    "linkPayment": "ربط هذه الدفعة",
+    "records": "سجل",
+    "budgetAdvanceNote": "الميزانية {{total}} فرنك — فقط {{part}} فرنك مسجَّل كسلفة",
+    "budgetMaterialsNote": "الميزانية {{total}} فرنك — فقط {{part}} فرنك للمواد"
   },
   "days": {
     "sun": "أحد",
