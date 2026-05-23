@@ -404,6 +404,8 @@ export default function Dashboard() {
             )}
           </>
         )}
+
+        {role === 'admin' && <DatabaseUsageCard />}
       </div>
     </Layout>
   );
