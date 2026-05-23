@@ -603,7 +603,10 @@
     "bonuses": "Primes",
     "discounts": "Retenues",
     "advancesApplied": "Avances appliquées",
-    "sites": "sites"
+    "sites": "sites",
+    "daysShort": "j",
+    "itemsShort": "items",
+    "advance": "Avance"
   },
   "personalPayments": {
     "title": "Paiements personnels",
