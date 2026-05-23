@@ -225,23 +225,8 @@ function quoteSheet(title: string) {
   return `'${title.replace(/'/g, "''")}'`;
 }
 
-function rangePath(sheet: string, range: string) {
-  return encodeURI(`${quoteSheet(sheet)}!${range}`);
-}
-
 function rangeA1(sheet: string, range: string) {
   return `${quoteSheet(sheet)}!${range}`;
-}
-
-function colLetter(index: number) {
-  let n = index + 1;
-  let s = '';
-  while (n > 0) {
-    const m = (n - 1) % 26;
-    s = String.fromCharCode(65 + m) + s;
-    n = Math.floor((n - m) / 26);
-  }
-  return s;
 }
 
 function cleanText(value: string) {
