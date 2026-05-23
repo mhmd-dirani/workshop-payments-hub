@@ -71,7 +71,7 @@ interface ProfileWithRoles {
 export default function Users() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, role, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
@@ -85,6 +85,20 @@ export default function Users() {
     email: '',
     password: '',
   });
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!currentUser || role !== 'admin') {
+    return <Navigate to={!currentUser ? '/auth' : '/'} replace />;
+  }
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
