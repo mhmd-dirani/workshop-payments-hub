@@ -40,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks, addDays } from 'date-fns';
 import { 
@@ -58,7 +59,10 @@ import {
   MinusCircle,
   X,
   ArrowUpCircle,
-  CalendarHeart
+  CalendarHeart,
+  CalendarDays,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
