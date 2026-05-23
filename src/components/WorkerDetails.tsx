@@ -546,17 +546,21 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
         );
 
         let reason = buildWorkerPaymentReason(wEntries, workerNames, wBonusAndReal);
+        const notes: string[] = [];
         if (wp.holidayPay > 0) {
-          reason += `\n[${t('attendance.holidayIncluded')}: +${wp.holidayPay.toLocaleString('fr-FR')} CFA]`;
+          notes.push(`${t('attendance.holidayIncluded')} · +${wp.holidayPay.toLocaleString('fr-FR')} CFA`);
         }
         if (wp.crossCreditApplied > 0 || wp.selfCredit > 0) {
           const totalCreditApplied = wp.crossCreditApplied + Math.min(wp.selfCredit, wp.attendance + wp.bonuses - wp.realDiscounts);
           if (totalCreditApplied > 0) {
-            reason += `\n[${t('workers.paymentCreditsApplied')}: -${totalCreditApplied.toLocaleString('fr-FR')} CFA]`;
+            notes.push(`${t('workers.paymentCreditsApplied')} · −${totalCreditApplied.toLocaleString('fr-FR')} CFA`);
           }
         }
         if (wp.debtDeduction > 0) {
-          reason += `\n[${t('workers.debtRepaymentReason')}: ${wp.debtDeduction.toLocaleString('fr-FR')} CFA]`;
+          notes.push(`${t('workers.debtRepaymentReason')} · −${wp.debtDeduction.toLocaleString('fr-FR')} CFA`);
+        }
+        if (notes.length) {
+          reason += `\n──────────────\n` + notes.join('\n');
         }
 
         const { data: payment, error: paymentError } = await supabase
