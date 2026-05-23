@@ -21,13 +21,18 @@ export default function UserWorkshopPayments() {
       if (!user) return [];
 
       const { data, error } = await supabase
-        .from('payments')
-        .select('id, amount, paid_to, reason, payment_date, status, workshop_id')
-        .eq('created_by', user.id)
-        .eq('status', 'approved')
-        .order('payment_date', { ascending: false });
-
-      if (error) throw error;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select('id, amount, paid_to, reason, payment_date, status, workshop_id')
+          .eq('created_by', user.id)
+          .eq('status', 'approved')
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
+      const error = null as unknown as null;
 
       // Get workshop names
       const workshopIds = [...new Set(data?.map(p => p.workshop_id) || [])];
