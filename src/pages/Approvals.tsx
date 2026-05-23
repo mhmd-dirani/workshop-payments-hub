@@ -53,12 +53,16 @@ export default function Approvals() {
   const { data: pendingPayments, isLoading } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: async () => {
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select(`*, workshops(name)`)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      if (paymentsError) throw paymentsError;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const paymentsData = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select(`*, workshops(name)`)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
       
       const { data: profilesData } = await supabase
         .from('profiles')

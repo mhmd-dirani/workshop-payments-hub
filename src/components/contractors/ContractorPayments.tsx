@@ -100,21 +100,19 @@ export default function ContractorPayments() {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['contractor-payments', filterContractor, filterWorkshop],
     queryFn: async () => {
-      let query = supabase
-        .from('contractor_payments')
-        .select('*')
-        .order('payment_date', { ascending: false });
-      if (filterContractor !== 'all') {
-        query = query.eq('contractor_id', filterContractor);
-      }
-      if (filterWorkshop !== 'all') {
-        // Don't filter material_budgets by workshop (they have null workshop_id)
-        // We'll filter them client-side based on their purchases
-        query = query.or(`workshop_id.eq.${filterWorkshop},payment_type.eq.material_budget`);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      return await fetchAllPages<any>((from, to) => {
+        let q = supabase
+          .from('contractor_payments')
+          .select('*')
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false });
+        if (filterContractor !== 'all') q = q.eq('contractor_id', filterContractor);
+        if (filterWorkshop !== 'all') {
+          q = q.or(`workshop_id.eq.${filterWorkshop},payment_type.eq.material_budget`);
+        }
+        return q.range(from, to);
+      });
     },
   });
 
@@ -122,13 +120,16 @@ export default function ContractorPayments() {
   const { data: approvedPayments = [] } = useQuery({
     queryKey: ['approved-payments-for-budget'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('status', 'approved')
-        .order('payment_date', { ascending: false });
-      if (error) throw error;
-      return data;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      return await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select('*')
+          .eq('status', 'approved')
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      );
     },
   });
 

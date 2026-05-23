@@ -35,12 +35,11 @@ export default function Team() {
   const { data: totalGiven } = useQuery({
     queryKey: ['total-team-transfers'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('team_transfers')
-        .select('amount');
-      
-      if (error) throw error;
-      return data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const data = await fetchAllPages<{ amount: number | string }>((from, to) =>
+        supabase.from('team_transfers').select('amount').order('id').range(from, to)
+      );
+      return data.reduce((sum, t) => sum + Number(t.amount), 0);
     },
     enabled: role === 'admin',
   });
