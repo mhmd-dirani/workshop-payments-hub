@@ -515,7 +515,7 @@ Deno.serve(async (req) => {
     if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
 
     const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
-      method: 'PUT',
+      method: 'POST',
       headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
       body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
     });
