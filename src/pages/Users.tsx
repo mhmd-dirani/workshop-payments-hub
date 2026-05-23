@@ -45,6 +45,7 @@ import {
 import WorkshopAssignments from '@/components/WorkshopAssignments';
 import MemberAssignments from '@/components/MemberAssignments';
 import { useAuth } from '@/lib/auth';
+import { Navigate } from 'react-router-dom';
 import { z } from 'zod';
 
 // Validation schema
@@ -70,7 +71,7 @@ interface ProfileWithRoles {
 export default function Users() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, role, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [assignmentUser, setAssignmentUser] = useState<{ id: string; name: string } | null>(null);
@@ -293,6 +294,20 @@ export default function Users() {
       ? <span className="text-destructive">{t('common.none')}</span>
       : <span>{t('users.workshopsSelected', { count })}</span>;
   };
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!currentUser || role !== 'admin') {
+    return <Navigate to={!currentUser ? '/auth' : '/'} replace />;
+  }
 
   return (
     <Layout>
