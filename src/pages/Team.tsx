@@ -132,6 +132,12 @@ export default function Team() {
     m.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  // Keep selectedMember in sync with the latest teamMembers data so the
+  // admin profile view never shows a stale balance after invalidations.
+  const liveSelectedMember = selectedMember
+    ? teamMembers?.find(m => m.user_id === selectedMember.user_id) ?? selectedMember
+    : null;
+
   const filteredCoAdminUsers = coAdminUsers.filter(u => 
     u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -147,7 +153,7 @@ export default function Team() {
   };
 
   // Admin: selected member profile view
-  if (selectedMember && role === 'admin') {
+  if (liveSelectedMember && role === 'admin') {
     return (
       <Layout>
         <div className="space-y-6">
@@ -167,8 +173,8 @@ export default function Team() {
           </div>
           
           <TeamMemberProfile 
-            member={selectedMember} 
-            onAddMoney={() => handleAddMoney(selectedMember)}
+            member={liveSelectedMember} 
+            onAddMoney={() => handleAddMoney(liveSelectedMember)}
           />
 
           <TeamTransferForm
