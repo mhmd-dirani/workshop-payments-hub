@@ -321,6 +321,7 @@ export default function ContractorPayments() {
           receipt_file_path: receiptPath,
           receipt_file_name: receiptName,
           created_by: user!.id,
+          payment_id: existingPayment.id,
         });
         if (error) throw error;
 
@@ -400,6 +401,7 @@ export default function ContractorPayments() {
         receipt_file_path: receiptPath,
         receipt_file_name: receiptName,
         created_by: user!.id,
+        payment_id: paymentRecord.id,
       });
       if (error) throw error;
 
