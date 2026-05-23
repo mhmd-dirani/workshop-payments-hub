@@ -44,6 +44,15 @@ export default function OvertimePaymentForm() {
   const [reason, setReason] = useState('');
   const [workerOvertime, setWorkerOvertime] = useState<Record<string, WorkerOvertime>>({});
 
+  // Overtime always books onto the previous Sunday (or selected date if it's Sunday).
+  const resolvedSunday = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const local = new Date(y, (m || 1) - 1, d || 1);
+    const dow = local.getDay();
+    return dow === 0 ? local : addDays(local, -dow);
+  }, [selectedDate]);
+  const resolvedSundayStr = format(resolvedSunday, 'yyyy-MM-dd');
+
   const { data: workers = [], isLoading: loadingWorkers } = useQuery({
     queryKey: ['workers-active'],
     queryFn: async () => {
@@ -281,6 +290,15 @@ export default function OvertimePaymentForm() {
             <span className="text-xs font-medium text-primary">
               {t('attendance.dateIsHoliday', { defaultValue: 'This date is marked as a holiday' })}
             </span>
+          </div>
+        )}
+
+        {resolvedSundayStr !== selectedDate && (
+          <div className="text-[11px] text-muted-foreground bg-muted/40 border border-border/60 rounded-md px-2 py-1.5">
+            {t('attendance.overtimeBookedOnSunday', {
+              defaultValue: 'Will be recorded on Sunday {{date}}',
+              date: format(resolvedSunday, 'EEE, dd/MM/yyyy'),
+            })}
           </div>
         )}
 
