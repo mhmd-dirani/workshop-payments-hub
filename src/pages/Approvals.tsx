@@ -174,6 +174,9 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
       queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
       queryClient.invalidateQueries({ queryKey: ['worker-unpaid-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       toast({
         title: status === 'approved' ? t('approvals.paymentApproved') : t('approvals.paymentRejected'),
         description: status === 'approved' ? t('approvals.hasBeenApproved') : t('approvals.hasBeenRejected'),
@@ -275,6 +278,7 @@ export default function Approvals() {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
       queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       toast({
         title: status === 'approved' ? t('approvals.debtApproved') : t('approvals.debtRejected'),
         description: status === 'approved' ? t('approvals.debtHasBeenApproved') : t('approvals.debtHasBeenRejected'),

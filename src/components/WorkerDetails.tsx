@@ -1099,6 +1099,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
       queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       setIsWorkerDebtFormOpen(false);
       setWorkerDebtAmount('');
       setWorkerDebtDescription('');
@@ -1178,6 +1179,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       queryClient.invalidateQueries({ queryKey: ['worker-debts'] });
       queryClient.invalidateQueries({ queryKey: ['worker-debt-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       queryClient.invalidateQueries({ queryKey: ['team-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['worker-adjustments'] });
       setWorkerDebtRepayId(null);
@@ -1295,6 +1297,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       setEditingAdvanceCredit(null);
       toast({ title: t('workers.advanceCreditUpdated'), description: t('workers.advanceCreditUpdatedDesc') });
     },
@@ -1314,6 +1317,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       setAdvanceCreditToDelete(null);
       toast({ title: t('workers.advanceCreditDeleted'), description: t('workers.advanceCreditDeletedDesc') });
     },
@@ -1355,6 +1359,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       setEditingBonusAdj(null);
       toast({ title: t('workers.bonusUpdated'), description: t('workers.bonusUpdatedDesc') });
     },
@@ -1376,6 +1381,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ['all-worker-adjustments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       setBonusAdjToDelete(null);
       toast({ title: t('workers.bonusDeleted'), description: t('workers.bonusDeletedDesc') });
     },
