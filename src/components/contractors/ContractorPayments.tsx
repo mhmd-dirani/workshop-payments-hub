@@ -626,17 +626,26 @@ export default function ContractorPayments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('contractors.searchPayments')}
-            className="pl-8 h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-2">
+      <Card className="border-border/60 bg-card/50 backdrop-blur">
+        <CardContent className="p-3 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('contractors.searchPayments')}
+              className="pl-8 pr-8 h-9 text-sm bg-background"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="clear"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-1.5 md:flex md:gap-2">
             <Select value={filterContractor} onValueChange={setFilterContractor}>
               <SelectTrigger className="h-8 md:h-9 text-[11px] md:text-sm md:w-[140px]">
@@ -672,10 +681,21 @@ export default function ContractorPayments() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {(filterContractor !== 'all' || filterWorkshop !== 'all' || filterPaymentType !== 'all') ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px] text-muted-foreground gap-1"
+                onClick={() => { setFilterContractor('all'); setFilterWorkshop('all'); setFilterPaymentType('all'); }}
+              >
+                <X className="w-3 h-3" />
+                {t('common.clear', { defaultValue: 'Clear filters' })}
+              </Button>
+            ) : <span />}
           <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); else setShowForm(true); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1">
+              <Button size="sm" className="gap-1 shadow-sm">
                 <Plus className="w-4 h-4" />
                 {t('contractors.addPayment')}
               </Button>
@@ -799,8 +819,8 @@ export default function ContractorPayments() {
             </DialogContent>
           </Dialog>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Edit Budget Amount Dialog */}
       <Dialog open={!!editingBudget} onOpenChange={(open) => { if (!open) setEditingBudget(null); }}>
