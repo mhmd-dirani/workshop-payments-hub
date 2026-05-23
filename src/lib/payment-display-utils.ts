@@ -70,14 +70,10 @@ export function translateReason(reason: string, t: TFunction): string {
     'fri': t('days.fri', { defaultValue: 'fri' }),
     'sat': t('days.sat', { defaultValue: 'sat' }),
   };
-  result = result.replace(/\(([^)]+)\)/g, (match, inner) => {
-    const translated = inner.replace(/½?(sun|mon|tue|wed|thu|fri|sat)/g, (dayMatch: string) => {
-      const isHalf = dayMatch.startsWith('½');
-      const day = isHalf ? dayMatch.slice(1) : dayMatch;
-      const translatedDay = dayMap[day] || day;
-      return isHalf ? `½${translatedDay}` : translatedDay;
-    });
-    return `(${translated})`;
+  // Translate day tokens anywhere in the string (whole-word match, case-insensitive)
+  result = result.replace(/(½)?\b(sun|mon|tue|wed|thu|fri|sat)\b/gi, (_full, half, day) => {
+    const translatedDay = dayMap[(day as string).toLowerCase()] || day;
+    return `${half || ''}${translatedDay}`;
   });
   
   return result.trim();
