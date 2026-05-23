@@ -961,18 +961,36 @@ export default function ContractorPayments() {
         // Budget product purchases are now counted inside filteredTotal for the
         // displayed (filtered) budgets, so list and total stay consistent.
         const displayTotal = filteredTotal;
+        const totalIcon = filterPaymentType === 'advance' ? HandCoins
+          : filterPaymentType === 'product' ? Package
+          : filterPaymentType === 'material_budget' ? Wallet
+          : DollarSign;
+        const TotalIcon = totalIcon;
+        const totalLabel = filterPaymentType === 'advance' ? t('contractors.paymentTypes.advance')
+          : filterPaymentType === 'product' ? t('contractors.paymentTypes.product')
+          : filterPaymentType === 'material_budget' ? t('contractors.paymentTypes.material_budget')
+          : t('common.total');
         return (
           <>
-            <Card className="bg-destructive/5 border-destructive/20">
-              <CardContent className="py-3 px-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-destructive/10">
-                    <DollarSign className="w-4 h-4 text-destructive" />
+            <Card className="overflow-hidden border-destructive/30 bg-gradient-to-br from-destructive/10 via-destructive/5 to-transparent shadow-sm">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-xl bg-destructive/15 ring-1 ring-destructive/20">
+                      <TotalIcon className="w-4 h-4 text-destructive" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-destructive/80 font-semibold">
+                        {totalLabel}
+                      </p>
+                      <p className="text-lg font-bold font-mono text-destructive leading-tight truncate">
+                        {displayTotal.toLocaleString('fr-FR')} <span className="text-xs font-medium">CFA</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-destructive font-medium">{t('common.total')} ({filteredPayments.length})</p>
-                    <p className="text-base font-bold font-mono text-destructive">{displayTotal.toLocaleString('fr-FR')} CFA</p>
-                  </div>
+                  <Badge variant="outline" className="bg-background/60 border-destructive/30 text-destructive text-[10px] font-semibold whitespace-nowrap">
+                    {filteredPayments.length} {t('contractors.records', { defaultValue: 'records' })}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
