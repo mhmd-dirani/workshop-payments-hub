@@ -906,11 +906,11 @@ export default function ContractorPayments() {
 
             // Payment type filter for budgets
             if (filterPaymentType === 'advance') {
+              // Only show budgets that actually have a portion marked as advance
               const hasRelevantAdvance = filterWorkshop !== 'all'
                 ? advanceWsIds.includes(filterWorkshop)
                 : advanceFromBudget > 0;
-              const hasRemaining = remaining > 0;
-              if (!hasRelevantAdvance && !hasRemaining) return false;
+              if (!hasRelevantAdvance) return false;
             } else if (filterPaymentType === 'product') {
               // Show budgets that have actual product purchases (the
               // productBudgetTotal is added to the displayed total, so they
@@ -945,15 +945,14 @@ export default function ContractorPayments() {
               // In overall view, budget amount is added to total (the given amount)
               return sum + Number(p.amount);
             } else if (filterPaymentType === 'material_budget' || filterPaymentType === 'product') {
-              // When filtering by material_budget, only show actual product purchases (not advance, not remaining)
-              const spent = allBudgetSums[p.id] || 0;
+              // For product/material filter: total = budget amount - advance-marked portion
+              // (i.e. the part of the budget not converted to a contractor advance)
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
-              return sum + Math.max(0, spent - advanceFromBudget);
+              return sum + Math.max(0, Number(p.amount) - advanceFromBudget);
             } else if (filterPaymentType === 'advance') {
-              // In advance filter, remaining balance + advance purchases from budget
-              const spent = allBudgetSums[p.id] || 0;
+              // Only the portion that was actually marked as advance counts
               const advanceFromBudget = advanceBudgetSums[p.id] || 0;
-              return sum + Math.max(0, Number(p.amount) - spent) + advanceFromBudget;
+              return sum + advanceFromBudget;
             }
             return sum;
           }
