@@ -1145,46 +1145,67 @@ export default function ContractorPayments() {
                     {isBudget && isExpanded && (
                       <div className="mt-3 border-t pt-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium text-muted-foreground">{t('contractors.purchases')}</p>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowPurchaseForm(showPurchaseForm === p.id ? null : p.id)}>
-                            <Plus className="w-3 h-3" />
-                            {t('contractors.addPurchase')}
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('contractors.purchases')}</p>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{budgetPurchases.length}</Badge>
+                          </div>
+                          {showPurchaseForm !== p.id && (
+                            <Button size="sm" className="h-7 text-xs gap-1 shadow-sm" onClick={() => setShowPurchaseForm(p.id)}>
+                              <Plus className="w-3 h-3" />
+                              {t('contractors.addPurchase')}
+                            </Button>
+                          )}
                         </div>
 
                         {/* Purchase form */}
                         {showPurchaseForm === p.id && (
-                          <div className="p-2 bg-muted/50 rounded-md space-y-2">
-                            {/* Mode toggle */}
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant={purchaseMode === 'new' ? 'default' : 'outline'}
-                                className="flex-1 h-7 text-xs"
-                                onClick={() => { setPurchaseMode('new'); setSelectedExistingPaymentId(''); }}
-                              >
-                                {t('contractors.newPurchase')}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={purchaseMode === 'existing' ? 'default' : 'outline'}
-                                className="flex-1 h-7 text-xs gap-1"
-                                onClick={() => { setPurchaseMode('existing'); setPurchaseWorkshopId(''); }}
-                              >
-                                <Link className="w-3 h-3" />
-                                {t('contractors.linkExistingPayment')}
+                          <div className="rounded-xl border border-primary/20 bg-gradient-to-b from-primary/[0.04] to-background overflow-hidden shadow-sm">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-background/60">
+                              <div className="flex items-center gap-1.5">
+                                <Plus className="w-3.5 h-3.5 text-primary" />
+                                <span className="text-xs font-semibold">{t('contractors.addPurchase')}</span>
+                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={resetPurchaseForm} aria-label="close">
+                                <X className="w-3.5 h-3.5" />
                               </Button>
                             </div>
+                            {/* Segmented mode toggle */}
+                            <div className="px-3 pt-3">
+                              <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-muted rounded-lg">
+                                <button
+                                  type="button"
+                                  onClick={() => { setPurchaseMode('new'); setSelectedExistingPaymentId(''); }}
+                                  className={`flex items-center justify-center gap-1 h-7 rounded-md text-[11px] font-medium transition-all ${purchaseMode === 'new' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  {t('contractors.newPurchase')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setPurchaseMode('existing'); setPurchaseWorkshopId(''); }}
+                                  className={`flex items-center justify-center gap-1 h-7 rounded-md text-[11px] font-medium transition-all ${purchaseMode === 'existing' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                  <Link className="w-3 h-3" />
+                                  {t('contractors.linkExistingPayment')}
+                                </button>
+                              </div>
+                            </div>
+                            <div className="px-3 pb-3 pt-3 space-y-2.5">
 
                             {purchaseMode === 'existing' ? (
                               <div className="space-y-2">
-                                <Input
-                                  value={existingPaymentSearch}
-                                  onChange={e => setExistingPaymentSearch(e.target.value)}
-                                  placeholder={t('contractors.searchExistingPayments')}
-                                  className="h-8 text-sm"
-                                />
-                                <div className="max-h-40 overflow-y-auto space-y-1">
+                                <div className="relative">
+                                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                  <Input
+                                    value={existingPaymentSearch}
+                                    onChange={e => setExistingPaymentSearch(e.target.value)}
+                                    placeholder={t('contractors.searchExistingPayments')}
+                                    className="h-8 text-xs pl-7 bg-background"
+                                  />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto space-y-1 rounded-md border border-border/60 bg-background/60 p-1">
                                   {approvedPayments
                                     .filter(ap => {
                                        // Only show payments linked to this contractor via contractor_payments
@@ -1202,36 +1223,43 @@ export default function ContractorPayments() {
                                     .map(ap => (
                                       <div
                                         key={ap.id}
-                                        className={`p-2 rounded text-xs cursor-pointer border transition-colors ${selectedExistingPaymentId === ap.id ? 'border-primary bg-primary/10' : 'border-transparent bg-background hover:bg-muted'}`}
+                                        className={`p-2 rounded-md text-xs cursor-pointer border transition-all ${selectedExistingPaymentId === ap.id ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border/40 bg-background hover:bg-muted/60'}`}
                                         onClick={() => setSelectedExistingPaymentId(ap.id)}
                                       >
                                         <div className="flex justify-between items-center">
-                                          <span className="font-medium">{ap.paid_to}</span>
-                                          <span className="font-bold">{Number(ap.amount).toLocaleString('fr-FR')} CFA</span>
+                                          <span className="font-semibold truncate">{ap.paid_to}</span>
+                                          <span className="font-bold font-mono whitespace-nowrap ml-2">{Number(ap.amount).toLocaleString('fr-FR')}</span>
                                         </div>
-                                        <div className="flex justify-between text-muted-foreground mt-0.5">
+                                        <div className="flex justify-between text-muted-foreground mt-0.5 text-[10px]">
                                           <span className="truncate flex-1">{ap.reason}</span>
                                           <span className="ml-2 whitespace-nowrap">{ap.payment_date}</span>
                                         </div>
-                                        <Badge variant="outline" className="text-[10px] mt-1">{getWorkshopName(ap.workshop_id)}</Badge>
+                                        <Badge variant="outline" className="text-[9px] px-1 py-0 mt-1">{getWorkshopName(ap.workshop_id)}</Badge>
                                       </div>
                                     ))}
+                                  {approvedPayments.filter(ap => {
+                                    const ids = payments.filter(cp => cp.contractor_id === p.contractor_id && cp.payment_id).map(cp => cp.payment_id);
+                                    return ids.includes(ap.id);
+                                  }).length === 0 && (
+                                    <p className="text-[11px] text-center text-muted-foreground py-4">{t('contractors.noPayments')}</p>
+                                  )}
                                 </div>
                                 <Button
                                   size="sm"
-                                  className="w-full h-8"
+                                  className="w-full h-8 gap-1"
                                   onClick={() => addPurchaseMutation.mutate(p)}
                                   disabled={!selectedExistingPaymentId || addPurchaseMutation.isPending}
                                 >
+                                  <Link className="w-3.5 h-3.5" />
                                   {t('contractors.linkPayment')}
                                 </Button>
                               </div>
                             ) : (
-                              <>
+                              <div className="space-y-2.5">
                                 <div>
-                                  <Label className="text-xs">{t('common.workshop')}</Label>
+                                  <Label className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t('common.workshop')}</Label>
                                   <Select value={purchaseWorkshopId} onValueChange={setPurchaseWorkshopId}>
-                                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
+                                    <SelectTrigger className="h-9 text-sm mt-1 bg-background"><SelectValue placeholder={t('dashboard.selectWorkshop')} /></SelectTrigger>
                                     <SelectContent>
                                       {workshops.map(w => (
                                         <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
@@ -1241,45 +1269,58 @@ export default function ContractorPayments() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <Label className="text-xs">{t('common.amount')}</Label>
-                                    <Input type="number" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="0" className="h-8 text-sm" />
+                                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t('common.amount')}</Label>
+                                    <div className="relative mt-1">
+                                      <Input type="number" inputMode="decimal" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="0" className="h-9 text-sm pr-10 font-mono bg-background" />
+                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">CFA</span>
+                                    </div>
                                   </div>
                                   <div>
-                                    <Label className="text-xs">{t('common.date')}</Label>
-                                    <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="h-8 text-sm" />
+                                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t('common.date')}</Label>
+                                    <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="h-9 text-sm mt-1 bg-background" />
                                   </div>
                                 </div>
                                 <div>
-                                  <Label className="text-xs">{t('common.description')}</Label>
-                                  <Input value={purchaseDescription} onChange={e => setPurchaseDescription(e.target.value)} placeholder={t('contractors.purchaseDescPlaceholder')} className="h-8 text-sm" />
+                                  <Label className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t('common.description')}</Label>
+                                  <Input value={purchaseDescription} onChange={e => setPurchaseDescription(e.target.value)} placeholder={t('contractors.purchaseDescPlaceholder')} className="h-9 text-sm mt-1 bg-background" />
                                 </div>
                                 <div>
-                                  <Label className="text-xs">{t('payments.invoiceReceipt')}</Label>
+                                  <Label className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t('payments.invoiceReceipt')}</Label>
                                   {purchaseReceipt ? (
-                                    <div className="flex items-center gap-2 p-1.5 border rounded bg-background">
+                                    <div className="flex items-center gap-2 mt-1 px-2 py-1.5 border border-primary/30 rounded-md bg-primary/5">
+                                      <Receipt className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                                       <span className="text-xs truncate flex-1">{purchaseReceipt.name}</span>
-                                      <Button size="sm" variant="ghost" className="h-5 px-1 text-xs" onClick={() => setPurchaseReceipt(null)}>✕</Button>
+                                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setPurchaseReceipt(null)}>
+                                        <X className="w-3 h-3" />
+                                      </Button>
                                     </div>
                                   ) : (
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 mt-1">
                                       <input ref={purchaseFileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
                                       <input ref={purchaseCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFileSelect(e, setPurchaseReceipt)} />
-                                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseFileRef.current?.click()}>
-                                        <Upload className="w-3 h-3" />
+                                      <Button type="button" variant="outline" size="sm" className="gap-1.5 flex-1 h-8 text-xs bg-background" onClick={() => purchaseFileRef.current?.click()}>
+                                        <Upload className="w-3.5 h-3.5" />
                                         {t('payments.uploadFile')}
                                       </Button>
-                                      <Button type="button" variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs" onClick={() => purchaseCameraRef.current?.click()}>
-                                        <Camera className="w-3 h-3" />
+                                      <Button type="button" variant="outline" size="sm" className="gap-1.5 flex-1 h-8 text-xs bg-background" onClick={() => purchaseCameraRef.current?.click()}>
+                                        <Camera className="w-3.5 h-3.5" />
                                         {t('payments.capturePhoto')}
                                       </Button>
                                     </div>
                                   )}
                                 </div>
-                                <Button size="sm" className="w-full h-8" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
-                                  {t('common.save')}
-                                </Button>
-                              </>
+                                <div className="flex gap-2 pt-1">
+                                  <Button size="sm" variant="outline" className="flex-1 h-9" onClick={resetPurchaseForm}>
+                                    {t('common.cancel')}
+                                  </Button>
+                                  <Button size="sm" className="flex-1 h-9 gap-1 shadow-sm" onClick={() => addPurchaseMutation.mutate(p)} disabled={!purchaseWorkshopId || !purchaseAmount || Number(purchaseAmount) <= 0 || addPurchaseMutation.isPending}>
+                                    <Plus className="w-3.5 h-3.5" />
+                                    {t('common.save')}
+                                  </Button>
+                                </div>
+                              </div>
                             )}
+                            </div>
                           </div>
                         )}
 
