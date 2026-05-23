@@ -20,7 +20,6 @@ export default function UserWorkshopPayments() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
       const { fetchAllPages } = await import('@/lib/paginate');
       const data = await fetchAllPages<any>((from, to) =>
         supabase
@@ -32,10 +31,9 @@ export default function UserWorkshopPayments() {
           .order('id', { ascending: false })
           .range(from, to)
       );
-      const error = null as unknown as null;
 
       // Get workshop names
-      const workshopIds = [...new Set(data?.map(p => p.workshop_id) || [])];
+      const workshopIds = [...new Set(data.map(p => p.workshop_id))] as string[];
       if (workshopIds.length === 0) return [];
 
       const { data: workshops } = await supabase
@@ -45,7 +43,7 @@ export default function UserWorkshopPayments() {
 
       const workshopMap = new Map(workshops?.map(w => [w.id, w.name]) || []);
 
-      return (data || []).map(p => ({
+      return data.map(p => ({
         ...p,
         workshop_name: workshopMap.get(p.workshop_id) || '-',
       }));
