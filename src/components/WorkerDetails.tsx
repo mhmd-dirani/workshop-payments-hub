@@ -337,6 +337,26 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   // adjustmentNet should only reflect real bonuses/discounts, not payment credits
   const adjustmentNet = bonusTotal - realDiscountTotal;
 
+  // Live payment plan — single source of truth used by both the worker-card
+  // summary preview and createPayment so the dashboard amount always matches
+  // what the admin sees on the card.
+  const paymentPlan = useMemo(() => {
+    const workshopNames: Record<string, string> = {};
+    unpaidAttendance.forEach((e: any) => {
+      if (e.workshop_id) workshopNames[e.workshop_id] = (e.workshops as any)?.name || workshopNames[e.workshop_id] || 'Unknown';
+    });
+    unpaidAdjustments.forEach((a: any) => {
+      if (a.workshop_id) workshopNames[a.workshop_id] = (a.workshops as any)?.name || workshopNames[a.workshop_id] || 'Unknown';
+    });
+    return buildPaymentPlan({
+      attendance: unpaidAttendance as any,
+      adjustments: unpaidAdjustments as any,
+      workshopNames,
+      holidayPay: includeHolidayPay ? worker.hourly_rate : 0,
+      debtDeduction: debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0,
+    });
+  }, [unpaidAttendance, unpaidAdjustments, includeHolidayPay, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
+
    // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
     (e) => e.description?.includes('Overtime')
