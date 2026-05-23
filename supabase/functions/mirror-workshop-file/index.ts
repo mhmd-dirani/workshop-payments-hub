@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     // Workshop subfolder
     const safeName = safeDriveName(workshopName || workshopId);
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
-    const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 10)} - ${safeDriveName(fileName)}`;
+    const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 16).replace('T', ' ').replace(':', '-')} - ${safeDriveName(fileName)}`;
     await deleteExistingDriveFiles(driveFileName, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
 
     // Multipart upload
