@@ -860,5 +860,16 @@
       "workshop_files": "Workshop files"
     },
     "overLimit": "Over limit: {{tables}}. All aggregations now paginate, so totals stay accurate — but any new unpaginated query on these tables would silently miss rows. Plan archiving soon."
+  },
+  "gdrive": {
+    "title": "Google Drive Sync",
+    "description": "Export all your data to a Google Sheets master spreadsheet and mirror workshop files into Google Drive folders.",
+    "syncNow": "Sync now to Google Drive",
+    "syncing": "Syncing…",
+    "syncDone": "Sync complete",
+    "syncDoneDesc": "Spreadsheet and Drive folder are up to date.",
+    "openSheet": "Open spreadsheet",
+    "openFolder": "Open Drive folder",
+    "lastSync": "Last sync exported {{count}} rows."
   }
 }

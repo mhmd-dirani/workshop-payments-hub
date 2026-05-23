@@ -859,5 +859,16 @@
       "workshop_files": "Fichiers du chantier"
     },
     "overLimit": "Au-delà de la limite : {{tables}}. Toutes les agrégations paginent désormais, les totaux restent exacts — mais toute nouvelle requête non paginée sur ces tables manquerait silencieusement des lignes. Prévoir un archivage."
+  },
+  "gdrive": {
+    "title": "Synchro Google Drive",
+    "description": "Exportez toutes vos données vers un classeur Google Sheets et copiez les fichiers d'atelier vers Google Drive.",
+    "syncNow": "Synchroniser maintenant",
+    "syncing": "Synchronisation…",
+    "syncDone": "Synchronisation terminée",
+    "syncDoneDesc": "Le classeur et le dossier Drive sont à jour.",
+    "openSheet": "Ouvrir le classeur",
+    "openFolder": "Ouvrir le dossier Drive",
+    "lastSync": "Dernière synchro : {{count}} lignes exportées."
   }
 }

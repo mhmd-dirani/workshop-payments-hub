@@ -17,6 +17,7 @@ import PersonalPaymentsTable from '@/components/PersonalPaymentsTable';
 import WorkshopFilesManager from '@/components/WorkshopFilesManager';
 import UserDebtTracker from '@/components/UserDebtTracker';
 import DatabaseUsageCard from '@/components/DatabaseUsageCard';
+import GoogleDriveSyncCard from '@/components/GoogleDriveSyncCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
@@ -403,6 +404,7 @@ export default function Dashboard() {
         )}
 
         {role === 'admin' && <DatabaseUsageCard />}
+        {role === 'admin' && <GoogleDriveSyncCard />}
       </div>
     </Layout>
   );
