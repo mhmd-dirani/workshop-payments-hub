@@ -1478,14 +1478,29 @@ export default function ContractorPayments() {
                                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">CFA</p>
                                     </div>
                                     {role === 'admin' && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={() => deletePurchaseMutation.mutate(purchase)}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
+                                      <>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+                                          onClick={() => {
+                                            setEditingPurchase(purchase);
+                                            setEditPurchaseAmount(String(purchase.amount));
+                                            setEditPurchaseDate(purchase.purchase_date);
+                                            setEditPurchaseDescription(purchase.description || '');
+                                          }}
+                                        >
+                                          <Edit2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                                          onClick={() => deletePurchaseMutation.mutate(purchase)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </>
                                     )}
                                   </div>
                                 </div>
