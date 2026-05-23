@@ -870,6 +870,7 @@
     "syncDoneDesc": "Spreadsheet and Drive folder are up to date.",
     "openSheet": "Open spreadsheet",
     "openFolder": "Open Drive folder",
-    "lastSync": "Last sync exported {{count}} rows."
+    "lastSync": "Last sync exported {{count}} rows.",
+    "filesMirrored": "Drive files mirrored: {{count}} uploaded, {{skipped}} skipped."
   }
 }
