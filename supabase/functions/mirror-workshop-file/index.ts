@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { workshopId, workshopName, storagePath, fileName, fileType } = body;
+    const { workshopId, workshopName, storagePath, fileName, fileType, createdAt } = body;
     if (!workshopId || !workshopName || !storagePath || !fileName) {
       return new Response(JSON.stringify({ error: 'Missing fields' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -127,13 +127,15 @@ Deno.serve(async (req) => {
     }
 
     // Workshop subfolder
-    const safeName = workshopName.replace(/[\\/:*?"<>|]/g, '_').trim() || workshopId;
+    const safeName = safeDriveName(workshopName || workshopId);
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 10)} - ${safeDriveName(fileName)}`;
+    await deleteExistingDriveFiles(driveFileName, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
 
     // Multipart upload
     const boundary = `----lovable-${Date.now()}`;
     const metadata = {
-      name: fileName,
+      name: driveFileName,
       parents: [workshopFolderId],
     };
     const fileBytes = new Uint8Array(await blob.arrayBuffer());
