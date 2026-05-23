@@ -115,6 +115,7 @@ export default function PersonalPaymentForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['personal-payments'] });
       queryClient.invalidateQueries({ queryKey: ['user-global-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       onOpenChange(false);
       toast({
         title: isEditing ? t('personalPayments.updated') : t('personalPayments.added'),
