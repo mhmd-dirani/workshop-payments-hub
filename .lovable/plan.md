@@ -1,156 +1,64 @@
+## Goal
 
-# Team Payments Dashboard - Implementation Plan
+Make the worker card the single source of truth for "to be paid". The amount the admin sees on the worker card before clicking **Pay full salary** must exactly equal the sum of payment rows created on the dashboard — across **all workshops**, with advances, bonuses, overtime, holiday pay and debt deduction applied consistently.
 
-## Overview
-Create a separate dashboard for managing team member finances, independent of workshops. This allows admins to give money to team members who can then use it across multiple workshops.
+## Bugs found (worker salary, multi-site)
 
-## Key Changes
+1. **Advances can silently re-apply forever.** In `createPayment`, when a worker has an unpaid advance on site A and earned nothing (or less than the advance) on every other site, no payment row gets created, so `fallbackPaymentId` stays `null` and the advance's adjustment row is never marked `is_paid`. Next pay it deducts again. Same problem if the cross-workshop credit exceeds total positive earnings — leftover credit is lost.
+2. **Partial credit consumption is lost.** If a 50k advance is only partially consumed (e.g. 30k of earnings on other sites), the full 50k adjustment is marked paid; the remaining 20k disappears instead of carrying over.
+3. **Dashboard amount > card "to be paid".** The card shows `totalOwed = attendance + bonus − discount`. The dashboard payment then adds **holiday pay** and subtracts **debt deduction** that are configured in the pay dialog — but the card preview never reflects those. So the admin commits a number different from what they were shown.
+4. **Debt deduction is split before holiday pay is added** → tiny rounding mismatches when both are on.
+5. **Discount total on the card mixes credit-discounts (advances) with real discounts**, so the "bonuses/discounts" line on the card double-counts the advance that's already shown separately.
 
-### 1. New Database Table: `team_transfers`
-A new table to track money given to team members (not tied to any workshop):
+## Fixes
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID | Team member receiving money |
-| amount | NUMERIC | Amount transferred |
-| transfer_date | DATE | When the transfer happened |
-| description | TEXT | Optional note |
-| created_by | UUID | Admin who made the transfer |
-| created_at | TIMESTAMP | Record creation time |
+### A. Reconciliation logic in `createPayment` (`src/components/WorkerDetails.tsx`)
 
-RLS Policies:
-- Admins can manage all transfers
-- Users can view their own transfers
+- Track consumed credit **per source adjustment**, not as a single pool. When marking credit-adjustments paid, only mark the portion actually consumed; split the remainder into a new unpaid credit adjustment so it carries forward.
+- If after the loop there are credit adjustments that were consumed against zero/negative earnings (no payment row created anywhere) → do **not** mark anything paid; throw a clear error: "Advances exceed earnings. Nothing to pay this round."
+- Add `holidayPay` to `grandTotalBeforeDeduction` so the proportional debt split is correct.
+- Move the "first workshop gets holiday pay" rule to a deterministic choice (the workshop with the largest positive total) so the user-visible breakdown matches the card.
 
-### 2. New Page: Team Dashboard (`/team`)
-**Admin View:**
-- List of all team members with their balances
-- Click on a team member to see their profile
-- Button to add money to any team member
+### B. Worker card summary (`src/components/WorkerDetails.tsx`)
 
-**Member Profile View (when clicking a team member):**
-- Summary card showing:
-  - Total Received (from all transfers)
-  - Total Spent (from all approved payments across all workshops)
-  - Current Balance
-- Transfer History table (money received from admin)
-- Payment History table (where they spent money, showing workshop name)
+Refactor the top summary into a single `paymentPreview` memo that mirrors `createPayment` exactly and drives both the card numbers and the pay dialog:
 
-### 3. New Components
-
-| Component | Purpose |
-|-----------|---------|
-| `TeamDashboard.tsx` | Main page for team finances |
-| `TeamMemberCard.tsx` | Shows member name and balance summary |
-| `TeamMemberProfile.tsx` | Detailed view of a member's finances |
-| `TeamTransferForm.tsx` | Modal for admin to add money to member |
-| `TeamTransferHistory.tsx` | Table of transfers received |
-| `TeamSpendingHistory.tsx` | Table of payments made across workshops |
-
-### 4. Remove Team Payments from Workshop Flow
-- Update `PaymentForm.tsx` to remove the "Pay Team Member" option
-- The workshop dashboard will only handle external payments
-- Team member payments move to the new Team Dashboard
-
-### 5. User Balance Updates
-- Update `UserBalanceCard.tsx` to calculate balance from `team_transfers` instead of `user_transfers`
-- Users will see their global balance (not per-workshop)
-
-### 6. Navigation Update
-Add "Team" link to admin navigation in `Layout.tsx` (using `Users2` icon)
-
-## Data Flow
-
-```text
-Admin gives money to team member
-          |
-          v
-+-------------------+
-| team_transfers    |  (NEW - workshop-independent)
-+-------------------+
-          |
-          v
-Team member's global balance increases
-          |
-          v
-Member adds payment in any workshop
-          |
-          v
-+-------------------+
-| payments          |  (existing table)
-+-------------------+
-          |
-          v
-Balance decreases when approved
+```
+attendance   +X
+bonuses      +Y
+discounts    −Z          (real discounts only, excludes advances)
+─────────────────
+sub-total     S
+advances     −A          (cross-workshop credit applied)
+holiday pay  +H          (if toggle on, live)
+debt deduct  −D          (if selected, live)
+─────────────────
+to be paid    P
 ```
 
-## Technical Details
+Card always shows P, broken down. If P=0 because advances exceed earnings, card shows "Advances exceed earnings — adjust before paying".
 
-### Database Migration
-```sql
--- Create new table for workshop-independent transfers
-CREATE TABLE public.team_transfers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
-  amount NUMERIC NOT NULL CHECK (amount > 0),
-  transfer_date DATE NOT NULL,
-  description TEXT,
-  created_by UUID NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+### C. UI/efficiency in worker card
 
--- Enable RLS
-ALTER TABLE public.team_transfers ENABLE ROW LEVEL SECURITY;
+- One compact summary card (the block above) instead of the current scattered totals.
+- Per-workshop chips below it showing how P will be split across sites (matches dashboard rows).
+- Collapse the long "unpaid by workshop" tables behind a "Show breakdown" toggle on mobile (current scroll is heavy on 384px viewport).
+- Move the holiday-pay / debt-deduction toggles into the same card so they update P live before the pay dialog opens.
 
--- Admin can manage all
-CREATE POLICY "Admins can manage all team transfers"
-  ON public.team_transfers FOR ALL
-  USING (has_role(auth.uid(), 'admin'));
+### D. Verification
 
--- Users can view their own
-CREATE POLICY "Users can view their own team transfers"
-  ON public.team_transfers FOR SELECT
-  USING (auth.uid() = user_id);
-```
+After implementing:
+1. Reproduce: worker with 50k advance on site A, 30k earnings on site B → expect blocked pay with clear message, advance stays.
+2. Worker with 50k advance on site A, 80k earnings on site B → expect single 30k payment on site B, advance fully marked paid.
+3. Worker with 50k advance on site A, 30k on site B, 40k on site C → expect 30k+0+40k consumed; 50k advance fully cleared by sum of cross-credits; payments on B and C total 20k.
+4. Worker with holiday pay on + 10k debt deduction → card P == sum of dashboard payment rows, to the franc.
 
-### Balance Calculation Logic (Frontend)
-```typescript
-// Total received from team_transfers
-const totalReceived = teamTransfers.reduce((sum, t) => sum + t.amount, 0);
+### Out of scope (this round)
 
-// Total spent from payments (across all workshops, approved only)
-const totalSpent = payments
-  .filter(p => p.status === 'approved' && p.created_by === userId)
-  .reduce((sum, p) => sum + p.amount, 0);
+- Bonus/overtime sync, payment dashboard ↔ worker card edit/delete sync, worker debts repayment paths. We'll do these as separate rounds so each gets verified.
 
-// Balance
-const balance = totalReceived - totalSpent;
-```
+### Files touched
 
-### What Happens to Existing Data
-- The existing `user_transfers` table will remain for historical data
-- Migration will NOT transfer data automatically (existing workshop transfers stay as-is)
-- New transfers will go to `team_transfers`
-
-## Files to Create
-1. `src/pages/Team.tsx` - Team dashboard page
-2. `src/components/TeamMemberCard.tsx` - Member summary card
-3. `src/components/TeamMemberProfile.tsx` - Detailed member view
-4. `src/components/TeamTransferForm.tsx` - Add money form
-5. `src/components/TeamTransferHistory.tsx` - Transfer history table
-6. `src/components/TeamSpendingHistory.tsx` - Spending history table
-
-## Files to Modify
-1. `src/App.tsx` - Add `/team` route
-2. `src/components/Layout.tsx` - Add Team nav link for admin
-3. `src/components/PaymentForm.tsx` - Remove "Pay Team Member" option
-4. `src/components/UserBalanceCard.tsx` - Use team_transfers for balance
-5. `src/components/UserIncomeTable.tsx` - Use team_transfers for history
-
-## Summary
-This plan creates a clean separation between:
-- **Workshop finances**: Income and external payments for each workshop
-- **Team finances**: Global money given to team members, tracked across all workshops
-
-Team members will have one global balance that they can spend across any workshop they're assigned to.
+- `src/components/WorkerDetails.tsx` (logic + card UI)
+- `src/lib/worker-payment-utils.ts` (split-credit helper)
+- `src/i18n/locales/{en,fr,ar}.json` (new strings: "advances exceed earnings", "to be paid", per-workshop breakdown labels, "show breakdown")
