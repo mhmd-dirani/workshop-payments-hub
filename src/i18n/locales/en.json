@@ -817,6 +817,8 @@
     "addPurchase": "Add Purchase",
     "purchaseAdded": "Purchase recorded",
     "purchaseDeleted": "Purchase deleted",
+    "editPurchase": "Edit Purchase",
+    "purchaseUpdated": "Purchase updated",
     "noPurchases": "No purchases recorded yet",
     "purchaseDescPlaceholder": "What was purchased?",
     "markAsAdvance": "Mark Remaining as Advance",

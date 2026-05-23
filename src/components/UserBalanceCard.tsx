@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/integrations/supabase/client';
 import { fetchUserBalance } from '@/lib/balance-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import PersonalPaymentForm from './PersonalPaymentForm';
 export default function UserBalanceCard() {
   const { t } = useTranslation();
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
   const [isPersonalPaymentOpen, setIsPersonalPaymentOpen] = useState(false);
 
   // Single source of truth: see src/lib/balance-utils.ts.
@@ -30,6 +32,24 @@ export default function UserBalanceCard() {
     },
     enabled: !!user && role !== 'admin',
   });
+
+  // Realtime: re-fetch balance whenever any of the three source tables change
+  // for this user. Without this, an admin's edits/approvals on another device
+  // would not reach the user's screen until manual refresh, causing the
+  // balance to drift from the admin view.
+  useEffect(() => {
+    if (!user || role === 'admin') return;
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: ['user-global-balance', user.id] });
+    };
+    const channel = supabase
+      .channel(`user-balance-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_transfers', filter: `user_id=eq.${user.id}` }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments', filter: `created_by=eq.${user.id}` }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'personal_payments', filter: `user_id=eq.${user.id}` }, invalidate)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, role, queryClient]);
 
   // Don't show for admins
   if (role === 'admin') return null;

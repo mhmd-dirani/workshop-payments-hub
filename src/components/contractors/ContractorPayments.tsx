@@ -58,6 +58,10 @@ export default function ContractorPayments() {
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'existing'>('new');
   const [selectedExistingPaymentId, setSelectedExistingPaymentId] = useState('');
   const [existingPaymentSearch, setExistingPaymentSearch] = useState('');
+  const [editingPurchase, setEditingPurchase] = useState<any>(null);
+  const [editPurchaseAmount, setEditPurchaseAmount] = useState('');
+  const [editPurchaseDate, setEditPurchaseDate] = useState('');
+  const [editPurchaseDescription, setEditPurchaseDescription] = useState('');
 
   const { data: contractors = [] } = useQuery({
     queryKey: ['contractors'],
@@ -317,6 +321,7 @@ export default function ContractorPayments() {
           receipt_file_path: receiptPath,
           receipt_file_name: receiptName,
           created_by: user!.id,
+          payment_id: existingPayment.id,
         });
         if (error) throw error;
 
@@ -396,6 +401,7 @@ export default function ContractorPayments() {
         receipt_file_path: receiptPath,
         receipt_file_name: receiptName,
         created_by: user!.id,
+        payment_id: paymentRecord.id,
       });
       if (error) throw error;
 
@@ -430,14 +436,72 @@ export default function ContractorPayments() {
       if (purchase.receipt_file_path) {
         await supabase.storage.from('workshop-files').remove([purchase.receipt_file_path]);
       }
+      // Cascade: if this purchase is linked to a main dashboard payment, remove that
+      // payment and its contractor_payments(budget_purchase) row so the dashboard
+      // total and balances stay in sync.
+      if (purchase.payment_id) {
+        await supabase.from('contractor_payments')
+          .delete()
+          .eq('payment_id', purchase.payment_id)
+          .eq('payment_type', 'budget_purchase');
+        await supabase.from('workshop_files').delete().eq('payment_id', purchase.payment_id);
+        await supabase.from('payments').delete().eq('id', purchase.payment_id);
+      }
       const { error } = await supabase.from('contractor_budget_purchases').delete().eq('id', purchase.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-payments-for-budget'] });
       toast({ title: t('contractors.purchaseDeleted') });
     },
+  });
+
+  const editPurchaseMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPurchase) return;
+      const newAmount = Number(editPurchaseAmount);
+      // Update the purchase row
+      const { error } = await supabase.from('contractor_budget_purchases')
+        .update({
+          amount: newAmount,
+          purchase_date: editPurchaseDate,
+          description: editPurchaseDescription,
+        })
+        .eq('id', editingPurchase.id);
+      if (error) throw error;
+
+      // Cascade to the linked main dashboard payment + contractor_payments(budget_purchase) row
+      if (editingPurchase.payment_id) {
+        await supabase.from('payments')
+          .update({
+            amount: newAmount,
+            payment_date: editPurchaseDate,
+          })
+          .eq('id', editingPurchase.payment_id);
+        await supabase.from('contractor_payments')
+          .update({
+            amount: newAmount,
+            payment_date: editPurchaseDate,
+            description: editPurchaseDescription,
+          })
+          .eq('payment_id', editingPurchase.payment_id)
+          .eq('payment_type', 'budget_purchase');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget-purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-sums'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-payments-for-budget'] });
+      toast({ title: t('contractors.purchaseUpdated') });
+      setEditingPurchase(null);
+    },
+    onError: () => toast({ title: t('errors.error'), variant: 'destructive' }),
   });
 
   const editBudgetMutation = useMutation({
@@ -834,6 +898,36 @@ export default function ContractorPayments() {
               <Input type="number" value={editBudgetAmount} onChange={e => setEditBudgetAmount(e.target.value)} />
             </div>
             <Button className="w-full" onClick={() => editBudgetMutation.mutate()} disabled={!editBudgetAmount || Number(editBudgetAmount) <= 0 || editBudgetMutation.isPending}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Purchase Dialog */}
+      <Dialog open={!!editingPurchase} onOpenChange={(open) => { if (!open) setEditingPurchase(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.editPurchase')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t('common.amount')}</Label>
+              <Input type="number" inputMode="decimal" value={editPurchaseAmount} onChange={e => setEditPurchaseAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t('common.date')}</Label>
+              <Input type="date" value={editPurchaseDate} onChange={e => setEditPurchaseDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t('common.description')}</Label>
+              <Textarea rows={2} value={editPurchaseDescription} onChange={e => setEditPurchaseDescription(e.target.value)} />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => editPurchaseMutation.mutate()}
+              disabled={editPurchaseAmount === '' || Number(editPurchaseAmount) < 0 || !editPurchaseDate || editPurchaseMutation.isPending}
+            >
               {t('common.save')}
             </Button>
           </div>
@@ -1414,14 +1508,29 @@ export default function ContractorPayments() {
                                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">CFA</p>
                                     </div>
                                     {role === 'admin' && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={() => deletePurchaseMutation.mutate(purchase)}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
+                                      <>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+                                          onClick={() => {
+                                            setEditingPurchase(purchase);
+                                            setEditPurchaseAmount(String(purchase.amount));
+                                            setEditPurchaseDate(purchase.purchase_date);
+                                            setEditPurchaseDescription(purchase.description || '');
+                                          }}
+                                        >
+                                          <Edit2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                                          onClick={() => deletePurchaseMutation.mutate(purchase)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </>
                                     )}
                                   </div>
                                 </div>

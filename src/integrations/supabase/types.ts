@@ -131,6 +131,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          payment_id: string | null
           purchase_date: string
           receipt_file_name: string | null
           receipt_file_path: string | null
@@ -142,6 +143,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           purchase_date: string
           receipt_file_name?: string | null
           receipt_file_path?: string | null
@@ -153,6 +155,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           purchase_date?: string
           receipt_file_name?: string | null
           receipt_file_path?: string | null
