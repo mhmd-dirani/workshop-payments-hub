@@ -603,7 +603,10 @@
     "bonuses": "المكافآت",
     "discounts": "الخصومات",
     "advancesApplied": "السلف المطبقة",
-    "sites": "مواقع"
+    "sites": "مواقع",
+    "daysShort": "ي",
+    "itemsShort": "عناصر",
+    "advance": "سلفة"
   },
   "personalPayments": {
     "title": "المدفوعات الشخصية",

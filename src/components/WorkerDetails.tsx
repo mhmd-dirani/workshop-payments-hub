@@ -40,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfWeek, endOfWeek, subWeeks, addDays } from 'date-fns';
 import { 
@@ -58,7 +59,10 @@ import {
   MinusCircle,
   X,
   ArrowUpCircle,
-  CalendarHeart
+  CalendarHeart,
+  CalendarDays,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -1374,6 +1378,288 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
     onError: (error: Error) => toast({ title: t('errors.error'), description: error.message, variant: 'destructive' }),
   });
 
+  // ===== Day-grouped renderers (unpaid + history) =====
+  type DayKey = string; // 'YYYY-MM-DD'
+
+  const groupByDate = <T extends { work_date: string }>(items: T[]): Record<DayKey, T[]> => {
+    const map: Record<DayKey, T[]> = {};
+    for (const it of items) {
+      const k = it.work_date;
+      if (!map[k]) map[k] = [];
+      map[k].push(it);
+    }
+    return map;
+  };
+
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const renderAttendanceLine = (entry: any) => {
+    const extraAmount = Number(entry.extra_amount) || 0;
+    const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
+    const discountAmount = Number(entry.discount_amount) || 0;
+    const hasDiscount = discountAmount > 0;
+    const isOvertime = entry.description?.includes('Overtime');
+    return (
+      <div key={`att-${entry.id}`} className="flex items-start justify-between gap-2 text-xs py-1">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-medium">{t('workers.attendance', { defaultValue: 'Attendance' })}</span>
+            {Number(entry.hours_worked) === 0.5 && (
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-warning border-warning">
+                {t('attendance.halfDay', { defaultValue: '½ Day' })}
+              </Badge>
+            )}
+            {isOvertime && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 gap-0.5">
+                <Clock className="w-2.5 h-2.5" />{t('attendance.overtimeShort', { defaultValue: 'OT' })}
+              </Badge>
+            )}
+          </div>
+          {isOvertime && entry.description && (
+            <p className="text-[10px] text-muted-foreground line-clamp-1">{entry.description}</p>
+          )}
+          {hasExtra && (
+            <p className="text-[10px] text-warning">
+              + {extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
+              {entry.extra_reason ? ` — ${entry.extra_reason}` : ''}
+            </p>
+          )}
+          {hasDiscount && (
+            <p className="text-[10px] text-destructive">
+              − {discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
+              {entry.discount_reason ? ` — ${entry.discount_reason}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="font-mono font-semibold text-sm">
+            {Number(entry.daily_salary).toLocaleString('fr-FR')}
+          </span>
+          <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(entry)} className="h-6 w-6">
+            <Edit className="w-3 h-3" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setAttendanceToDelete(entry.id)} className="h-6 w-6 text-destructive hover:text-destructive">
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdjustmentLine = (adj: any, editable = true) => {
+    const isCredit = adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]');
+    const isBonus = adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi';
+    const Icon = adj.adjustment_type === 'bonus' ? Sparkles : adj.adjustment_type === 'taxi' ? Clock : MinusCircle;
+    const colorCls = isBonus ? 'text-success' : isCredit ? 'text-warning' : 'text-destructive';
+    const label = isCredit
+      ? t('workers.advance', { defaultValue: 'Advance' })
+      : adj.adjustment_type === 'bonus'
+        ? t('workers.bonus', { defaultValue: 'Bonus' })
+        : adj.adjustment_type === 'taxi'
+          ? t('adjustments.taxi', { defaultValue: 'Taxi' })
+          : t('attendance.discount', { defaultValue: 'Discount' });
+    const cleanReason = (adj.reason || '').replace(/\[PAYMENT_CREDIT\]|\[ADVANCE_CREDIT\]/g, '').trim();
+    return (
+      <div key={`adj-${adj.id}`} className="flex items-start justify-between gap-2 text-xs py-1">
+        <div className="flex-1 min-w-0">
+          <div className={cn('flex items-center gap-1 font-medium', colorCls)}>
+            <Icon className="w-3 h-3" />
+            <span>{label}</span>
+          </div>
+          {cleanReason && <p className="text-[10px] text-muted-foreground line-clamp-2">{cleanReason}</p>}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className={cn('font-mono font-semibold text-sm', colorCls)}>
+            {isBonus ? '+' : '−'}{Number(adj.amount).toLocaleString('fr-FR')}
+          </span>
+          {editable && isCredit && adj.payment_id && (
+            <>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async (e) => {
+                e.stopPropagation();
+                const { data: payment } = await supabase
+                  .from('payments').select('created_by, reason').eq('id', adj.payment_id).single();
+                setEditingAdvanceCredit({ ...adj, _payment_created_by: payment?.created_by || '', _payment_reason: payment?.reason || '' });
+                setEditAdvanceAmount(String(adj.amount));
+                setEditAdvanceCreatorId(payment?.created_by || '');
+              }}><Edit className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setAdvanceCreditToDelete(adj); }}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </>
+          )}
+          {editable && !isCredit && (
+            <>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {
+                e.stopPropagation();
+                setEditingBonusAdj(adj);
+                setEditBonusAdjAmount(String(adj.amount));
+                setEditBonusAdjReason(adj.reason || '');
+              }}><Edit className="w-3 h-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setBonusAdjToDelete(adj); }}>
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderUnpaidByDay = (workshopId: string, attendanceEntries: any[]) => {
+    const adjustments = (unpaidAdjustments as any[]).filter(a => a.workshop_id === workshopId);
+    const dates = new Set<string>([
+      ...attendanceEntries.map((e: any) => e.work_date),
+      ...adjustments.map((a: any) => a.work_date),
+    ]);
+    const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
+    if (sortedDates.length === 0) {
+      return <p className="text-xs text-muted-foreground text-center py-2">{t('workers.noPendingPayments')}</p>;
+    }
+    return (
+      <div className="divide-y">
+        {sortedDates.map((date) => {
+          const dayAtt = attendanceEntries.filter((e: any) => e.work_date === date);
+          const dayAdj = adjustments.filter((a: any) => a.work_date === date);
+          const dayTotal =
+            dayAtt.reduce((s: number, e: any) => s + getEffectivePay(e), 0) +
+            dayAdj.reduce((s: number, a: any) => {
+              if (a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi') return s + Number(a.amount);
+              return s - Number(a.amount);
+            }, 0);
+          return (
+            <div key={date} className="py-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold font-mono">
+                  {format(parseLocalDate(date), 'EEE, dd/MM')}
+                </span>
+                <span className={cn('text-xs font-mono font-bold', dayTotal >= 0 ? 'text-foreground' : 'text-destructive')}>
+                  {dayTotal >= 0 ? '' : '−'}{Math.abs(dayTotal).toLocaleString('fr-FR')} CFA
+                </span>
+              </div>
+              <div className="ml-2 pl-2 border-l border-border/60 space-y-0.5">
+                {dayAtt.map(renderAttendanceLine)}
+                {dayAdj.map((a: any) => renderAdjustmentLine(a, true))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // History: combined paid items by week → day
+  type HistoryItem =
+    | { kind: 'att'; date: string; workshopId: string; workshopName: string; entry: any }
+    | { kind: 'adj'; date: string; workshopId: string; workshopName: string; entry: any };
+
+  const historyItems = useMemo<HistoryItem[]>(() => {
+    const items: HistoryItem[] = [];
+    for (const e of filteredPaidAttendance as any[]) {
+      items.push({ kind: 'att', date: e.work_date, workshopId: e.workshop_id, workshopName: (e.workshops as any)?.name || 'Unknown', entry: e });
+    }
+    for (const a of filteredPaidAdjustments as any[]) {
+      items.push({ kind: 'adj', date: a.work_date, workshopId: a.workshop_id, workshopName: (a.workshops as any)?.name || 'Unknown', entry: a });
+    }
+    return items;
+  }, [filteredPaidAttendance, filteredPaidAdjustments]);
+
+  const historyByWeek = useMemo(() => {
+    const groups: Record<string, { weekLabel: string; weekStart: Date; items: HistoryItem[] }> = {};
+    for (const it of historyItems) {
+      const d = parseLocalDate(it.date);
+      const sunday = startOfWeek(d, { weekStartsOn: 0 });
+      const key = format(sunday, 'yyyy-MM-dd');
+      if (!groups[key]) {
+        const saturday = addDays(sunday, 6);
+        groups[key] = {
+          weekStart: sunday,
+          weekLabel: `${format(sunday, 'dd/MM')} – ${format(saturday, 'dd/MM/yyyy')}`,
+          items: [],
+        };
+      }
+      groups[key].items.push(it);
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([k, v]) => ({ key: k, ...v }));
+  }, [historyItems]);
+
+  const renderHistoryWeek = (items: HistoryItem[]) => {
+    // group by workshop, then day
+    const byWorkshop: Record<string, { name: string; items: HistoryItem[] }> = {};
+    for (const it of items) {
+      if (!byWorkshop[it.workshopId]) byWorkshop[it.workshopId] = { name: it.workshopName, items: [] };
+      byWorkshop[it.workshopId].items.push(it);
+    }
+    return (
+      <div className="space-y-3">
+        {Object.entries(byWorkshop).map(([wid, { name, items: wItems }]) => {
+          const dates = Array.from(new Set(wItems.map(i => i.date))).sort((a, b) => b.localeCompare(a));
+          return (
+            <div key={wid} className="rounded-md border bg-card/40">
+              <div className="flex items-center justify-between px-2 py-1.5 border-b bg-muted/40">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs font-medium truncate">{name}</span>
+                </div>
+              </div>
+              <div className="divide-y px-2">
+                {dates.map(date => {
+                  const dayAtt = wItems.filter(i => i.kind === 'att' && i.date === date).map(i => i.entry);
+                  const dayAdj = wItems.filter(i => i.kind === 'adj' && i.date === date).map(i => i.entry);
+                  const dayTotal =
+                    dayAtt.reduce((s: number, e: any) => s + Number(e.daily_salary || 0), 0) +
+                    dayAdj.reduce((s: number, a: any) => {
+                      if (a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi') return s + Number(a.amount);
+                      return s - Number(a.amount);
+                    }, 0);
+                  return (
+                    <div key={date} className="py-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold font-mono">{format(parseLocalDate(date), 'EEE, dd/MM')}</span>
+                        <span className="text-xs font-mono font-bold">{dayTotal.toLocaleString('fr-FR')} CFA</span>
+                      </div>
+                      <div className="ml-2 pl-2 border-l border-border/60 space-y-0.5">
+                        {dayAtt.map((entry: any) => {
+                          const isOvertime = entry.description?.includes('Overtime');
+                          return (
+                            <div key={entry.id} className="flex items-center justify-between gap-2 text-xs py-0.5">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className="font-medium">{t('workers.attendance', { defaultValue: 'Attendance' })}</span>
+                                {Number(entry.hours_worked) === 0.5 && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-warning border-warning">½</Badge>
+                                )}
+                                {isOvertime && (
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 gap-0.5"><Clock className="w-2.5 h-2.5" />OT</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="font-mono">{Number(entry.daily_salary).toLocaleString('fr-FR')}</span>
+                                <Button variant="ghost" size="icon" onClick={() => deletePaidAttendance.mutate(entry)} className="h-5 w-5 text-destructive hover:text-destructive">
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {dayAdj.map((adj: any) => renderAdjustmentLine(adj, true))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1392,15 +1678,35 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       {/* Payment Preview — mirrors the dashboard payment exactly */}
       <Card className="shadow-card">
         <CardContent className="p-3 md:p-4 space-y-2">
-          <div className="flex items-center justify-between text-muted-foreground text-xs">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{t('workers.workDays')}: <span className="font-mono font-semibold text-foreground">{totalDays}</span></span>
+          {/* Stats grid */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="flex flex-col items-center justify-center rounded-md border bg-muted/30 p-1.5">
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none">{totalDays}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.workDays')}</span>
             </div>
-            {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length > 1 && (
-              <span className="text-[10px]">{paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}</span>
-            )}
+            <div className="flex flex-col items-center justify-center rounded-md border bg-success/5 p-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-success mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-success">+{paymentPlan.totals.bonuses.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.bonuses', { defaultValue: 'Bonuses' })}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-md border bg-destructive/5 p-1.5">
+              <TrendingDown className="w-3.5 h-3.5 text-destructive mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-destructive">−{paymentPlan.totals.realDiscounts.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.discounts', { defaultValue: 'Discounts' })}</span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-md border bg-warning/5 p-1.5">
+              <MinusCircle className="w-3.5 h-3.5 text-warning mb-0.5" />
+              <span className="text-sm font-bold font-mono leading-none text-warning">−{paymentPlan.totals.credits.toLocaleString('fr-FR')}</span>
+              <span className="text-[9px] text-muted-foreground mt-0.5">{t('workers.advance', { defaultValue: 'Advance' })}</span>
+            </div>
           </div>
+          {(paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length) > 1 && (
+            <div className="flex items-center justify-end text-[10px] text-muted-foreground">
+              <Building2 className="w-3 h-3 mr-1" />
+              {paymentPlan.workshops.length + paymentPlan.emptyWorkshops.length} {t('workers.sites', { defaultValue: 'sites' })}
+            </div>
+          )}
 
           <div className="space-y-0.5 text-xs">
             <div className="flex justify-between"><span className="text-muted-foreground">{t('workers.attendance', { defaultValue: 'Attendance' })}</span><span className="font-mono">+{paymentPlan.totals.attendance.toLocaleString('fr-FR')}</span></div>
@@ -1504,203 +1810,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     </div>
                   </CardHeader>
                   <CardContent className="px-3 pb-3">
-                    <div className="space-y-1">
-                      {entries.map((entry) => {
-                        const extraAmount = Number(entry.extra_amount) || 0;
-                        const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                        const discountAmount = Number(entry.discount_amount) || 0;
-                        const hasDiscount = discountAmount > 0;
-                        const extraReason = entry.extra_reason?.trim();
-                        const discountReason = entry.discount_reason?.trim();
-                        const isOvertime = entry.description?.includes('Overtime');
-                        return (
-                          <div key={entry.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-xs">
-                                  {format(new Date(entry.work_date), 'EEE, dd/MM')}
-                                </span>
-                                {Number(entry.hours_worked) === 0.5 && (
-                                  <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                     {t('attendance.halfDay', { defaultValue: '½ Day' })}
-                                  </Badge>
-                                )}
-                                {isOvertime && (
-                                  <Badge variant="secondary" className="text-[10px] px-1 py-0 gap-0.5">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {t('attendance.overtimeShort', { defaultValue: 'OT' })}
-                                  </Badge>
-                                )}
-                              </div>
-                              {isOvertime && entry.description && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
-                                  {entry.description}
-                                </p>
-                              )}
-                              {hasExtra && (
-                                <div className="flex flex-col gap-0.5 mt-0.5">
-                                  <div className="flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3 text-warning" />
-                                    <span className="text-[10px] text-warning">
-                                      +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                    </span>
-                                  </div>
-                                  {extraReason && (
-                                    <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                      {extraReason}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              {hasDiscount && (
-                                <div className="flex flex-col gap-0.5 mt-0.5">
-                                  <div className="flex items-center gap-1">
-                                    <MinusCircle className="w-3 h-3 text-destructive" />
-                                    <span className="text-[10px] text-destructive">
-                                      -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                    </span>
-                                  </div>
-                                  {discountReason && (
-                                    <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                      {discountReason}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-right">
-                                <span className="font-mono font-medium">
-                                  {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                                </span>
-                                {(hasExtra || hasDiscount) && (
-                                  <p className="text-[10px] text-muted-foreground font-mono">
-                                    {Number(entry.hourly_rate).toLocaleString('fr-FR')}
-                                    {hasExtra && ` + ${extraAmount.toLocaleString('fr-FR')}`}
-                                    {hasDiscount && ` - ${discountAmount.toLocaleString('fr-FR')}`}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditAttendance(entry)}
-                                className="h-6 w-6"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setAttendanceToDelete(entry.id)}
-                                className="h-6 w-6 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {/* Show unpaid adjustments for this workshop */}
-                      {unpaidAdjustments
-                        .filter((adj) => adj.workshop_id === workshopId)
-                        .map((adj) => (
-                          <div key={adj.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                            <div className="flex flex-col">
-                              <span className="font-mono text-xs">
-                                {format(new Date(adj.work_date), 'EEE, dd/MM')}
-                              </span>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                {adj.adjustment_type === 'bonus' ? (
-                                  <Sparkles className="w-3 h-3 text-success" />
-                                ) : adj.adjustment_type === 'taxi' ? (
-                                  <Clock className="w-3 h-3 text-blue-600" />
-                                ) : (
-                                  <MinusCircle className="w-3 h-3 text-destructive" />
-                                )}
-                                <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : adj.adjustment_type === 'taxi' ? 'text-blue-600' : 'text-destructive'}`}>
-                                  {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : adj.adjustment_type === 'taxi' ? t('adjustments.taxi', { defaultValue: 'Taxi' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                </span>
-                              </div>
-                              {adj.reason && (
-                                <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{adj.reason}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Badge variant={adj.adjustment_type === 'discount' ? 'destructive' : 'secondary'} className="gap-1 font-mono text-xs">
-                                {adj.adjustment_type === 'discount' ? '-' : '+'}{Number(adj.amount).toLocaleString('fr-FR')}
-                              </Badge>
-                              {/* Edit/Delete for advance/partial credits */}
-                              {(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && adj.payment_id && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      const { data: payment } = await supabase
-                                        .from('payments')
-                                        .select('created_by, reason')
-                                        .eq('id', adj.payment_id)
-                                        .single();
-                                      setEditingAdvanceCredit({
-                                        ...adj,
-                                        _payment_created_by: payment?.created_by || '',
-                                        _payment_reason: payment?.reason || '',
-                                      });
-                                      setEditAdvanceAmount(String(adj.amount));
-                                      setEditAdvanceCreatorId(payment?.created_by || '');
-                                    }}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setAdvanceCreditToDelete(adj);
-                                    }}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              )}
-                              {/* Edit/Delete for bonus/taxi/discount adjustments (non-credit) */}
-                              {!(adj.reason?.includes('[PAYMENT_CREDIT]') || adj.reason?.includes('[ADVANCE_CREDIT]')) && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingBonusAdj(adj);
-                                      setEditBonusAdjAmount(String(adj.amount));
-                                      setEditBonusAdjReason(adj.reason || '');
-                                    }}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setBonusAdjToDelete(adj);
-                                    }}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
+                    {renderUnpaidByDay(workshopId, entries)}
                   </CardContent>
                 </Card>
               ))}
@@ -1781,328 +1891,54 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 </Select>
               </div>
 
-              {/* Paid Adjustments (Bonuses/Discounts) Section - filtered */}
-              {filteredPaidAdjustments.length > 0 && (
-                <Card className="shadow-card">
-                  <CardHeader className="pb-2 px-3 pt-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-warning" />
-                      {t('workers.paidAdjustments', { defaultValue: 'Paid Bonuses & Discounts' })}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <div className="space-y-1">
-                      {filteredPaidAdjustments.map((adj) => (
-                        <div key={adj.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
-                          <div className="flex flex-col">
-                            <span className="font-mono text-xs">
-                              {format(new Date(adj.work_date), 'EEE, dd/MM')}
-                            </span>
-                            <Badge variant="outline" className="text-[10px] mt-1 w-fit">
-                              {(adj.workshops as any)?.name}
-                            </Badge>
-                            {adj.reason && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{adj.reason}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {adj.adjustment_type === 'bonus' || adj.adjustment_type === 'taxi' ? (
-                              <Badge variant="secondary" className="gap-1 font-mono">
-                                <Sparkles className="w-3 h-3" />
-                                +{Number(adj.amount).toLocaleString('fr-FR')}
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive" className="gap-1 font-mono">
-                                <MinusCircle className="w-3 h-3" />
-                                -{Number(adj.amount).toLocaleString('fr-FR')}
-                              </Badge>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingBonusAdj(adj);
-                                setEditBonusAdjAmount(String(adj.amount));
-                                setEditBonusAdjReason(adj.reason || '');
-                              }}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setBonusAdjToDelete(adj);
-                              }}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {filteredPaidAttendance.length === 0 && filteredPaidAdjustments.length === 0 ? (
+              {historyByWeek.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <p>{t('workers.noPaymentHistory')}</p>
                   </CardContent>
                 </Card>
-              ) : filteredPaidAttendance.length > 0 ? (
-                <Card className="shadow-card">
-                  <CardContent className="p-0">
-                    <div className="md:hidden">
-                      {filteredPaidAttendance.map((entry) => {
-                        const isOvertime = entry.description?.includes('Overtime');
-                        const extraAmount = Number(entry.extra_amount) || 0;
-                        const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                        const discountAmount = Number(entry.discount_amount) || 0;
-                        const hasDiscount = discountAmount > 0;
-                        const extraReason = entry.extra_reason?.trim();
-                        const discountReason = entry.discount_reason?.trim();
-                        const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                        const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
-                        const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
-                        return (
-                          <div key={entry.id} className="p-3 border-b last:border-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <p className="font-mono text-xs">
-                                    {format(new Date(entry.work_date), 'EEE, dd/MM/yyyy')}
-                                  </p>
-                                  {Number(entry.hours_worked) === 0.5 && (
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                      {t('attendance.halfDay', { defaultValue: '½ Day' })}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <Badge variant="outline" className="text-[10px] mt-1 max-w-full">
-                                  <span className="truncate">{(entry.workshops as any)?.name}</span>
-                                </Badge>
-                                {entry.description && (
-                                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-                                    {entry.description}
-                                  </p>
-                                )}
-                                {hasExtra && !isOvertime && (
-                                  <div className="flex flex-col gap-0.5 mt-1">
-                                    <div className="flex items-center gap-1">
-                                      <Sparkles className="w-3 h-3 text-warning flex-shrink-0" />
-                                      <span className="text-[10px] text-warning">
-                                        +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                      </span>
-                                    </div>
-                                    {extraReason && (
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                        {extraReason}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                                {hasDiscount && (
-                                  <div className="flex flex-col gap-0.5 mt-1">
-                                    <div className="flex items-center gap-1">
-                                      <MinusCircle className="w-3 h-3 text-destructive" />
-                                      <span className="text-[10px] text-destructive">
-                                        -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                      </span>
-                                    </div>
-                                    {discountReason && (
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                        {discountReason}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                                {showLinkedAdj && linkedAdj.map((adj) => (
-                                  <div key={adj.id} className="flex items-center gap-1 mt-1">
-                                    {adj.adjustment_type === 'bonus' ? (
-                                      <Sparkles className="w-3 h-3 text-success flex-shrink-0" />
-                                    ) : (
-                                      <MinusCircle className="w-3 h-3 text-destructive flex-shrink-0" />
-                                    )}
-                                    <span className={`text-[10px] ${adj.adjustment_type === 'bonus' ? 'text-success' : 'text-destructive'}`}>
-                                      {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                    </span>
-                                    {adj.reason && (
-                                      <span className="text-[10px] text-muted-foreground truncate">({adj.reason})</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <div className="text-right">
-                                  <p className="font-mono font-medium text-muted-foreground">
-                                    {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                                  </p>
-                                  {isOvertime && (
-                                    <Badge variant="secondary" className="text-[10px] mt-1 gap-1">
-                                      <Clock className="w-2.5 h-2.5" />
-                                      {t('attendance.overtimeShort')}
-                                    </Badge>
-                                  )}
-                                  {!isOvertime && (
-                                    <Badge 
-                                      variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                                      className="text-[10px] mt-1"
-                                    >
-                                      {(entry.payments as any)?.status || 'paid'}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deletePaidAttendance.mutate(entry)}
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+              ) : (
+                <Accordion type="multiple" defaultValue={historyByWeek.slice(0, 1).map(w => w.key)} className="space-y-2">
+                  {historyByWeek.map((week) => {
+                    const weekAttTotal = week.items
+                      .filter(i => i.kind === 'att')
+                      .reduce((s, i) => s + Number((i.entry as any).daily_salary || 0), 0);
+                    const weekAdjTotal = week.items
+                      .filter(i => i.kind === 'adj')
+                      .reduce((s, i) => {
+                        const a: any = i.entry;
+                        return a.adjustment_type === 'bonus' || a.adjustment_type === 'taxi'
+                          ? s + Number(a.amount)
+                          : s - Number(a.amount);
+                      }, 0);
+                    const weekTotal = weekAttTotal + weekAdjTotal;
+                    const dayCount = new Set(week.items.map(i => i.date)).size;
+                    return (
+                      <AccordionItem key={week.key} value={week.key} className="border rounded-md bg-card shadow-card">
+                        <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                          <div className="flex items-center justify-between w-full gap-2 pr-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <CalendarDays className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <div className="text-left min-w-0">
+                                <p className="text-xs font-semibold font-mono truncate">{week.weekLabel}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {dayCount} {t('workers.daysShort', { defaultValue: 'd' })} · {week.items.length} {t('workers.itemsShort', { defaultValue: 'items' })}
+                                </p>
                               </div>
                             </div>
+                            <span className="text-sm font-mono font-bold flex-shrink-0">
+                              {weekTotal.toLocaleString('fr-FR')} CFA
+                            </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <div className="hidden md:block">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{t('common.date')}</TableHead>
-                            <TableHead>{t('common.workshop')}</TableHead>
-                            <TableHead>{t('attendance.dailySalary')}</TableHead>
-                            <TableHead>{t('common.description')}</TableHead>
-                            <TableHead>{t('common.status')}</TableHead>
-                            <TableHead className="text-right">{t('common.actions')}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredPaidAttendance.map((entry) => {
-                            const isOvertime = entry.description?.includes('Overtime');
-                            const extraAmount = Number(entry.extra_amount) || 0;
-                            const hasExtra = Boolean(entry.has_extra && extraAmount > 0);
-                            const discountAmount = Number(entry.discount_amount) || 0;
-                            const hasDiscount = discountAmount > 0;
-                            const extraReason = entry.extra_reason?.trim();
-                            const discountReason = entry.discount_reason?.trim();
-                            const description = entry.description?.trim();
-                            const linkedAdj = entry.payment_id ? (paidAdjByPaymentId[entry.payment_id] || []) : [];
-                            const isFirstForPayment = entry.payment_id ? filteredPaidAttendance.findIndex(e => e.payment_id === entry.payment_id) === filteredPaidAttendance.indexOf(entry) : false;
-                            const showLinkedAdj = isFirstForPayment && linkedAdj.length > 0;
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell className="font-mono">
-                                  <div className="flex items-center gap-1.5">
-                                    {format(new Date(entry.work_date), 'MMM d, yyyy')}
-                                    {Number(entry.hours_worked) === 0.5 && (
-                                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-warning border-warning">
-                                        ½
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">{(entry.workshops as any)?.name}</Badge>
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {Number(entry.daily_salary).toLocaleString('fr-FR')} CFA
-                                </TableCell>
-                                <TableCell className="max-w-[200px]">
-                                  {isOvertime ? (
-                                    <div className="flex items-center gap-1">
-                                      <Badge variant="secondary" className="gap-1 flex-shrink-0">
-                                        <Clock className="w-3 h-3" />
-                                        {t('attendance.overtimeShort')}
-                                      </Badge>
-                                      {description && (
-                                        <span className="text-xs text-muted-foreground truncate" title={description}>
-                                          {description}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-1">
-                                      {hasExtra || hasDiscount ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {hasExtra && (
-                                            <Badge variant="secondary" className="gap-1">
-                                              <Sparkles className="w-3 h-3" />
-                                              +{extraAmount.toLocaleString('fr-FR')} {t('attendance.extra')}
-                                            </Badge>
-                                          )}
-                                          {hasDiscount && (
-                                            <Badge variant="destructive" className="gap-1">
-                                              <MinusCircle className="w-3 h-3" />
-                                              -{discountAmount.toLocaleString('fr-FR')} {t('attendance.discount', { defaultValue: 'Discount' })}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                      {description && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2" title={description}>
-                                          {description}
-                                        </p>
-                                      )}
-                                      {extraReason && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                          {extraReason}
-                                        </p>
-                                      )}
-                                      {discountReason && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                          {discountReason}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                  {showLinkedAdj && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {linkedAdj.map((adj) => (
-                                        <Badge key={adj.id} variant={adj.adjustment_type === 'bonus' ? 'secondary' : 'destructive'} className="gap-1">
-                                          {adj.adjustment_type === 'bonus' ? <Sparkles className="w-3 h-3" /> : <MinusCircle className="w-3 h-3" />}
-                                          {adj.adjustment_type === 'bonus' ? '+' : '-'}{Number(adj.amount).toLocaleString('fr-FR')} {adj.adjustment_type === 'bonus' ? t('workers.bonus', { defaultValue: 'Bonus' }) : t('attendance.discount', { defaultValue: 'Discount' })}
-                                          {adj.reason && <span className="text-[10px] opacity-70">({adj.reason})</span>}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={(entry.payments as any)?.status === 'approved' ? 'default' : 'secondary'}
-                                  >
-                                    {(entry.payments as any)?.status || 'paid'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => deletePaidAttendance.mutate(entry)}
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
+                        </AccordionTrigger>
+                        <AccordionContent className="px-3 pb-3">
+                          {renderHistoryWeek(week.items)}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              )}
             </div>
           )}
         </TabsContent>

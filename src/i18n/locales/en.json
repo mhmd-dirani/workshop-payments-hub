@@ -604,7 +604,10 @@
     "bonuses": "Bonuses",
     "discounts": "Discounts",
     "advancesApplied": "Advances applied",
-    "sites": "sites"
+    "sites": "sites",
+    "daysShort": "d",
+    "itemsShort": "items",
+    "advance": "Advance"
   },
   "personalPayments": {
     "title": "Personal Payments",
