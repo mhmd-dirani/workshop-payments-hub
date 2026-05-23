@@ -1143,20 +1143,60 @@ export default function ContractorPayments() {
 
                     {/* Expanded budget purchases */}
                     {isBudget && isExpanded && (
-                      <div className="mt-3 border-t pt-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('contractors.purchases')}</p>
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{budgetPurchases.length}</Badge>
+                      <div className="mt-4 -mx-1 sm:-mx-2 rounded-xl border border-border/60 bg-gradient-to-b from-secondary/40 to-card/40 p-3 sm:p-4 space-y-3 animate-fade-in">
+                        {/* Section header */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                              <Receipt className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{t('contractors.purchases')}</p>
+                              <p className="text-[10px] text-muted-foreground/80 mt-0.5">
+                                {budgetPurchases.length} {budgetPurchases.length === 1 ? 'item' : 'items'}
+                              </p>
+                            </div>
                           </div>
                           {showPurchaseForm !== p.id && (
-                            <Button size="sm" className="h-7 text-xs gap-1 shadow-sm" onClick={() => setShowPurchaseForm(p.id)}>
-                              <Plus className="w-3 h-3" />
+                            <Button size="sm" className="h-8 text-xs gap-1 shadow-sm rounded-lg" onClick={() => setShowPurchaseForm(p.id)}>
+                              <Plus className="w-3.5 h-3.5" />
                               {t('contractors.addPurchase')}
                             </Button>
                           )}
                         </div>
+
+                        {/* Spent vs budget mini-summary */}
+                        {(() => {
+                          const spent = budgetPurchases.reduce((s, x) => s + Number(x.amount || 0), 0);
+                          const total = Number(p.amount || 0);
+                          const pct = total > 0 ? Math.min(100, Math.round((spent / total) * 100)) : 0;
+                          const remaining = Math.max(0, total - spent);
+                          return (
+                            <div className="rounded-lg border border-border/60 bg-card/70 backdrop-blur-sm px-3 py-2.5">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Spent</p>
+                                  <p className="font-mono text-sm font-bold text-foreground">
+                                    {spent.toLocaleString('fr-FR')} <span className="text-[10px] text-muted-foreground">CFA</span>
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Remaining</p>
+                                  <p className="font-mono text-sm font-bold text-primary">
+                                    {remaining.toLocaleString('fr-FR')} <span className="text-[10px] text-muted-foreground">CFA</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div className="h-full gradient-prestige transition-[width] duration-500" style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                                <span>{pct}% used</span>
+                                <span className="font-mono">/ {total.toLocaleString('fr-FR')} CFA</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Purchase form */}
                         {showPurchaseForm === p.id && (
@@ -1326,37 +1366,68 @@ export default function ContractorPayments() {
 
                         {/* Purchase list */}
                         {budgetPurchases.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-2">{t('contractors.noPurchases')}</p>
+                          <div className="rounded-lg border border-dashed border-border/60 bg-card/40 py-6 text-center">
+                            <Package className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground/60" />
+                            <p className="text-xs text-muted-foreground">{t('contractors.noPurchases')}</p>
+                          </div>
                         ) : (
-                          budgetPurchases.map(purchase => (
-                            <div key={purchase.id} className="flex items-center justify-between p-2 bg-muted/30 rounded text-xs">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className="text-muted-foreground">{purchase.purchase_date}</span>
-                                {purchase.description && <span className="truncate">{purchase.description}</span>}
-                                {purchase.receipt_file_path && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 px-1 text-[10px] gap-0.5"
-                                    onClick={async () => {
-                                      const { data } = await supabase.storage.from('workshop-files').createSignedUrl(purchase.receipt_file_path!, 3600);
-                                      if (data?.signedUrl) window.open(data.signedUrl, '_blank');
-                                    }}
-                                  >
-                                    📎 {purchase.receipt_file_name || t('payments.viewReceipt')}
-                                  </Button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium whitespace-nowrap">{Number(purchase.amount).toLocaleString('fr-FR')} CFA</span>
-                                {role === 'admin' && (
-                                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deletePurchaseMutation.mutate(purchase)}>
-                                    <Trash2 className="w-3 h-3 text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))
+                          <div className="space-y-1.5">
+                            {budgetPurchases.map(purchase => {
+                              const d = purchase.purchase_date ? new Date(purchase.purchase_date + 'T00:00:00') : null;
+                              const day = d ? d.getDate() : '--';
+                              const mon = d ? d.toLocaleDateString('en', { month: 'short' }) : '';
+                              return (
+                                <div
+                                  key={purchase.id}
+                                  className="group flex items-center gap-2.5 rounded-lg border border-border/50 bg-card/80 backdrop-blur-sm px-2.5 py-2 transition-all hover:border-primary/30 hover:shadow-sm"
+                                >
+                                  {/* Date chip */}
+                                  <div className="flex-shrink-0 flex flex-col items-center justify-center w-10 h-10 rounded-md bg-primary/5 border border-primary/15 text-primary">
+                                    <span className="text-[14px] font-bold leading-none font-mono">{day}</span>
+                                    <span className="text-[8px] uppercase tracking-wider mt-0.5 opacity-80">{mon}</span>
+                                  </div>
+                                  {/* Description + receipt */}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-foreground truncate leading-tight">
+                                      {purchase.description || <span className="text-muted-foreground italic">No description</span>}
+                                    </p>
+                                    {purchase.receipt_file_path && (
+                                      <button
+                                        type="button"
+                                        className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 hover:underline truncate max-w-full"
+                                        onClick={async () => {
+                                          const { data } = await supabase.storage.from('workshop-files').createSignedUrl(purchase.receipt_file_path!, 3600);
+                                          if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                                        }}
+                                      >
+                                        <Receipt className="w-2.5 h-2.5" />
+                                        <span className="truncate">{purchase.receipt_file_name || t('payments.viewReceipt')}</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                  {/* Amount + delete */}
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <div className="text-right">
+                                      <p className="font-mono text-xs font-bold text-foreground leading-none whitespace-nowrap">
+                                        {Number(purchase.amount).toLocaleString('fr-FR')}
+                                      </p>
+                                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">CFA</p>
+                                    </div>
+                                    {role === 'admin' && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                                        onClick={() => deletePurchaseMutation.mutate(purchase)}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     )}
