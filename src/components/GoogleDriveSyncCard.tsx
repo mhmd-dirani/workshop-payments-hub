@@ -87,10 +87,10 @@ export default function GoogleDriveSyncCard() {
       setLastFilesMirrored(filesMirrored);
       setLastFilesSkipped(filesSkipped);
       if (filesSkipped > 0) {
-        toast({ title: t('errors.error'), description: t('gdrive.syncPartialDesc', { skipped: filesSkipped }), variant: 'destructive' });
-        return;
+        toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncPartialDesc', { skipped: filesSkipped }) });
+      } else {
+        toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
       }
-      toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
 
       // Create archive snapshot (totals preserved). Does NOT delete data.
       setSnapshotting(true);

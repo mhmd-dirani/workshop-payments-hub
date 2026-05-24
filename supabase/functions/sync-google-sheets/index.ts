@@ -688,6 +688,47 @@ Deno.serve(async (req) => {
       folderPromiseCache.set(key, promise);
       return promise;
     };
+
+    // Pre-create empty receipts/files/checks subfolders for workshops touched in the
+    // date range, so the Drive layout always shows the three categories even when
+    // a workshop has no records of a given type. This also prevents "skipped" errors
+    // from being caused by missing folders.
+    if (!options?.filesOnly) {
+      const workshopIdsInRange = new Set<string>();
+      for (const f of workshopFiles) if (f.workshop_id) workshopIdsInRange.add(f.workshop_id);
+      if (fromDate && toDate) {
+        const dateScopedTables: [string, string][] = [
+          ['payments', 'payment_date'],
+          ['income', 'income_date'],
+          ['attendance', 'work_date'],
+          ['worker_adjustments', 'work_date'],
+          ['contractor_payments', 'payment_date'],
+        ];
+        for (const [table, col] of dateScopedTables) {
+          const { data } = await admin.from(table as any)
+            .select('workshop_id')
+            .gte(col, fromDate)
+            .lte(col, toDate)
+            .not('workshop_id', 'is', null);
+          (data || []).forEach((r: any) => { if (r.workshop_id) workshopIdsInRange.add(r.workshop_id); });
+        }
+      } else {
+        wsRows.forEach((w: any) => workshopIdsInRange.add(w.id));
+      }
+      for (const wsId of workshopIdsInRange) {
+        const workshopName = safeDriveName(workshopMap.get(wsId) || 'Unknown Workshop');
+        try {
+          const workshopFolderId = await getCachedFolder(workshopName, () => findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY));
+          for (const category of ['receipts', 'files', 'checks'] as const) {
+            const key = `${workshopName}/${category}`;
+            await getCachedFolder(key, () => findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY));
+          }
+        } catch (e) {
+          console.warn('Pre-create workshop folders failed:', workshopName, e);
+        }
+      }
+    }
+
     let filesMirrored = 0;
     let filesSkipped = 0;
     const uploadOneFile = async (file: any) => {
@@ -717,23 +758,6 @@ Deno.serve(async (req) => {
 
     const filesProcessed = Math.min(fileOffset + filesForThisRun.length, filesTotal);
     const nextFileOffset = filesProcessed < filesTotal ? filesProcessed : null;
-
-    if (filesSkipped > 0) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: `Sync incomplete: ${filesSkipped} file record${filesSkipped === 1 ? '' : 's'} could not be uploaded because the stored file is missing or unavailable. Re-upload or delete those file records, then sync again.`,
-        spreadsheetId,
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-        folderId,
-        folderUrl: folderId ? `https://drive.google.com/drive/folders/${folderId}` : null,
-        tablesExported,
-        filesMirrored,
-        filesSkipped,
-        filesTotal,
-        filesProcessed,
-        nextFileOffset,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     return new Response(JSON.stringify({
       success: true,
