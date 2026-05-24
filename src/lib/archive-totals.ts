@@ -17,8 +17,9 @@ async function pagedSum<T>(
   filter: (q: any) => any
 ): Promise<T[]> {
   const rows: T[] = [];
+  const client: any = supabase;
   for (let from = 0; ; from += ps) {
-    const q = filter(supabase.from(table).select(select)).order('id').range(from, from + ps - 1);
+    const q = filter(client.from(table).select(select)).order('id').range(from, from + ps - 1);
     const { data, error } = await q;
     if (error) throw error;
     const page = (data || []) as T[];
