@@ -9,11 +9,41 @@ const corsHeaders = {
 const SHEETS_GW = 'https://connector-gateway.lovable.dev/google_sheets/v4';
 const DRIVE_GW = 'https://connector-gateway.lovable.dev/google_drive/drive/v3';
 const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files';
-const SPREADSHEET_NAME = 'Workshop_Master_Database';
+const SPREADSHEET_BASE = 'Workshop_Master_Database';
+const FOLDER_BASE = 'Workshop_Files';
 const DASHBOARD_SHEET = 'Main Dashboard';
 const LEGACY_DASHBOARD_SHEET = 'Dashboard';
 const DEFAULT_FILE_BATCH_SIZE = 5;
 const MAX_FILE_BATCH_SIZE = 10;
+
+// Date column used to filter each table when a date range is supplied.
+// Tables not in this map are treated as reference data and exported in full.
+const TABLE_DATE_COLUMN: Record<string, string> = {
+  attendance: 'work_date',
+  worker_adjustments: 'work_date',
+  payments: 'payment_date',
+  personal_payments: 'payment_date',
+  income: 'income_date',
+  debts: 'debt_date',
+  debt_payments: 'payment_date',
+  contractor_payments: 'payment_date',
+  contractor_budget_purchases: 'purchase_date',
+  team_transfers: 'transfer_date',
+  user_transfers: 'transfer_date',
+  holidays: 'holiday_date',
+};
+
+function rangeSuffix(fromDate: string | null, toDate: string | null): string | null {
+  if (!fromDate || !toDate) return null;
+  const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const [fy, fm] = fromDate.split('-').map(Number);
+  const [ty, tm] = toDate.split('-').map(Number);
+  const fmS = months[(fm - 1) || 0];
+  const tmS = months[(tm - 1) || 0];
+  if (fmS === tmS && fy === ty) return `${fmS}_${fy}`;
+  if (fy === ty) return `${fmS}_${tmS}_${fy}`;
+  return `${fmS}_${fy}_${tmS}_${ty}`;
+}
 
 type Resolver = 'workshop' | 'worker' | 'user' | 'contractor' | 'contract' | 'debt' | 'payment' | 'contractorPayment';
 type TableSpec = {
@@ -412,12 +442,22 @@ Deno.serve(async (req) => {
     const fileOffset = Math.max(0, Number(options?.fileOffset) || 0);
     const requestedFileLimit = Number(options?.fileLimit);
     const fileLimit = Number.isFinite(requestedFileLimit) && requestedFileLimit > 0 ? Math.floor(requestedFileLimit) : null;
+    const fromDate: string | null = typeof options?.fromDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(options.fromDate) ? options.fromDate : null;
+    const toDate: string | null = typeof options?.toDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(options.toDate) ? options.toDate : null;
+    const suffix = rangeSuffix(fromDate, toDate);
+    const spreadsheetName = suffix ? `${SPREADSHEET_BASE}_${suffix}` : SPREADSHEET_BASE;
+    const folderName = suffix ? `${FOLDER_BASE}_${suffix}` : FOLDER_BASE;
+    const spreadsheetSettingKey = suffix ? `master_spreadsheet_id_${suffix}` : 'master_spreadsheet_id';
+    const folderSettingKey = suffix ? `master_drive_folder_id_${suffix}` : 'master_drive_folder_id';
 
-    const fetchAll = async (table: string, cols = '*') => {
+    const fetchAll = async (table: string, cols = '*', applyRange = false) => {
       const all: any[] = [];
       const ps = 1000;
+      const dateCol = applyRange && fromDate && toDate ? TABLE_DATE_COLUMN[table] : null;
       for (let from = 0; ; from += ps) {
-        const { data, error } = await admin.from(table as any).select(cols).range(from, from + ps - 1);
+        let q: any = admin.from(table as any).select(cols).range(from, from + ps - 1);
+        if (dateCol) q = q.gte(dateCol, fromDate).lte(dateCol, toDate);
+        const { data, error } = await q;
         if (error) throw new Error(`Read ${table} failed: ${error.message}`);
         if (!data?.length) break;
         all.push(...data);
@@ -477,7 +517,7 @@ Deno.serve(async (req) => {
       return text !== '' && Number.isFinite(numeric) && /^-?\d+(\.\d+)?$/.test(text) ? numeric : text;
     };
 
-    const { data: setting } = await admin.from('app_settings').select('value').eq('key', 'master_spreadsheet_id').maybeSingle();
+    const { data: setting } = await admin.from('app_settings').select('value').eq('key', spreadsheetSettingKey).maybeSingle();
     let spreadsheetId = setting?.value || null;
 
     if (spreadsheetId) {
@@ -489,12 +529,12 @@ Deno.serve(async (req) => {
       const createRes = await fetch(`${SHEETS_GW}/spreadsheets`, {
         method: 'POST',
         headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-        body: JSON.stringify({ properties: { title: SPREADSHEET_NAME }, sheets: allSheetTitles.map((title) => ({ properties: { title } })) }),
+        body: JSON.stringify({ properties: { title: spreadsheetName }, sheets: allSheetTitles.map((title) => ({ properties: { title } })) }),
       });
       if (!createRes.ok) throw new Error(`Create spreadsheet failed: ${createRes.status} ${await createRes.text()}`);
       const created = await createRes.json();
       spreadsheetId = created.spreadsheetId;
-      await admin.from('app_settings').upsert({ key: 'master_spreadsheet_id', value: spreadsheetId, updated_by: userId, updated_at: new Date().toISOString() });
+      await admin.from('app_settings').upsert({ key: spreadsheetSettingKey, value: spreadsheetId, updated_by: userId, updated_at: new Date().toISOString() });
     }
 
     const metaRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}?fields=sheets.properties`, { headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY) });
@@ -530,15 +570,15 @@ Deno.serve(async (req) => {
     const sheetIds = new Map<string, number>((meta.sheets || []).map((s: any) => [s.properties.title, s.properties.sheetId]));
 
     let folderId: string | null = null;
-    const { data: folderSetting } = await admin.from('app_settings').select('value').eq('key', 'master_drive_folder_id').maybeSingle();
+    const { data: folderSetting } = await admin.from('app_settings').select('value').eq('key', folderSettingKey).maybeSingle();
     folderId = folderSetting?.value || null;
     if (folderId) {
       const c = await fetch(`${DRIVE_GW}/files/${folderId}?fields=id,trashed`, { headers: driveHeaders(LOVABLE_API_KEY, DRIVE_API_KEY, false) });
       if (!c.ok || (await c.json()).trashed) folderId = null;
     }
     if (!folderId) {
-      folderId = await findOrCreateFolder('Workshop_Files', null, LOVABLE_API_KEY, DRIVE_API_KEY);
-      await admin.from('app_settings').upsert({ key: 'master_drive_folder_id', value: folderId, updated_by: userId, updated_at: new Date().toISOString() });
+      folderId = await findOrCreateFolder(folderName, null, LOVABLE_API_KEY, DRIVE_API_KEY);
+      await admin.from('app_settings').upsert({ key: folderSettingKey, value: folderId, updated_by: userId, updated_at: new Date().toISOString() });
     }
 
     const tablesExported: Record<string, number> = {};
@@ -548,7 +588,7 @@ Deno.serve(async (req) => {
 
     if (!options?.filesOnly) {
       for (const spec of TABLE_SPECS) {
-        const rows = await fetchAll(spec.table, '*');
+        const rows = await fetchAll(spec.table, '*', true);
         const headers = spec.columns.map((c) => c.label);
         const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
         clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
@@ -610,7 +650,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
+    let workshopFiles: any[] = [];
+    if (fromDate && toDate) {
+      const ps = 1000;
+      for (let from = 0; ; from += ps) {
+        const { data, error } = await admin
+          .from('workshop_files')
+          .select('id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at')
+          .gte('created_at', `${fromDate}T00:00:00`)
+          .lte('created_at', `${toDate}T23:59:59.999`)
+          .range(from, from + ps - 1);
+        if (error) throw new Error(`Read workshop_files failed: ${error.message}`);
+        if (!data?.length) break;
+        workshopFiles.push(...data);
+        if (data.length < ps) break;
+      }
+    } else {
+      workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
+    }
     const filesTotal = workshopFiles.length;
     const filesForThisRun = fileLimit ? workshopFiles.slice(fileOffset, fileOffset + fileLimit) : workshopFiles;
     const folderCache = new Map<string, string>();
