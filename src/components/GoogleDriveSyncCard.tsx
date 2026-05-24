@@ -4,17 +4,45 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Cloud, ExternalLink, FolderOpen } from 'lucide-react';
+import { Loader2, Cloud, ExternalLink, FolderOpen, Archive } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+function monthBounds(fromYm: string, toYm: string): { fromDate: string; toDate: string } | null {
+  if (!/^\d{4}-\d{2}$/.test(fromYm) || !/^\d{4}-\d{2}$/.test(toYm)) return null;
+  if (toYm < fromYm) return null;
+  const fromDate = `${fromYm}-01`;
+  const [ty, tm] = toYm.split('-').map(Number);
+  const last = new Date(ty, tm, 0).getDate();
+  const toDate = `${toYm}-${String(last).padStart(2, '0')}`;
+  return { fromDate, toDate };
+}
 
 export default function GoogleDriveSyncCard() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<Record<string, number> | null>(null);
   const [lastFilesMirrored, setLastFilesMirrored] = useState<number | null>(null);
   const [lastFilesSkipped, setLastFilesSkipped] = useState<number | null>(null);
+  const today = new Date();
+  const defaultYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const [fromMonth, setFromMonth] = useState<string>(defaultYm);
+  const [toMonth, setToMonth] = useState<string>(defaultYm);
+  const [archivePrompt, setArchivePrompt] = useState<{ fromDate: string; toDate: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +56,11 @@ export default function GoogleDriveSyncCard() {
   }, []);
 
   const sync = async () => {
+    const bounds = monthBounds(fromMonth, toMonth);
+    if (!bounds) {
+      toast({ title: t('errors.error'), description: t('gdrive.invalidRange'), variant: 'destructive' });
+      return;
+    }
     setSyncing(true);
     try {
       let fileOffset: number | null = 0;
@@ -38,6 +71,8 @@ export default function GoogleDriveSyncCard() {
       while (fileOffset !== null) {
         const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
           body: {
+            fromDate: bounds.fromDate,
+            toDate: bounds.toDate,
             fileOffset,
             fileLimit: 5,
             fileBatchSize: 5,
@@ -62,10 +97,32 @@ export default function GoogleDriveSyncCard() {
         description: filesSkipped > 0 ? t('gdrive.syncPartialDesc', { skipped: filesSkipped }) : t('gdrive.syncDoneDesc'),
         variant: filesSkipped > 0 ? 'destructive' : 'default',
       });
+      if (filesSkipped === 0) {
+        setArchivePrompt(bounds);
+      }
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const archive = async () => {
+    if (!archivePrompt) return;
+    setArchiving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('archive-synced-data', {
+        body: { fromDate: archivePrompt.fromDate, toDate: archivePrompt.toDate },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const total = Object.values(data?.deletedCounts || {}).reduce((a: number, b: any) => a + (Number(b) > 0 ? Number(b) : 0), 0);
+      toast({ title: t('gdrive.archiveDone'), description: t('gdrive.archiveDoneDesc', { count: total }) });
+      setArchivePrompt(null);
+    } catch (e: any) {
+      toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -81,6 +138,16 @@ export default function GoogleDriveSyncCard() {
         <CardDescription className="text-xs md:text-sm">{t('gdrive.description')}</CardDescription>
       </CardHeader>
       <CardContent className="px-3 md:px-6 pb-3 md:pb-6 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="gdrive-from" className="text-xs">{t('gdrive.fromMonth')}</Label>
+            <Input id="gdrive-from" type="month" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} className="h-9" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gdrive-to" className="text-xs">{t('gdrive.toMonth')}</Label>
+            <Input id="gdrive-to" type="month" value={toMonth} onChange={(e) => setToMonth(e.target.value)} className="h-9" />
+          </div>
+        </div>
         <Button onClick={sync} disabled={syncing} className="w-full gap-2">
           {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
           {syncing ? t('gdrive.syncing') : t('gdrive.syncNow')}
@@ -114,6 +181,31 @@ export default function GoogleDriveSyncCard() {
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={archivePrompt !== null} onOpenChange={(o) => { if (!o && !archiving) setArchivePrompt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Archive className="w-5 h-5 text-primary" />
+              {t('gdrive.archiveTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {archivePrompt ? t('gdrive.archiveDesc', { from: archivePrompt.fromDate, to: archivePrompt.toDate }) : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiving}>{t('gdrive.keepData')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); archive(); }}
+              disabled={archiving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4 mr-2" />}
+              {t('gdrive.deleteSyncedData')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
