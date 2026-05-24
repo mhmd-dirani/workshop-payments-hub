@@ -10,7 +10,8 @@ const SHEETS_GW = 'https://connector-gateway.lovable.dev/google_sheets/v4';
 const DRIVE_GW = 'https://connector-gateway.lovable.dev/google_drive/drive/v3';
 const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files';
 const SPREADSHEET_NAME = 'Workshop_Master_Database';
-const DASHBOARD_SHEET = 'Dashboard';
+const DASHBOARD_SHEET = 'Main Dashboard';
+const LEGACY_DASHBOARD_SHEET = 'Dashboard';
 
 type Resolver = 'workshop' | 'worker' | 'user' | 'contractor' | 'contract' | 'debt' | 'payment' | 'contractorPayment';
 type TableSpec = {
@@ -435,6 +436,18 @@ Deno.serve(async (req) => {
     if (!metaRes.ok) throw new Error(`Read spreadsheet metadata failed: ${metaRes.status} ${await metaRes.text()}`);
     let meta = await metaRes.json();
     const existing = new Set<string>((meta.sheets || []).map((s: any) => s.properties.title));
+    const legacyDashboard = (meta.sheets || []).find((s: any) => s.properties.title === LEGACY_DASHBOARD_SHEET);
+    if (!existing.has(DASHBOARD_SHEET) && legacyDashboard) {
+      const renameRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+        body: JSON.stringify({ requests: [{ updateSheetProperties: { properties: { sheetId: legacyDashboard.properties.sheetId, title: DASHBOARD_SHEET, index: 0 }, fields: 'title,index' } }] }),
+      });
+      if (!renameRes.ok) throw new Error(`Rename dashboard sheet failed: ${renameRes.status} ${await renameRes.text()}`);
+      meta = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}?fields=sheets.properties`, { headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY) }).then((r) => r.json());
+      existing.clear();
+      (meta.sheets || []).forEach((s: any) => existing.add(s.properties.title));
+    }
     const missing = allSheetTitles.filter((title) => !existing.has(title));
     if (missing.length) {
       const addRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
@@ -509,10 +522,10 @@ Deno.serve(async (req) => {
     const dashId = sheetIds.get(DASHBOARD_SHEET);
     if (dashId !== undefined) {
       formattingRequests.push(
-        { updateSheetProperties: { properties: { sheetId: dashId, gridProperties: { frozenRowCount: 3 } }, fields: 'gridProperties.frozenRowCount' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 16 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 8 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 2 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
+        { updateSheetProperties: { properties: { sheetId: dashId, index: 0, gridProperties: { frozenRowCount: 4, hideGridlines: true } }, fields: 'index,gridProperties.frozenRowCount,gridProperties.hideGridlines' } },
+        { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 18 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+        { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+        { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 10 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
         { autoResizeDimensions: { dimensions: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 } } },
       );
     }
@@ -540,7 +553,9 @@ Deno.serve(async (req) => {
         }
         const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
         if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, workshopFolderId, driveFileName(file), blob, file.file_type || 'application/octet-stream');
+        const niceFileName = driveFileName(file);
+        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, workshopFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
+        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, folderId, `${workshopName} - ${niceFileName}`, blob, file.file_type || 'application/octet-stream');
         filesMirrored += 1;
       } catch (e) {
         filesSkipped += 1;

@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
     const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 16).replace('T', ' ').replace(':', '-')} - ${safeDriveName(fileName)}`;
     await deleteExistingDriveFiles(driveFileName, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    await deleteExistingDriveFiles(`${safeName} - ${driveFileName}`, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
 
     // Multipart upload
     const boundary = `----lovable-${Date.now()}`;
@@ -165,8 +166,33 @@ Deno.serve(async (req) => {
     }
     const uj = await upload.json();
 
+    const rootMetadata = { name: `${safeName} - ${driveFileName}`, parents: [rootId] };
+    const rootPre = enc.encode(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(rootMetadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: ${fileType || 'application/octet-stream'}\r\n\r\n`,
+    );
+    const rootBodyBytes = new Uint8Array(rootPre.length + fileBytes.length + post.length);
+    rootBodyBytes.set(rootPre, 0);
+    rootBodyBytes.set(fileBytes, rootPre.length);
+    rootBodyBytes.set(post, rootPre.length + fileBytes.length);
+
+    const rootUpload = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'X-Connection-Api-Key': DRIVE_API_KEY,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+      },
+      body: rootBodyBytes,
+    });
+    if (!rootUpload.ok) {
+      const txt = await rootUpload.text();
+      throw new Error(`Drive root upload failed: ${rootUpload.status} ${txt}`);
+    }
+    const rj = await rootUpload.json();
+
     return new Response(
-      JSON.stringify({ success: true, driveFileId: uj.id, driveLink: uj.webViewLink, workshopFolderId }),
+      JSON.stringify({ success: true, driveFileId: uj.id, driveLink: uj.webViewLink, rootDriveFileId: rj.id, rootDriveLink: rj.webViewLink, workshopFolderId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e) {
