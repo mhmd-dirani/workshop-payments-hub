@@ -868,6 +868,7 @@
     "syncing": "Syncing…",
     "syncDone": "Sync complete",
     "syncDoneDesc": "Spreadsheet and Drive folder are up to date.",
+    "syncQueuedDesc": "Sync started. The spreadsheet and Drive folder will update in the background.",
     "openSheet": "Open spreadsheet",
     "openFolder": "Open Drive folder",
     "lastSync": "Last sync exported {{count}} rows.",

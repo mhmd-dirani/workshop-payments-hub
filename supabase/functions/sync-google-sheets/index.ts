@@ -348,6 +348,36 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    let requestBody: any = {};
+    try { requestBody = await req.json(); } catch { requestBody = {}; }
+    if (requestBody?.background === true) {
+      const backgroundTask = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-google-sheets`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          apikey: Deno.env.get('SUPABASE_ANON_KEY')!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ background: false }),
+      }).then(async (res) => {
+        if (!res.ok) console.error('Background Google Drive sync failed:', res.status, await res.text());
+      }).catch((error) => console.error('Background Google Drive sync failed:', error));
+      (globalThis as any).EdgeRuntime?.waitUntil?.(backgroundTask);
+
+      const { data: syncSettings } = await admin.from('app_settings').select('key, value')
+        .in('key', ['master_spreadsheet_id', 'master_drive_folder_id']);
+      const sid = syncSettings?.find((s: any) => s.key === 'master_spreadsheet_id')?.value;
+      const fid = syncSettings?.find((s: any) => s.key === 'master_drive_folder_id')?.value;
+      return new Response(JSON.stringify({
+        success: true,
+        queued: true,
+        spreadsheetId: sid || null,
+        spreadsheetUrl: sid ? `https://docs.google.com/spreadsheets/d/${sid}/edit` : null,
+        folderId: fid || null,
+        folderUrl: fid ? `https://drive.google.com/drive/folders/${fid}` : null,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const fetchAll = async (table: string, cols = '*') => {
       const all: any[] = [];
       const ps = 1000;

@@ -867,6 +867,7 @@
     "syncing": "جاري المزامنة…",
     "syncDone": "تمت المزامنة",
     "syncDoneDesc": "جدول البيانات ومجلد Drive محدثان.",
+    "syncQueuedDesc": "بدأت المزامنة. سيتم تحديث جدول البيانات ومجلد Drive في الخلفية.",
     "openSheet": "فتح جدول البيانات",
     "openFolder": "فتح مجلد Drive",
     "lastSync": "آخر مزامنة: {{count}} صف.",

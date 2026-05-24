@@ -867,6 +867,7 @@
     "syncing": "Synchronisation…",
     "syncDone": "Synchronisation terminée",
     "syncDoneDesc": "Le classeur et le dossier Drive sont à jour.",
+    "syncQueuedDesc": "La synchronisation a démarré. Le classeur et le dossier Drive seront mis à jour en arrière-plan.",
     "openSheet": "Ouvrir le classeur",
     "openFolder": "Ouvrir le dossier Drive",
     "lastSync": "Dernière synchro : {{count}} lignes exportées.",
