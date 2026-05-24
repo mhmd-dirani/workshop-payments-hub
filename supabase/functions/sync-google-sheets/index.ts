@@ -409,6 +409,9 @@ Deno.serve(async (req) => {
     let options: any = {};
     try { options = await req.json(); } catch { options = {}; }
     const fileBatchSize = Math.max(1, Math.min(Number(options?.fileBatchSize) || DEFAULT_FILE_BATCH_SIZE, MAX_FILE_BATCH_SIZE));
+    const fileOffset = Math.max(0, Number(options?.fileOffset) || 0);
+    const requestedFileLimit = Number(options?.fileLimit);
+    const fileLimit = Number.isFinite(requestedFileLimit) && requestedFileLimit > 0 ? Math.floor(requestedFileLimit) : null;
 
     const fetchAll = async (table: string, cols = '*') => {
       const all: any[] = [];
@@ -606,6 +609,8 @@ Deno.serve(async (req) => {
     }
 
     const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
+    const filesTotal = workshopFiles.length;
+    const filesForThisRun = fileLimit ? workshopFiles.slice(fileOffset, fileOffset + fileLimit) : workshopFiles;
     const folderCache = new Map<string, string>();
     const folderPromiseCache = new Map<string, Promise<string>>();
     const getCachedFolder = (key: string, create: () => Promise<string>) => {
@@ -637,8 +642,8 @@ Deno.serve(async (req) => {
       await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, driveFileName(file), blob, file.file_type || 'application/octet-stream');
     };
 
-    for (let i = 0; i < workshopFiles.length; i += fileBatchSize) {
-      const batch = workshopFiles.slice(i, i + fileBatchSize);
+    for (let i = 0; i < filesForThisRun.length; i += fileBatchSize) {
+      const batch = filesForThisRun.slice(i, i + fileBatchSize);
       const results = await Promise.allSettled(batch.map(uploadOneFile));
       results.forEach((result, index) => {
         const file = batch[index];
@@ -651,6 +656,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const filesProcessed = Math.min(fileOffset + filesForThisRun.length, filesTotal);
+    const nextFileOffset = filesProcessed < filesTotal ? filesProcessed : null;
+
     if (filesSkipped > 0) {
       return new Response(JSON.stringify({
         success: false,
@@ -662,6 +670,9 @@ Deno.serve(async (req) => {
         tablesExported,
         filesMirrored,
         filesSkipped,
+        filesTotal,
+        filesProcessed,
+        nextFileOffset,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -674,6 +685,9 @@ Deno.serve(async (req) => {
       tablesExported,
       filesMirrored,
       filesSkipped,
+      filesTotal,
+      filesProcessed,
+      nextFileOffset,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('sync-google-sheets error:', e);
