@@ -871,6 +871,15 @@
     "openSheet": "Ouvrir le classeur",
     "openFolder": "Ouvrir le dossier Drive",
     "lastSync": "Dernière synchro : {{count}} lignes exportées.",
-    "filesMirrored": "Fichiers Drive copiés : {{count}} envoyés, {{skipped}} ignorés."
+    "filesMirrored": "Fichiers Drive copiés : {{count}} envoyés, {{skipped}} ignorés.",
+    "fromMonth": "Du mois",
+    "toMonth": "Au mois",
+    "invalidRange": "Choisissez une plage de mois valide (Au doit être ≥ Du).",
+    "archiveTitle": "Archiver les données synchronisées ?",
+    "archiveDesc": "Toutes les données de {{from}} à {{to}} ont été sauvegardées sur Google Drive. Les supprimer de la base pour libérer de l'espace ? Action irréversible.",
+    "keepData": "Conserver",
+    "deleteSyncedData": "Supprimer de la base",
+    "archiveDone": "Archivé",
+    "archiveDoneDesc": "{{count}} enregistrements supprimés de la base."
   }
 }
