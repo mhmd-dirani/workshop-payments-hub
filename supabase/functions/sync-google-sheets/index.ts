@@ -604,6 +604,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (filesSkipped > 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Sync incomplete: ${filesSkipped} file record${filesSkipped === 1 ? '' : 's'} could not be uploaded because the stored file is missing or unavailable. Re-upload or delete those file records, then sync again.`,
+        spreadsheetId,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+        folderId,
+        folderUrl: folderId ? `https://drive.google.com/drive/folders/${folderId}` : null,
+        tablesExported,
+        filesMirrored,
+        filesSkipped,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     return new Response(JSON.stringify({
       success: true,
       spreadsheetId,
