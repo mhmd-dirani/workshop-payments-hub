@@ -97,9 +97,7 @@ export default function GoogleDriveSyncCard() {
         description: filesSkipped > 0 ? t('gdrive.syncPartialDesc', { skipped: filesSkipped }) : t('gdrive.syncDoneDesc'),
         variant: filesSkipped > 0 ? 'destructive' : 'default',
       });
-      if (filesSkipped === 0) {
-        setArchivePrompt(bounds);
-      }
+      setArchivePrompt(bounds);
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
     } finally {
