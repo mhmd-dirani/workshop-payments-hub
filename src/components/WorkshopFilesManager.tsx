@@ -255,7 +255,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
                 .download(file.file_path);
               if (error || !data) return null;
               const category = categorizeFile(file);
-              const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
+              const folderName = category === 'receipt' ? 'receipts' : category === 'check' ? 'checks' : 'files';
               // Use unique name to avoid collisions
               const ext = file.file_name.split('.').pop() || 'bin';
               const uniqueName = `${file.file_name.replace(/\.[^.]+$/, '')}_${file.id.slice(0, 6)}.${ext}`;
@@ -390,9 +390,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
   };
 
   // Categorize files
-  const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
+  const maps = allFiles?.filter(f => categorizeFile(f) === 'file') || [];
   const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
-  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'income') || [];
+  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'check') || [];
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
