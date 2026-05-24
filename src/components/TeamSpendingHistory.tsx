@@ -15,6 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { ArrowUpCircle, Wallet } from 'lucide-react';
+import { usePaymentReceipts } from '@/hooks/usePaymentReceipts';
 
 interface TeamSpendingHistoryProps {
   userId: string;
@@ -117,6 +118,7 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
 
   const workshopTotal = filteredWorkshopPayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const personalTotal = personalPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(filteredWorkshopPayments.map((p: any) => p.id));
 
   return (
     <Card className="shadow-card border-destructive/20">
@@ -192,9 +194,12 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
                             {format(new Date(payment.payment_date), 'MMM d, yyyy')}
                           </p>
                         </div>
-                        <p className="font-mono font-medium text-destructive text-sm shrink-0">
-                          -{Number(payment.amount).toLocaleString('fr-FR')}
-                        </p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <ReceiptButtons paymentId={payment.id} size="sm" />
+                          <p className="font-mono font-medium text-destructive text-sm">
+                            -{Number(payment.amount).toLocaleString('fr-FR')}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -266,6 +271,7 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
           </TabsContent>
         </Tabs>
       </CardContent>
+      <PreviewDialog />
     </Card>
   );
 }
