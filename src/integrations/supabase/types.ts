@@ -35,6 +35,54 @@ export type Database = {
         }
         Relationships: []
       }
+      archive_batches: {
+        Row: {
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          drive_folder_url: string | null
+          from_date: string
+          id: string
+          label: string
+          rows_archived: Json
+          rows_deleted: Json
+          spreadsheet_url: string | null
+          status: string
+          to_date: string
+          totals_verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          drive_folder_url?: string | null
+          from_date: string
+          id?: string
+          label: string
+          rows_archived?: Json
+          rows_deleted?: Json
+          spreadsheet_url?: string | null
+          status?: string
+          to_date: string
+          totals_verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          drive_folder_url?: string | null
+          from_date?: string
+          id?: string
+          label?: string
+          rows_archived?: Json
+          rows_deleted?: Json
+          spreadsheet_url?: string | null
+          status?: string
+          to_date?: string
+          totals_verified_at?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           created_at: string
@@ -143,6 +191,50 @@ export type Database = {
           member_user_id?: string
         }
         Relationships: []
+      }
+      contractor_archive_summaries: {
+        Row: {
+          batch_id: string
+          contractor_id: string
+          contractor_name: string
+          created_at: string
+          id: string
+          total_advances: number
+          total_budget: number
+          total_materials: number
+          total_purchases: number
+        }
+        Insert: {
+          batch_id: string
+          contractor_id: string
+          contractor_name: string
+          created_at?: string
+          id?: string
+          total_advances?: number
+          total_budget?: number
+          total_materials?: number
+          total_purchases?: number
+        }
+        Update: {
+          batch_id?: string
+          contractor_id?: string
+          contractor_name?: string
+          created_at?: string
+          id?: string
+          total_advances?: number
+          total_budget?: number
+          total_materials?: number
+          total_purchases?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_archive_summaries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "archive_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contractor_budget_purchases: {
         Row: {
@@ -426,6 +518,51 @@ export type Database = {
         }
         Relationships: []
       }
+      finished_workshop_archives: {
+        Row: {
+          archived_at: string
+          archived_by: string
+          backup_verified: boolean
+          deleted_at: string | null
+          deleted_from_database: boolean
+          drive_folder_url: string | null
+          final_balances: Json
+          final_totals: Json
+          id: string
+          spreadsheet_urls: Json
+          workshop_id: string
+          workshop_name: string
+        }
+        Insert: {
+          archived_at?: string
+          archived_by: string
+          backup_verified?: boolean
+          deleted_at?: string | null
+          deleted_from_database?: boolean
+          drive_folder_url?: string | null
+          final_balances?: Json
+          final_totals?: Json
+          id?: string
+          spreadsheet_urls?: Json
+          workshop_id: string
+          workshop_name: string
+        }
+        Update: {
+          archived_at?: string
+          archived_by?: string
+          backup_verified?: boolean
+          deleted_at?: string | null
+          deleted_from_database?: boolean
+          drive_folder_url?: string | null
+          final_balances?: Json
+          final_totals?: Json
+          id?: string
+          spreadsheet_urls?: Json
+          workshop_id?: string
+          workshop_name?: string
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           created_at: string
@@ -634,6 +771,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_balance_archive_summaries: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          personal_spent: number
+          received: number
+          user_id: string
+          workshop_spent: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          personal_spent?: number
+          received?: number
+          user_id: string
+          workshop_spent?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          personal_spent?: number
+          received?: number
+          user_id?: string
+          workshop_spent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_balance_archive_summaries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "archive_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -773,6 +948,53 @@ export type Database = {
           },
         ]
       }
+      worker_archive_summaries: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          total_adjustments: number
+          total_discounts: number
+          total_extra: number
+          total_hours: number
+          total_salary: number
+          worker_id: string
+          worker_name: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          total_adjustments?: number
+          total_discounts?: number
+          total_extra?: number
+          total_hours?: number
+          total_salary?: number
+          worker_id: string
+          worker_name: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          total_adjustments?: number
+          total_discounts?: number
+          total_extra?: number
+          total_hours?: number
+          total_salary?: number
+          worker_id?: string
+          worker_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_archive_summaries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "archive_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           category: string
@@ -805,6 +1027,71 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      workshop_archive_summaries: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          net_total: number
+          total_approved_payments: number
+          total_contractor_advances: number
+          total_contractor_materials: number
+          total_debt_payments: number
+          total_debts: number
+          total_expenses: number
+          total_income: number
+          total_transfers: number
+          total_worker_hours: number
+          total_worker_salaries: number
+          workshop_id: string
+          workshop_name: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          net_total?: number
+          total_approved_payments?: number
+          total_contractor_advances?: number
+          total_contractor_materials?: number
+          total_debt_payments?: number
+          total_debts?: number
+          total_expenses?: number
+          total_income?: number
+          total_transfers?: number
+          total_worker_hours?: number
+          total_worker_salaries?: number
+          workshop_id: string
+          workshop_name: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          net_total?: number
+          total_approved_payments?: number
+          total_contractor_advances?: number
+          total_contractor_materials?: number
+          total_debt_payments?: number
+          total_debts?: number
+          total_expenses?: number
+          total_income?: number
+          total_transfers?: number
+          total_worker_hours?: number
+          total_worker_salaries?: number
+          workshop_id?: string
+          workshop_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_archive_summaries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "archive_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workshop_assignments: {
         Row: {
@@ -903,6 +1190,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -911,6 +1199,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -919,6 +1208,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
