@@ -7,10 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, FolderOpen, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import DeletionPreviewDialog from './DeletionPreviewDialog';
 
 interface Batch {
   id: string;
@@ -31,8 +28,7 @@ export default function ArchiveSummariesDialog({ open, onOpenChange }: { open: b
   const { toast } = useToast();
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<Batch | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [previewBatch, setPreviewBatch] = useState<Batch | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -44,23 +40,6 @@ export default function ArchiveSummariesDialog({ open, onOpenChange }: { open: b
   };
 
   useEffect(() => { if (open) load(); }, [open]);
-
-  const doDelete = async () => {
-    if (!confirmDelete) return;
-    setDeleting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('delete-archived-batch', { body: { batchId: confirmDelete.id } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: t('archive.deleteDone'), description: t('archive.deleteDoneDesc') });
-      setConfirmDelete(null);
-      load();
-    } catch (e: any) {
-      toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
@@ -113,7 +92,7 @@ export default function ArchiveSummariesDialog({ open, onOpenChange }: { open: b
                         </Button>
                       )}
                       {b.status === 'verified' && (
-                        <Button size="sm" variant="destructive" className="h-7" onClick={() => setConfirmDelete(b)}>
+                        <Button size="sm" variant="destructive" className="h-7" onClick={() => setPreviewBatch(b)}>
                           {t('archive.deleteArchived')}
                         </Button>
                       )}
@@ -126,26 +105,15 @@ export default function ArchiveSummariesDialog({ open, onOpenChange }: { open: b
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={confirmDelete !== null} onOpenChange={(o) => { if (!o && !deleting) setConfirmDelete(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('archive.deleteConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDelete && t('archive.deleteConfirmDesc', { from: confirmDelete.from_date, to: confirmDelete.to_date })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); doDelete(); }}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('archive.deleteArchived')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletionPreviewDialog
+        open={previewBatch !== null}
+        onOpenChange={(o) => { if (!o) setPreviewBatch(null); }}
+        functionName="delete-archived-batch"
+        payloadKey="batchId"
+        payloadId={previewBatch?.id || null}
+        title={previewBatch ? `${t('archive.deleteConfirmTitle')} — ${previewBatch.label}` : ''}
+        onConfirmed={() => { toast({ title: t('archive.deleteDone'), description: t('archive.deleteDoneDesc') }); load(); }}
+      />
     </>
   );
 }
