@@ -73,14 +73,20 @@ export default function PaymentTable({ workshopId, onEdit }: PaymentTableProps) 
       
       const profileMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
       
-      const paymentIds = paymentsData.map(p => p.id);
-      const { data: filesData } = await supabase
-        .from('workshop_files')
-        .select('*')
-        .in('payment_id', paymentIds);
+      const filesData = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('workshop_files')
+          .select('*')
+          .eq('workshop_id', workshopId)
+          .not('payment_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      const paymentIds = new Set(paymentsData.map(p => p.id));
       
       const filesMap = new Map<string, any[]>();
       filesData?.forEach(file => {
+        if (!file.payment_id || !paymentIds.has(file.payment_id)) return;
         const existing = filesMap.get(file.payment_id) || [];
         existing.push(file);
         filesMap.set(file.payment_id, existing);

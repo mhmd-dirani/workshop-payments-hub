@@ -24,10 +24,18 @@ export function usePaymentReceipts(paymentIds: string[]) {
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from('workshop_files')
-        .select('*')
-        .in('payment_id', paymentIds);
+      const chunks: string[][] = [];
+      for (let i = 0; i < paymentIds.length; i += 100) chunks.push(paymentIds.slice(i, i + 100));
+      const results = await Promise.all(
+        chunks.map((ids) =>
+          supabase
+            .from('workshop_files')
+            .select('*')
+            .in('payment_id', ids)
+            .order('created_at', { ascending: false })
+        )
+      );
+      const data = results.flatMap(({ data }) => data || []);
       if (cancelled) return;
       const map = new Map<string, any>();
       data?.forEach((f: any) => {
