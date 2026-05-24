@@ -332,6 +332,7 @@ export default function PaymentForm({ workshopId, workshopName, payment, open, o
       storagePath: fileName,
       fileName: selectedFile.name,
       fileType: selectedFile.type,
+      fileCategory: 'receipt',
     });
   };
 
