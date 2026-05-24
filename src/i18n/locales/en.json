@@ -872,6 +872,15 @@
     "openSheet": "Open spreadsheet",
     "openFolder": "Open Drive folder",
     "lastSync": "Last sync exported {{count}} rows.",
-    "filesMirrored": "Drive files mirrored: {{count}} uploaded, {{skipped}} skipped."
+    "filesMirrored": "Drive files mirrored: {{count}} uploaded, {{skipped}} skipped.",
+    "fromMonth": "From month",
+    "toMonth": "To month",
+    "invalidRange": "Select a valid month range (To must be on or after From).",
+    "archiveTitle": "Archive synced data?",
+    "archiveDesc": "All data from {{from}} to {{to}} has been backed up to Google Drive. Delete it from the database to free space? This cannot be undone.",
+    "keepData": "Keep in database",
+    "deleteSyncedData": "Delete from database",
+    "archiveDone": "Archived",
+    "archiveDoneDesc": "{{count}} records removed from the database."
   }
 }
