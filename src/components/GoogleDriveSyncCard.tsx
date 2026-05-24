@@ -39,7 +39,7 @@ export default function GoogleDriveSyncCard() {
         const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
           body: {
             fileOffset,
-            fileLimit: 20,
+            fileLimit: 5,
             fileBatchSize: 5,
             filesOnly: fileOffset > 0,
           },
