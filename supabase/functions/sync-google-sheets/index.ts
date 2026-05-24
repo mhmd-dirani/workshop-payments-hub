@@ -379,7 +379,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    try { await req.json(); } catch { /* body is optional */ }
+    let options: any = {};
+    try { options = await req.json(); } catch { options = {}; }
+    const fileBatchSize = Math.max(1, Math.min(Number(options?.fileBatchSize) || DEFAULT_FILE_BATCH_SIZE, MAX_FILE_BATCH_SIZE));
 
     const fetchAll = async (table: string, cols = '*') => {
       const all: any[] = [];
@@ -591,35 +593,38 @@ Deno.serve(async (req) => {
     const folderCache = new Map<string, string>();
     let filesMirrored = 0;
     let filesSkipped = 0;
-    for (const file of workshopFiles) {
-      try {
-        if (!existingStoragePaths.has(file.file_path)) {
-          filesSkipped += 1;
-          console.warn('Drive mirror skipped missing storage object:', file.file_path);
-          continue;
-        }
-        const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
-        let workshopFolderId = folderCache.get(workshopName);
-        if (!workshopFolderId) {
-          workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-          folderCache.set(workshopName, workshopFolderId);
-        }
-        const category = fileDriveCategory(file);
-        const categoryCacheKey = `${workshopName}/${category}`;
-        let categoryFolderId = folderCache.get(categoryCacheKey);
-        if (!categoryFolderId) {
-          categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-          folderCache.set(categoryCacheKey, categoryFolderId);
-        }
-        const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
-        if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
-        const niceFileName = driveFileName(file);
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
-        filesMirrored += 1;
-      } catch (e) {
-        filesSkipped += 1;
-        console.warn('Drive mirror skipped:', file.file_path, e instanceof Error ? e.message : String(e));
+    const uploadOneFile = async (file: any) => {
+      if (!existingStoragePaths.has(file.file_path)) throw new Error('Storage file is missing');
+      const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
+      let workshopFolderId = folderCache.get(workshopName);
+      if (!workshopFolderId) {
+        workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+        folderCache.set(workshopName, workshopFolderId);
       }
+      const category = fileDriveCategory(file);
+      const categoryCacheKey = `${workshopName}/${category}`;
+      let categoryFolderId = folderCache.get(categoryCacheKey);
+      if (!categoryFolderId) {
+        categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+        folderCache.set(categoryCacheKey, categoryFolderId);
+      }
+      const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
+      if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
+      await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, driveFileName(file), blob, file.file_type || 'application/octet-stream');
+    };
+
+    for (let i = 0; i < workshopFiles.length; i += fileBatchSize) {
+      const batch = workshopFiles.slice(i, i + fileBatchSize);
+      const results = await Promise.allSettled(batch.map(uploadOneFile));
+      results.forEach((result, index) => {
+        const file = batch[index];
+        if (result.status === 'fulfilled') {
+          filesMirrored += 1;
+        } else {
+          filesSkipped += 1;
+          console.warn('Drive mirror skipped:', file.file_path, result.reason instanceof Error ? result.reason.message : String(result.reason));
+        }
+      });
     }
 
     if (filesSkipped > 0) {
