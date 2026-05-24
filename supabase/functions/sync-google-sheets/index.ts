@@ -546,66 +546,68 @@ Deno.serve(async (req) => {
     const clearRanges: string[] = [];
     const valueUpdates: { range: string; values: any[][] }[] = [];
 
-    for (const spec of TABLE_SPECS) {
-      const rows = await fetchAll(spec.table, '*');
-      const headers = spec.columns.map((c) => c.label);
-      const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
-      clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
-      valueUpdates.push({ range: rangeA1(spec.sheet, 'A1'), values: [headers, ...values] });
-      tablesExported[spec.sheet] = rows.length;
+    if (!options?.filesOnly) {
+      for (const spec of TABLE_SPECS) {
+        const rows = await fetchAll(spec.table, '*');
+        const headers = spec.columns.map((c) => c.label);
+        const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
+        clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
+        valueUpdates.push({ range: rangeA1(spec.sheet, 'A1'), values: [headers, ...values] });
+        tablesExported[spec.sheet] = rows.length;
 
-      const sheetId = sheetIds.get(spec.sheet);
-      if (sheetId !== undefined) {
-        formattingRequests.push(
-          { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
-          { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: headers.length }, cell: { userEnteredFormat: { backgroundColor: { red: 0.05, green: 0.12, blue: 0.18 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true }, horizontalAlignment: 'CENTER', wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)' } },
-          { setBasicFilter: { filter: { range: { sheetId, startRowIndex: 0, endRowIndex: Math.max(rows.length + 1, 2), startColumnIndex: 0, endColumnIndex: headers.length } } } },
-          { autoResizeDimensions: { dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: headers.length } } },
-        );
-        spec.columns.forEach((column, index) => {
-          if (column.type === 'amount') {
-            formattingRequests.push({ repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } });
-          }
-        });
+        const sheetId = sheetIds.get(spec.sheet);
+        if (sheetId !== undefined) {
+          formattingRequests.push(
+            { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
+            { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: headers.length }, cell: { userEnteredFormat: { backgroundColor: { red: 0.05, green: 0.12, blue: 0.18 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true }, horizontalAlignment: 'CENTER', wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)' } },
+            { setBasicFilter: { filter: { range: { sheetId, startRowIndex: 0, endRowIndex: Math.max(rows.length + 1, 2), startColumnIndex: 0, endColumnIndex: headers.length } } } },
+            { autoResizeDimensions: { dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: headers.length } } },
+          );
+          spec.columns.forEach((column, index) => {
+            if (column.type === 'amount') {
+              formattingRequests.push({ repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } });
+            }
+          });
+        }
       }
-    }
 
-    const dashboardValues = buildDashboardValues(wsRows.map((w: any) => w.name).filter(Boolean));
-    clearRanges.push(rangeA1(DASHBOARD_SHEET, 'A:Z'));
-    valueUpdates.push({ range: rangeA1(DASHBOARD_SHEET, 'A1'), values: dashboardValues });
+      const dashboardValues = buildDashboardValues(wsRows.map((w: any) => w.name).filter(Boolean));
+      clearRanges.push(rangeA1(DASHBOARD_SHEET, 'A:Z'));
+      valueUpdates.push({ range: rangeA1(DASHBOARD_SHEET, 'A1'), values: dashboardValues });
 
-    const clearRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchClear`, {
-      method: 'POST',
-      headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      body: JSON.stringify({ ranges: clearRanges }),
-    });
-    if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
-
-    const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
-      method: 'POST',
-      headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
-    });
-    if (!writeRes.ok) throw new Error(`Write spreadsheet failed: ${writeRes.status} ${await writeRes.text()}`);
-
-    const dashId = sheetIds.get(DASHBOARD_SHEET);
-    if (dashId !== undefined) {
-      formattingRequests.push(
-        { updateSheetProperties: { properties: { sheetId: dashId, index: 0, gridProperties: { frozenRowCount: 4, hideGridlines: true } }, fields: 'index,gridProperties.frozenRowCount,gridProperties.hideGridlines' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 18 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 10 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
-        { autoResizeDimensions: { dimensions: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 } } },
-      );
-    }
-
-    if (formattingRequests.length) {
-      const fmtRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      const clearRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchClear`, {
         method: 'POST',
         headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-        body: JSON.stringify({ requests: formattingRequests }),
+        body: JSON.stringify({ ranges: clearRanges }),
       });
-      if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
+      if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
+
+      const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
+        method: 'POST',
+        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+        body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
+      });
+      if (!writeRes.ok) throw new Error(`Write spreadsheet failed: ${writeRes.status} ${await writeRes.text()}`);
+
+      const dashId = sheetIds.get(DASHBOARD_SHEET);
+      if (dashId !== undefined) {
+        formattingRequests.push(
+          { updateSheetProperties: { properties: { sheetId: dashId, index: 0, gridProperties: { frozenRowCount: 4, hideGridlines: true } }, fields: 'index,gridProperties.frozenRowCount,gridProperties.hideGridlines' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 18 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 10 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
+          { autoResizeDimensions: { dimensions: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 } } },
+        );
+      }
+
+      if (formattingRequests.length) {
+        const fmtRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+          body: JSON.stringify({ requests: formattingRequests }),
+        });
+        if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
+      }
     }
 
     const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
