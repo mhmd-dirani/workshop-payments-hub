@@ -618,23 +618,32 @@ Deno.serve(async (req) => {
       if (objects?.some((object: any) => object.name === name)) existingStoragePaths.add(path);
     }
     const folderCache = new Map<string, string>();
+    const folderPromiseCache = new Map<string, Promise<string>>();
+    const getCachedFolder = (key: string, create: () => Promise<string>) => {
+      const cached = folderCache.get(key);
+      if (cached) return Promise.resolve(cached);
+      const pending = folderPromiseCache.get(key);
+      if (pending) return pending;
+      const promise = create().then((id) => {
+        folderCache.set(key, id);
+        folderPromiseCache.delete(key);
+        return id;
+      }).catch((error) => {
+        folderPromiseCache.delete(key);
+        throw error;
+      });
+      folderPromiseCache.set(key, promise);
+      return promise;
+    };
     let filesMirrored = 0;
     let filesSkipped = 0;
     const uploadOneFile = async (file: any) => {
       if (!existingStoragePaths.has(file.file_path)) throw new Error('Storage file is missing');
       const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
-      let workshopFolderId = folderCache.get(workshopName);
-      if (!workshopFolderId) {
-        workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-        folderCache.set(workshopName, workshopFolderId);
-      }
+      const workshopFolderId = await getCachedFolder(workshopName, () => findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY));
       const category = fileDriveCategory(file);
       const categoryCacheKey = `${workshopName}/${category}`;
-      let categoryFolderId = folderCache.get(categoryCacheKey);
-      if (!categoryFolderId) {
-        categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-        folderCache.set(categoryCacheKey, categoryFolderId);
-      }
+      const categoryFolderId = await getCachedFolder(categoryCacheKey, () => findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY));
       const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
       if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
       await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, driveFileName(file), blob, file.file_type || 'application/octet-stream');
