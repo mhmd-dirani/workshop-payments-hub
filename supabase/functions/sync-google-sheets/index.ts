@@ -267,6 +267,27 @@ function driveQueryLiteral(value: string) {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
+async function mergeDuplicateFolder(canonicalId: string, duplicateId: string, lovableKey: string, driveKey: string) {
+  let pageToken = '';
+  do {
+    const q = `${driveQueryLiteral(duplicateId)} in parents and trashed=false`;
+    const url = `${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=nextPageToken,files(id,name)&pageSize=1000${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+    const res = await fetch(url, { headers: driveHeaders(lovableKey, driveKey, false) });
+    if (!res.ok) throw new Error(`Duplicate folder scan failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    for (const child of data.files || []) {
+      const move = await fetch(`${DRIVE_GW}/files/${child.id}?addParents=${canonicalId}&removeParents=${duplicateId}&fields=id`, {
+        method: 'PATCH',
+        headers: driveHeaders(lovableKey, driveKey),
+        body: JSON.stringify({}),
+      });
+      if (!move.ok) console.warn('Duplicate folder child move failed:', child.id, await move.text());
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  await trashDriveFile(lovableKey, driveKey, duplicateId);
+}
+
 function driveFileName(row: any) {
   const date = row.created_at
     ? String(row.created_at).slice(0, 16).replace('T', ' ').replace(':', '-')
@@ -283,7 +304,13 @@ async function findOrCreateFolder(name: string, parentId: string | null, lovable
   });
   if (!search.ok) throw new Error(`Folder search failed for "${name}": ${search.status} ${await search.text()}`);
   const sj = await search.json();
-  if (sj.files?.length) return sj.files[0].id;
+  if (sj.files?.length) {
+    const canonical = sj.files[0];
+    for (const duplicate of sj.files.slice(1)) {
+      await mergeDuplicateFolder(canonical.id, duplicate.id, lovableKey, driveKey).catch((e) => console.warn('Duplicate folder merge failed:', duplicate.id, e));
+    }
+    return canonical.id;
+  }
 
   const create = await fetch(`${DRIVE_GW}/files`, {
     method: 'POST',
