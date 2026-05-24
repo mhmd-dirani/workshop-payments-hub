@@ -606,17 +606,6 @@ Deno.serve(async (req) => {
     }
 
     const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
-    const existingStoragePaths = new Set<string>();
-    for (const file of workshopFiles) {
-      const path = String(file.file_path || '');
-      const slashIndex = path.lastIndexOf('/');
-      if (slashIndex <= 0) continue;
-      const folder = path.slice(0, slashIndex);
-      const name = path.slice(slashIndex + 1);
-      if (!folder || !name) continue;
-      const { data: objects } = await admin.storage.from('workshop-files').list(folder, { search: name, limit: 100 });
-      if (objects?.some((object: any) => object.name === name)) existingStoragePaths.add(path);
-    }
     const folderCache = new Map<string, string>();
     const folderPromiseCache = new Map<string, Promise<string>>();
     const getCachedFolder = (key: string, create: () => Promise<string>) => {
@@ -638,7 +627,6 @@ Deno.serve(async (req) => {
     let filesMirrored = 0;
     let filesSkipped = 0;
     const uploadOneFile = async (file: any) => {
-      if (!existingStoragePaths.has(file.file_path)) throw new Error('Storage file is missing');
       const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
       const workshopFolderId = await getCachedFolder(workshopName, () => findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY));
       const category = fileDriveCategory(file);
