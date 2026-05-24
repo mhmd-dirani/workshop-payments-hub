@@ -35,19 +35,20 @@ import {
 } from '@/components/ui/dialog';
 import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
+type WorkshopFileCategory = 'file' | 'receipt' | 'check';
+
 interface WorkshopFilesManagerProps {
   workshopId: string;
   workshopName: string;
 }
 
-const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): 'map' | 'receipt' | 'income' => {
+const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): WorkshopFileCategory => {
   if (file.payment_id) return 'receipt';
-  if (file.income_id) return 'income';
-  // Check folder names used in uploads: /receipts/, /receipt/
-  if (file.file_path.includes('/receipts/') || file.file_path.includes('/receipt/')) return 'receipt';
-  // Check folder names used for income checks: /checks/, /income/
-  if (file.file_path.includes('/checks/') || file.file_path.includes('/income/')) return 'income';
-  return 'map';
+  if (file.income_id) return 'check';
+  const normalizedPath = `/${file.file_path.toLowerCase()}`;
+  if (normalizedPath.includes('/receipts/') || normalizedPath.includes('/receipt/')) return 'receipt';
+  if (normalizedPath.includes('/checks/') || normalizedPath.includes('/check/') || normalizedPath.includes('/income/')) return 'check';
+  return 'file';
 };
 
 export default function WorkshopFilesManager({ workshopId, workshopName }: WorkshopFilesManagerProps) {
