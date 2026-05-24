@@ -108,7 +108,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     },
   });
 
-  const uploadFile = async (file: File, category: 'map' | 'receipt') => {
+  const uploadFile = async (file: File, category: 'file' | 'receipt') => {
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
@@ -143,6 +143,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
         storagePath: fileName,
         fileName: file.name,
         fileType: file.type,
+        fileCategory: category,
       });
 
       toast({
@@ -215,7 +216,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     setPreviewFile({ url, name: file.file_name, type: file.file_type });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, category: 'map' | 'receipt') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, category: 'file' | 'receipt') => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
@@ -464,7 +465,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
                     type="file"
                     accept="image/*,.pdf"
                     className="hidden"
-                    onChange={(e) => handleFileChange(e, 'map')}
+                    onChange={(e) => handleFileChange(e, 'file')}
                   />
                   <Button
                     variant="outline"
