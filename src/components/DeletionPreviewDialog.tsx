@@ -60,8 +60,8 @@ export default function DeletionPreviewDialog({ open, onOpenChange, functionName
   const verificationPassed: boolean = !!extra?.verificationPassed;
   const driveLinks = extra?.driveLinks || preview?.driveLinks || {};
 
-  const totalDelete = Object.values(toDelete).reduce((a: number, b: any) => a + Number(b || 0), 0);
-  const totalKeep = Object.values(toKeep).reduce((a: number, b: any) => a + Number(b || 0), 0);
+  const totalDelete: number = (Object.values(toDelete) as any[]).reduce((a, b) => a + Number(b || 0), 0);
+  const totalKeep: number = (Object.values(toKeep) as any[]).reduce((a, b) => a + Number(b || 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
