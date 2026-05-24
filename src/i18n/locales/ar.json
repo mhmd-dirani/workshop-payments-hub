@@ -900,5 +900,41 @@
     "deleteConfirmTitle": "حذف الصفوف المؤرشفة؟",
     "deleteConfirmDesc": "إزالة الصفوف التاريخية نهائياً من {{from}} إلى {{to}}. المجاميع محفوظة بالفعل لذا ستبقى لوحات التحكم صحيحة. ستُحتفظ الديون المفتوحة والمدفوعات المعلقة والحضور غير المدفوع.",
     "status": { "pending": "قيد الانتظار", "verified": "تم التحقق", "deleted": "محذوف من قاعدة البيانات" }
+    ,
+    "previewDesc": "راجع بدقة ما سيتم حذفه وما سيُحتفظ به. الحذف ممنوع إذا فشل التحقق.",
+    "verification": "التحقق",
+    "verificationPassed": "ناجح",
+    "verificationFailed": "فشل — الحذف محظور",
+    "willBeDeleted": "سيتم حذفه",
+    "willBeKept": "سيُحتفظ به (آمن)",
+    "nothingToDelete": "لا شيء للحذف في هذه الفترة.",
+    "preservedTotals": "المجاميع المحفوظة (اللقطة)",
+    "masterPreserved": "البيانات الأساسية محفوظة",
+    "confirmDelete": "تأكيد الحذف النهائي",
+    "keep": {
+      "attendance_unpaid": "الحضور غير المدفوع",
+      "worker_adjustments_unpaid": "تعديلات العمال غير المدفوعة",
+      "payments_pending": "المدفوعات المعلقة",
+      "debts_open": "الديون المفتوحة"
+    }
+  },
+  "finished": {
+    "title": "الورش المنتهية",
+    "description": "ضع علامة انتهاء على الورشة، انسخها احتياطياً إلى Google Drive، ثم احذف بياناتها بأمان.",
+    "noWorkshops": "لا توجد ورش.",
+    "markAsFinished": "وضع علامة منتهية",
+    "markedTitle": "تم وضع علامة منتهية",
+    "markedDesc": "«{{name}}» جاهزة للنسخ الاحتياطي.",
+    "markConfirmTitle": "وضع علامة الورشة كمنتهية؟",
+    "markConfirmDesc": "ستُوضع علامة منتهية على «{{name}}». يمكنك إعادة فتحها في أي وقت قبل الحذف.",
+    "reopen": "إعادة فتح",
+    "backupNow": "نسخ احتياطي إلى Drive",
+    "backupDone": "اكتمل النسخ الاحتياطي",
+    "backupDoneDesc": "تم نسخ «{{name}}» احتياطياً إلى Google Drive والتحقق منها.",
+    "backupVerified": "تم التحقق من النسخة الاحتياطية",
+    "deleteData": "حذف بيانات الورشة المنتهية",
+    "deleted": "تم حذف بيانات الورشة",
+    "deletedDesc": "تم حذف الصفوف؛ النسخة الاحتياطية على Google Drive محفوظة بشكل دائم.",
+    "status": { "active": "نشطة", "paused": "موقوفة", "finished": "منتهية", "archived": "مؤرشفة" }
   }
 }

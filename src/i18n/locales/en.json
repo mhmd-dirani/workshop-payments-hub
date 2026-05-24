@@ -904,6 +904,41 @@
       "pending": "Pending",
       "verified": "Verified",
       "deleted": "Deleted from DB"
+    },
+    "previewDesc": "Review exactly what will be deleted and what will stay. Deletion is blocked unless verification passes.",
+    "verification": "Verification",
+    "verificationPassed": "Passed",
+    "verificationFailed": "Failed — deletion blocked",
+    "willBeDeleted": "Will be deleted",
+    "willBeKept": "Will be kept (safe)",
+    "nothingToDelete": "Nothing to delete in this range.",
+    "preservedTotals": "Preserved totals (snapshot)",
+    "masterPreserved": "Master data preserved",
+    "confirmDelete": "Confirm permanent delete",
+    "keep": {
+      "attendance_unpaid": "Unpaid attendance",
+      "worker_adjustments_unpaid": "Unpaid worker adjustments",
+      "payments_pending": "Pending payments",
+      "debts_open": "Open debts"
     }
+  },
+  "finished": {
+    "title": "Finished Workshops",
+    "description": "Mark a workshop as finished, back it up to Google Drive, then safely delete its data.",
+    "noWorkshops": "No workshops yet.",
+    "markAsFinished": "Mark as finished",
+    "markedTitle": "Workshop marked finished",
+    "markedDesc": "\"{{name}}\" is ready to back up.",
+    "markConfirmTitle": "Mark workshop as finished?",
+    "markConfirmDesc": "\"{{name}}\" will be flagged as finished. You can reopen it anytime before deletion.",
+    "reopen": "Reopen",
+    "backupNow": "Backup to Drive",
+    "backupDone": "Backup completed",
+    "backupDoneDesc": "\"{{name}}\" was backed up to Google Drive and verified.",
+    "backupVerified": "Backup verified",
+    "deleteData": "Delete finished workshop data",
+    "deleted": "Workshop data deleted",
+    "deletedDesc": "Database rows removed; Google Drive backup kept permanently.",
+    "status": { "active": "Active", "paused": "Paused", "finished": "Finished", "archived": "Archived" }
   }
 }
