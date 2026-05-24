@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Cloud, ExternalLink, FolderOpen, Archive, History } from 'lucide-react';
+import { Loader2, Cloud, ExternalLink, FolderOpen, History } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import ArchiveSummariesDialog from './ArchiveSummariesDialog';
