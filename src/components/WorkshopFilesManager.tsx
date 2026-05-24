@@ -446,7 +446,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
           <Tabs defaultValue="maps">
             <TabsList className="grid w-full grid-cols-3 h-9">
               <TabsTrigger value="maps" className="text-xs md:text-sm gap-1.5">
-                <MapIcon className="w-3.5 h-3.5" />
+                <FileText className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t('files.maps')}</span> ({maps.length})
               </TabsTrigger>
               <TabsTrigger value="receipts" className="text-xs md:text-sm gap-1.5">
