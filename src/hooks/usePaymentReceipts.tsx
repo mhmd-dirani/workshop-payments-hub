@@ -24,14 +24,20 @@ export function usePaymentReceipts(paymentIds: string[]) {
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from('workshop_files')
-        .select('*')
-        .in('payment_id', paymentIds);
+      const { fetchAllPages } = await import('@/lib/paginate');
+      const paymentIdSet = new Set(paymentIds);
+      const data = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from('workshop_files')
+          .select('*')
+          .not('payment_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
       if (cancelled) return;
       const map = new Map<string, any>();
       data?.forEach((f: any) => {
-        if (!map.has(f.payment_id)) map.set(f.payment_id, f);
+        if (paymentIdSet.has(f.payment_id) && !map.has(f.payment_id)) map.set(f.payment_id, f);
       });
       setFilesMap(map);
     })();
