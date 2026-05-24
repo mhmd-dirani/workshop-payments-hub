@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, ArrowDownCircle, ArrowUpCircle, Wallet, TrendingUp, HandCoins, Crown } from 'lucide-react';
 import { fetchAllPages } from '@/lib/paginate';
+import { getArchivedWorkshopTotals } from '@/lib/archive-totals';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -50,13 +51,18 @@ export default function Dashboard() {
       const allIncome = await fetchAllPages<{ amount: number | string }>((from, to) =>
         supabase.from('income').select('amount').order('id').range(from, to)
       );
-      const totalIncome = allIncome.reduce((sum, i) => sum + Number(i.amount), 0);
+      const liveIncome = allIncome.reduce((sum, i) => sum + Number(i.amount), 0);
 
       // Get all approved payments (paginated)
       const allPayments = await fetchAllPages<{ amount: number | string }>((from, to) =>
         supabase.from('payments').select('amount').eq('status', 'approved').order('id').range(from, to)
       );
-      const totalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const livePaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+      // Add archived summaries so totals never decrease when historical rows are deleted
+      const archived = await getArchivedWorkshopTotals();
+      const totalIncome = liveIncome + archived.income;
+      const totalPaid = livePaid + archived.approvedPayments + archived.workerSalaries + archived.contractorAdvances + archived.contractorMaterials;
 
       // Total balance across all workshops
       const totalBalance = totalIncome - totalPaid;
@@ -135,14 +141,18 @@ export default function Dashboard() {
           .order('id')
           .range(from, to)
       );
-      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const livePaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
       // Fetch income (paginated)
       const income = await fetchAllPages<{ amount: number | string }>((from, to) =>
         supabase.from('income').select('amount').eq('workshop_id', selectedWorkshop).order('id').range(from, to)
       );
-      const totalIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
-      
+      const liveIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
+
+      const archived = await getArchivedWorkshopTotals(selectedWorkshop);
+      const totalIncome = liveIncome + archived.income;
+      const totalPaid = livePaid + archived.approvedPayments + archived.workerSalaries + archived.contractorAdvances + archived.contractorMaterials;
+
       return { 
         totalPaid, 
         totalIncome, 
