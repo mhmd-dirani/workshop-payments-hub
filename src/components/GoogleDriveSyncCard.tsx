@@ -116,8 +116,8 @@ export default function GoogleDriveSyncCard() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const total = Object.values(data?.deletedCounts || {}).reduce((a: number, b: any) => a + (Number(b) > 0 ? Number(b) : 0), 0);
-      toast({ title: t('gdrive.archiveDone'), description: t('gdrive.archiveDoneDesc', { count: total }) });
+      const total: number = Object.values(data?.deletedCounts || {}).reduce<number>((a, b) => a + (Number(b) > 0 ? Number(b) : 0), 0);
+      toast({ title: t('gdrive.archiveDone'), description: t('gdrive.archiveDoneDesc', { count: total as number }) });
       setArchivePrompt(null);
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
