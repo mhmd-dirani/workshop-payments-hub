@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ArrowUpCircle, ChevronDown } from 'lucide-react';
+import { usePaymentReceipts } from '@/hooks/usePaymentReceipts';
 
 export default function UserWorkshopPayments() {
   const { t } = useTranslation();
@@ -56,6 +57,7 @@ export default function UserWorkshopPayments() {
   if (payments.length === 0) return null;
 
   const totalSpent = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(payments.map((p: any) => p.id));
 
   return (
     <Card className="shadow-card border-destructive/20">
@@ -93,14 +95,18 @@ export default function UserWorkshopPayments() {
                     {format(new Date(payment.payment_date), 'MMM d, yyyy')}
                   </p>
                 </div>
-                <span className="font-mono font-bold text-sm text-destructive flex-shrink-0 ml-2">
-                  -{Number(payment.amount).toLocaleString('fr-FR')}
-                </span>
+                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <ReceiptButtons paymentId={payment.id} size="sm" />
+                  <span className="font-mono font-bold text-sm text-destructive">
+                    -{Number(payment.amount).toLocaleString('fr-FR')}
+                  </span>
+                </div>
               </div>
             ))}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+      <PreviewDialog />
     </Card>
   );
 }
