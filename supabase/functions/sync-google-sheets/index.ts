@@ -10,7 +10,8 @@ const SHEETS_GW = 'https://connector-gateway.lovable.dev/google_sheets/v4';
 const DRIVE_GW = 'https://connector-gateway.lovable.dev/google_drive/drive/v3';
 const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files';
 const SPREADSHEET_NAME = 'Workshop_Master_Database';
-const DASHBOARD_SHEET = 'Dashboard';
+const DASHBOARD_SHEET = 'Main Dashboard';
+const LEGACY_DASHBOARD_SHEET = 'Dashboard';
 
 type Resolver = 'workshop' | 'worker' | 'user' | 'contractor' | 'contract' | 'debt' | 'payment' | 'contractorPayment';
 type TableSpec = {
