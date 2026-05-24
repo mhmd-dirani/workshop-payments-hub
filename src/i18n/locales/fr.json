@@ -867,6 +867,7 @@
     "syncing": "Synchronisation…",
     "syncDone": "Synchronisation terminée",
     "syncDoneDesc": "Le classeur et le dossier Drive sont à jour après l’envoi de tous les fichiers disponibles.",
+    "syncPartialDesc": "La synchronisation est terminée, mais {{skipped}} fichier(s) enregistré(s) n'ont pas pu être envoyés car le fichier original est manquant.",
     "openSheet": "Ouvrir le classeur",
     "openFolder": "Ouvrir le dossier Drive",
     "lastSync": "Dernière synchro : {{count}} lignes exportées.",
