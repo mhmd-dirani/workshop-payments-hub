@@ -558,7 +558,7 @@ Deno.serve(async (req) => {
       if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
     }
 
-    const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,created_at');
+    const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
     const existingStoragePaths = new Set<string>();
     for (const file of workshopFiles) {
       const path = String(file.file_path || '');
@@ -586,11 +586,17 @@ Deno.serve(async (req) => {
           workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
           folderCache.set(workshopName, workshopFolderId);
         }
+        const category = fileDriveCategory(file);
+        const categoryCacheKey = `${workshopName}/${category}`;
+        let categoryFolderId = folderCache.get(categoryCacheKey);
+        if (!categoryFolderId) {
+          categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+          folderCache.set(categoryCacheKey, categoryFolderId);
+        }
         const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
         if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
         const niceFileName = driveFileName(file);
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, workshopFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, folderId, `${workshopName} - ${niceFileName}`, blob, file.file_type || 'application/octet-stream');
+        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
         filesMirrored += 1;
       } catch (e) {
         filesSkipped += 1;
