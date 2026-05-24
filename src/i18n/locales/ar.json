@@ -871,6 +871,15 @@
     "openSheet": "فتح جدول البيانات",
     "openFolder": "فتح مجلد Drive",
     "lastSync": "آخر مزامنة: {{count}} صف.",
-    "filesMirrored": "ملفات Drive المنسوخة: {{count}} تم رفعها، {{skipped}} تم تخطيها."
+    "filesMirrored": "ملفات Drive المنسوخة: {{count}} تم رفعها، {{skipped}} تم تخطيها.",
+    "fromMonth": "من شهر",
+    "toMonth": "إلى شهر",
+    "invalidRange": "اختر نطاق شهور صالح (إلى يجب أن يكون مساوياً أو بعد من).",
+    "archiveTitle": "أرشفة البيانات المتزامنة؟",
+    "archiveDesc": "تم نسخ كل بيانات الفترة من {{from}} إلى {{to}} إلى Google Drive. هل تريد حذفها من قاعدة البيانات لتوفير المساحة؟ لا يمكن التراجع.",
+    "keepData": "الاحتفاظ بها",
+    "deleteSyncedData": "حذف من قاعدة البيانات",
+    "archiveDone": "تمت الأرشفة",
+    "archiveDoneDesc": "تم حذف {{count}} سجل من قاعدة البيانات."
   }
 }
