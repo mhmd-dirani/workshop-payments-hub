@@ -148,14 +148,12 @@ Deno.serve(async (req) => {
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
     const categoryFolderId = await findOrCreateFolder(normalizeFileCategory(fileCategory, storagePath), workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
     const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 16).replace('T', ' ').replace(':', '-')} - ${safeDriveName(fileName)}`;
-    await deleteExistingDriveFiles(driveFileName, categoryFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const existingFiles = await findExistingDriveFiles(driveFileName, categoryFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const existingFileId = existingFiles[0]?.id;
 
     // Multipart upload
     const boundary = `----lovable-${Date.now()}`;
-    const metadata = {
-      name: driveFileName,
-      parents: [categoryFolderId],
-    };
+    const metadata = existingFileId ? { name: driveFileName } : { name: driveFileName, parents: [categoryFolderId] };
     const fileBytes = new Uint8Array(await blob.arrayBuffer());
     const enc = new TextEncoder();
     const pre = enc.encode(
@@ -168,8 +166,8 @@ Deno.serve(async (req) => {
     bodyBytes.set(fileBytes, pre.length);
     bodyBytes.set(post, pre.length + fileBytes.length);
 
-    const upload = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
-      method: 'POST',
+    const upload = await fetch(existingFileId ? `${DRIVE_UPLOAD}/${existingFileId}?uploadType=multipart&fields=id,webViewLink` : `${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
+      method: existingFileId ? 'PATCH' : 'POST',
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         'X-Connection-Api-Key': DRIVE_API_KEY,
@@ -182,6 +180,9 @@ Deno.serve(async (req) => {
       throw new Error(`Drive upload failed: ${upload.status} ${txt}`);
     }
     const uj = await upload.json();
+    for (const duplicate of existingFiles.slice(1)) {
+      await trashDriveFile(duplicate.id, LOVABLE_API_KEY, DRIVE_API_KEY).catch((err) => console.warn('Duplicate trash failed:', duplicate.id, err));
+    }
 
     return new Response(
       JSON.stringify({ success: true, driveFileId: uj.id, driveLink: uj.webViewLink, workshopFolderId, categoryFolderId }),
