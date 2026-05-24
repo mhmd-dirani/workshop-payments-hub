@@ -31,7 +31,7 @@ export default function GoogleDriveSyncCard() {
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
-        body: { background: true },
+        body: {},
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -40,7 +40,7 @@ export default function GoogleDriveSyncCard() {
       if (data?.tablesExported) setLastResult(data.tablesExported);
       setLastFilesMirrored(typeof data?.filesMirrored === 'number' ? data.filesMirrored : null);
       setLastFilesSkipped(typeof data?.filesSkipped === 'number' ? data.filesSkipped : null);
-      toast({ title: t('gdrive.syncDone'), description: data?.queued ? t('gdrive.syncQueuedDesc') : t('gdrive.syncDoneDesc') });
+      toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
     } finally {

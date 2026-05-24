@@ -16,7 +16,6 @@ import JSZip from 'jszip';
 import { 
   Loader2, 
   Upload, 
-  Map as MapIcon, 
   Receipt, 
   Trash2, 
   Download,
@@ -35,19 +34,23 @@ import {
 } from '@/components/ui/dialog';
 import { mirrorWorkshopFileToDrive } from '@/lib/mirror-workshop-file';
 
+type WorkshopFileCategory = 'file' | 'receipt' | 'check';
+
 interface WorkshopFilesManagerProps {
   workshopId: string;
   workshopName: string;
 }
 
-const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): 'map' | 'receipt' | 'income' => {
+const categorizeFile = (file: { file_path: string; payment_id?: string | null; income_id?: string | null }): WorkshopFileCategory => {
   if (file.payment_id) return 'receipt';
-  if (file.income_id) return 'income';
-  // Check folder names used in uploads: /receipts/, /receipt/
-  if (file.file_path.includes('/receipts/') || file.file_path.includes('/receipt/')) return 'receipt';
-  // Check folder names used for income checks: /checks/, /income/
-  if (file.file_path.includes('/checks/') || file.file_path.includes('/income/')) return 'income';
-  return 'map';
+  if (file.income_id) return 'check';
+  const normalizedPath = `/${file.file_path.toLowerCase()}`;
+  const firstFolder = file.file_path.split('/')[0] || '';
+  if (normalizedPath.includes('/files/') || normalizedPath.includes('/file/') || normalizedPath.includes('/maps/') || normalizedPath.includes('/map/')) return 'file';
+  if (normalizedPath.includes('/receipts/') || normalizedPath.includes('/receipt/')) return 'receipt';
+  if (normalizedPath.includes('/checks/') || normalizedPath.includes('/check/') || normalizedPath.includes('/income/')) return 'check';
+  if (/^[0-9a-f-]{36}$/i.test(firstFolder)) return 'receipt';
+  return 'file';
 };
 
 export default function WorkshopFilesManager({ workshopId, workshopName }: WorkshopFilesManagerProps) {
@@ -107,7 +110,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     },
   });
 
-  const uploadFile = async (file: File, category: 'map' | 'receipt') => {
+  const uploadFile = async (file: File, category: 'file' | 'receipt') => {
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
@@ -142,6 +145,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
         storagePath: fileName,
         fileName: file.name,
         fileType: file.type,
+        fileCategory: category,
       });
 
       toast({
@@ -214,7 +218,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
     setPreviewFile({ url, name: file.file_name, type: file.file_type });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, category: 'map' | 'receipt') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, category: 'file' | 'receipt') => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
@@ -254,7 +258,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
                 .download(file.file_path);
               if (error || !data) return null;
               const category = categorizeFile(file);
-              const folderName = category === 'receipt' ? 'receipts' : category === 'income' ? 'checks' : 'files';
+              const folderName = category === 'receipt' ? 'receipts' : category === 'check' ? 'checks' : 'files';
               // Use unique name to avoid collisions
               const ext = file.file_name.split('.').pop() || 'bin';
               const uniqueName = `${file.file_name.replace(/\.[^.]+$/, '')}_${file.id.slice(0, 6)}.${ext}`;
@@ -389,9 +393,9 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
   };
 
   // Categorize files
-  const maps = allFiles?.filter(f => categorizeFile(f) === 'map') || [];
+  const maps = allFiles?.filter(f => categorizeFile(f) === 'file') || [];
   const receipts = allFiles?.filter(f => categorizeFile(f) === 'receipt') || [];
-  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'income') || [];
+  const incomeFiles = allFiles?.filter(f => categorizeFile(f) === 'check') || [];
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
@@ -442,7 +446,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
           <Tabs defaultValue="maps">
             <TabsList className="grid w-full grid-cols-3 h-9">
               <TabsTrigger value="maps" className="text-xs md:text-sm gap-1.5">
-                <MapIcon className="w-3.5 h-3.5" />
+                <FileText className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t('files.maps')}</span> ({maps.length})
               </TabsTrigger>
               <TabsTrigger value="receipts" className="text-xs md:text-sm gap-1.5">
@@ -463,7 +467,7 @@ export default function WorkshopFilesManager({ workshopId, workshopName }: Works
                     type="file"
                     accept="image/*,.pdf"
                     className="hidden"
-                    onChange={(e) => handleFileChange(e, 'map')}
+                    onChange={(e) => handleFileChange(e, 'file')}
                   />
                   <Button
                     variant="outline"

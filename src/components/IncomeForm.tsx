@@ -144,6 +144,7 @@ export default function IncomeForm({ workshopId, workshopName, open, onOpenChang
       storagePath: fileName,
       fileName: selectedFile.name,
       fileType: selectedFile.type,
+      fileCategory: 'check',
     });
   };
 

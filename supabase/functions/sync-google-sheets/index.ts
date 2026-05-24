@@ -248,6 +248,19 @@ function safeDriveName(name: string) {
   return (name || 'Unknown Workshop').replace(/[\\/:*?"<>|]/g, '_').trim() || 'Unknown Workshop';
 }
 
+function fileDriveCategory(file: { file_path?: string | null; payment_id?: string | null; income_id?: string | null }): 'receipts' | 'files' | 'checks' {
+  if (file.payment_id) return 'receipts';
+  if (file.income_id) return 'checks';
+  const filePath = String(file.file_path || '');
+  const path = `/${filePath.toLowerCase()}`;
+  const firstFolder = filePath.split('/')[0] || '';
+  if (path.includes('/files/') || path.includes('/file/') || path.includes('/maps/') || path.includes('/map/')) return 'files';
+  if (path.includes('/receipts/') || path.includes('/receipt/')) return 'receipts';
+  if (path.includes('/checks/') || path.includes('/check/') || path.includes('/income/')) return 'checks';
+  if (/^[0-9a-f-]{36}$/i.test(firstFolder)) return 'receipts';
+  return 'files';
+}
+
 function driveQueryLiteral(value: string) {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
@@ -348,35 +361,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    let requestBody: any = {};
-    try { requestBody = await req.json(); } catch { requestBody = {}; }
-    if (requestBody?.background === true) {
-      const backgroundTask = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-google-sheets`, {
-        method: 'POST',
-        headers: {
-          Authorization: authHeader,
-          apikey: Deno.env.get('SUPABASE_ANON_KEY')!,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ background: false }),
-      }).then(async (res) => {
-        if (!res.ok) console.error('Background Google Drive sync failed:', res.status, await res.text());
-      }).catch((error) => console.error('Background Google Drive sync failed:', error));
-      (globalThis as any).EdgeRuntime?.waitUntil?.(backgroundTask);
-
-      const { data: syncSettings } = await admin.from('app_settings').select('key, value')
-        .in('key', ['master_spreadsheet_id', 'master_drive_folder_id']);
-      const sid = syncSettings?.find((s: any) => s.key === 'master_spreadsheet_id')?.value;
-      const fid = syncSettings?.find((s: any) => s.key === 'master_drive_folder_id')?.value;
-      return new Response(JSON.stringify({
-        success: true,
-        queued: true,
-        spreadsheetId: sid || null,
-        spreadsheetUrl: sid ? `https://docs.google.com/spreadsheets/d/${sid}/edit` : null,
-        folderId: fid || null,
-        folderUrl: fid ? `https://drive.google.com/drive/folders/${fid}` : null,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    try { await req.json(); } catch { /* body is optional */ }
 
     const fetchAll = async (table: string, cols = '*') => {
       const all: any[] = [];
@@ -573,7 +558,7 @@ Deno.serve(async (req) => {
       if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
     }
 
-    const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,created_at');
+    const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
     const existingStoragePaths = new Set<string>();
     for (const file of workshopFiles) {
       const path = String(file.file_path || '');
@@ -601,16 +586,36 @@ Deno.serve(async (req) => {
           workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
           folderCache.set(workshopName, workshopFolderId);
         }
+        const category = fileDriveCategory(file);
+        const categoryCacheKey = `${workshopName}/${category}`;
+        let categoryFolderId = folderCache.get(categoryCacheKey);
+        if (!categoryFolderId) {
+          categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+          folderCache.set(categoryCacheKey, categoryFolderId);
+        }
         const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
         if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
         const niceFileName = driveFileName(file);
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, workshopFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, folderId, `${workshopName} - ${niceFileName}`, blob, file.file_type || 'application/octet-stream');
+        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
         filesMirrored += 1;
       } catch (e) {
         filesSkipped += 1;
         console.warn('Drive mirror skipped:', file.file_path, e instanceof Error ? e.message : String(e));
       }
+    }
+
+    if (filesSkipped > 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Sync incomplete: ${filesSkipped} file record${filesSkipped === 1 ? '' : 's'} could not be uploaded because the stored file is missing or unavailable. Re-upload or delete those file records, then sync again.`,
+        spreadsheetId,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+        folderId,
+        folderUrl: folderId ? `https://drive.google.com/drive/folders/${folderId}` : null,
+        tablesExported,
+        filesMirrored,
+        filesSkipped,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({

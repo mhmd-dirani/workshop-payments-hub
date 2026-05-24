@@ -227,6 +227,7 @@ export default function ContractorPayments() {
       storagePath: fileName,
       fileName: file.name,
       fileType: file.type,
+      fileCategory: 'receipt',
     });
 
     return fileName;
@@ -404,6 +405,7 @@ export default function ContractorPayments() {
           storagePath: fileName,
           fileName: purchaseReceipt.name,
           fileType: purchaseReceipt.type,
+          fileCategory: 'receipt',
         });
       }
 

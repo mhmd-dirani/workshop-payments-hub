@@ -6,6 +6,7 @@ type MirrorWorkshopFileParams = {
   storagePath: string;
   fileName: string;
   fileType?: string | null;
+  fileCategory?: 'receipt' | 'file' | 'check';
   createdAt?: string | null;
 };
 
@@ -17,6 +18,7 @@ export function mirrorWorkshopFileToDrive(params: MirrorWorkshopFileParams) {
       storagePath: params.storagePath,
       fileName: params.fileName,
       fileType: params.fileType || 'application/octet-stream',
+      fileCategory: params.fileCategory,
       createdAt: params.createdAt || new Date().toISOString(),
     },
   }).catch((err) => {
