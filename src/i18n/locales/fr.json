@@ -900,5 +900,41 @@
     "deleteConfirmTitle": "Supprimer les lignes archivées ?",
     "deleteConfirmDesc": "Supprimer définitivement les lignes historiques du {{from}} au {{to}}. Les totaux sont déjà préservés, les tableaux de bord resteront corrects. Les dettes ouvertes, paiements en attente et présences non payées seront conservés.",
     "status": { "pending": "En attente", "verified": "Vérifié", "deleted": "Supprimé de la base" }
+    ,
+    "previewDesc": "Vérifiez exactement ce qui sera supprimé et ce qui sera conservé. La suppression est bloquée si la vérification échoue.",
+    "verification": "Vérification",
+    "verificationPassed": "Réussie",
+    "verificationFailed": "Échec — suppression bloquée",
+    "willBeDeleted": "Sera supprimé",
+    "willBeKept": "Sera conservé (sécurisé)",
+    "nothingToDelete": "Rien à supprimer dans cette plage.",
+    "preservedTotals": "Totaux préservés (instantané)",
+    "masterPreserved": "Données maîtres préservées",
+    "confirmDelete": "Confirmer la suppression définitive",
+    "keep": {
+      "attendance_unpaid": "Présences non payées",
+      "worker_adjustments_unpaid": "Ajustements non payés",
+      "payments_pending": "Paiements en attente",
+      "debts_open": "Dettes ouvertes"
+    }
+  },
+  "finished": {
+    "title": "Ateliers terminés",
+    "description": "Marquez un atelier comme terminé, sauvegardez-le sur Google Drive, puis supprimez ses données en toute sécurité.",
+    "noWorkshops": "Aucun atelier.",
+    "markAsFinished": "Marquer terminé",
+    "markedTitle": "Atelier marqué terminé",
+    "markedDesc": "« {{name}} » est prêt à être sauvegardé.",
+    "markConfirmTitle": "Marquer l'atelier comme terminé ?",
+    "markConfirmDesc": "« {{name}} » sera marqué terminé. Vous pouvez le rouvrir à tout moment avant la suppression.",
+    "reopen": "Rouvrir",
+    "backupNow": "Sauvegarder vers Drive",
+    "backupDone": "Sauvegarde terminée",
+    "backupDoneDesc": "« {{name}} » a été sauvegardé sur Google Drive et vérifié.",
+    "backupVerified": "Sauvegarde vérifiée",
+    "deleteData": "Supprimer les données de l'atelier terminé",
+    "deleted": "Données de l'atelier supprimées",
+    "deletedDesc": "Lignes supprimées ; sauvegarde Google Drive conservée définitivement.",
+    "status": { "active": "Actif", "paused": "En pause", "finished": "Terminé", "archived": "Archivé" }
   }
 }
