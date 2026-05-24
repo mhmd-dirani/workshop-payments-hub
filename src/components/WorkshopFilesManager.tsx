@@ -16,7 +16,6 @@ import JSZip from 'jszip';
 import { 
   Loader2, 
   Upload, 
-  Map as MapIcon, 
   Receipt, 
   Trash2, 
   Download,
@@ -46,8 +45,11 @@ const categorizeFile = (file: { file_path: string; payment_id?: string | null; i
   if (file.payment_id) return 'receipt';
   if (file.income_id) return 'check';
   const normalizedPath = `/${file.file_path.toLowerCase()}`;
+  const firstFolder = file.file_path.split('/')[0] || '';
+  if (normalizedPath.includes('/files/') || normalizedPath.includes('/file/') || normalizedPath.includes('/maps/') || normalizedPath.includes('/map/')) return 'file';
   if (normalizedPath.includes('/receipts/') || normalizedPath.includes('/receipt/')) return 'receipt';
   if (normalizedPath.includes('/checks/') || normalizedPath.includes('/check/') || normalizedPath.includes('/income/')) return 'check';
+  if (/^[0-9a-f-]{36}$/i.test(firstFolder)) return 'receipt';
   return 'file';
 };
 
