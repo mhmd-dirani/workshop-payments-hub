@@ -37,7 +37,8 @@ async function findOrCreateFolder(
   };
   const qParent = parentId ? ` and ${driveQueryLiteral(parentId)} in parents` : '';
   const q = `name=${driveQueryLiteral(name)} and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, { headers });
+  if (!search.ok) throw new Error(`Folder search failed for "${name}": ${search.status} ${await search.text()}`);
   const sj = await search.json();
   if (sj.files && sj.files.length > 0) return sj.files[0].id;
 
@@ -50,22 +51,30 @@ async function findOrCreateFolder(
       ...(parentId ? { parents: [parentId] } : {}),
     }),
   });
+  if (!create.ok) throw new Error(`Folder create failed for "${name}": ${create.status} ${await create.text()}`);
   const cj = await create.json();
   if (!cj.id) throw new Error(`Folder create failed: ${JSON.stringify(cj)}`);
   return cj.id;
 }
 
-async function deleteExistingDriveFiles(name: string, parentId: string, lovableKey: string, driveKey: string) {
+async function findExistingDriveFiles(name: string, parentId: string, lovableKey: string, driveKey: string) {
   const headers = {
     Authorization: `Bearer ${lovableKey}`,
     'X-Connection-Api-Key': driveKey,
   };
   const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(parentId)} in parents and trashed=false`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, { headers });
+  if (!search.ok) throw new Error(`Drive duplicate lookup failed: ${search.status} ${await search.text()}`);
   const sj = await search.json();
-  for (const file of sj.files || []) {
-    await fetch(`${DRIVE_GW}/files/${file.id}`, { method: 'DELETE', headers });
-  }
+  return sj.files || [];
+}
+
+async function trashDriveFile(fileId: string, lovableKey: string, driveKey: string) {
+  await fetch(`${DRIVE_GW}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${lovableKey}`, 'X-Connection-Api-Key': driveKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  });
 }
 
 Deno.serve(async (req) => {
