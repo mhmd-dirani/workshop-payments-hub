@@ -1,64 +1,159 @@
-## Goal
+# Plan: Safe Archive Snapshots + Finished Workshop Backup
 
-Make the worker card the single source of truth for "to be paid". The amount the admin sees on the worker card before clicking **Pay full salary** must exactly equal the sum of payment rows created on the dashboard — across **all workshops**, with advances, bonuses, overtime, holiday pay and debt deduction applied consistently.
+This is a large, financially-sensitive change. I will deliver it in two phases so we can verify totals between them. **No row will be deleted until summaries are persisted and verified against live data.**
 
-## Bugs found (worker salary, multi-site)
+---
 
-1. **Advances can silently re-apply forever.** In `createPayment`, when a worker has an unpaid advance on site A and earned nothing (or less than the advance) on every other site, no payment row gets created, so `fallbackPaymentId` stays `null` and the advance's adjustment row is never marked `is_paid`. Next pay it deducts again. Same problem if the cross-workshop credit exceeds total positive earnings — leftover credit is lost.
-2. **Partial credit consumption is lost.** If a 50k advance is only partially consumed (e.g. 30k of earnings on other sites), the full 50k adjustment is marked paid; the remaining 20k disappears instead of carrying over.
-3. **Dashboard amount > card "to be paid".** The card shows `totalOwed = attendance + bonus − discount`. The dashboard payment then adds **holiday pay** and subtracts **debt deduction** that are configured in the pay dialog — but the card preview never reflects those. So the admin commits a number different from what they were shown.
-4. **Debt deduction is split before holiday pay is added** → tiny rounding mismatches when both are on.
-5. **Discount total on the card mixes credit-discounts (advances) with real discounts**, so the "bonuses/discounts" line on the card double-counts the advance that's already shown separately.
+## Phase 1 — Snapshot Archive System (monthly ranges)
 
-## Fixes
+### 1. New database tables (additive only, no destructive migrations)
 
-### A. Reconciliation logic in `createPayment` (`src/components/WorkerDetails.tsx`)
+- `archive_batches` — one row per archive run
+  - `id`, `from_date`, `to_date`, `label` (e.g. `jan_mar_2026`), `created_by`, `created_at`
+  - `drive_folder_url`, `spreadsheet_url`
+  - `status` (`pending` | `verified` | `deleted`)
+  - `rows_archived` (jsonb of per-table counts), `rows_deleted` (jsonb)
+  - `totals_verified_at`, `deleted_at`
+  - UNIQUE(`from_date`,`to_date`) to prevent duplicates
+- `workshop_archive_summaries` (per batch × workshop)
+  - totals: income, approved_payments, worker_salaries, worker_hours, contractor_advances, contractor_materials, debts, debt_payments, transfers, total_expenses, net
+- `worker_archive_summaries` (per batch × worker)
+  - total_hours, total_salary, total_extra, total_discounts, total_adjustments
+- `contractor_archive_summaries` (per batch × contractor)
+  - total_advances, total_materials, total_purchases, total_budget
+- `finished_workshop_archives` (Phase 2, created in same migration)
 
-- Track consumed credit **per source adjustment**, not as a single pool. When marking credit-adjustments paid, only mark the portion actually consumed; split the remainder into a new unpaid credit adjustment so it carries forward.
-- If after the loop there are credit adjustments that were consumed against zero/negative earnings (no payment row created anywhere) → do **not** mark anything paid; throw a clear error: "Advances exceed earnings. Nothing to pay this round."
-- Add `holidayPay` to `grandTotalBeforeDeduction` so the proportional debt split is correct.
-- Move the "first workshop gets holiday pay" rule to a deterministic choice (the workshop with the largest positive total) so the user-visible breakdown matches the card.
+All tables: RLS = admin-only manage, authenticated read.
 
-### B. Worker card summary (`src/components/WorkerDetails.tsx`)
+### 2. Edge function: `create-archive-snapshot` (replaces auto-delete behavior)
 
-Refactor the top summary into a single `paymentPreview` memo that mirrors `createPayment` exactly and drives both the card numbers and the pay dialog:
+Steps per call (admin-only, transactional where possible):
+1. Validate `fromDate`/`toDate`; reject if an overlapping `archive_batches` row already exists.
+2. Run the existing `sync-google-sheets` flow → get `spreadsheet_url`, `drive_folder_url`.
+3. Compute aggregates per workshop / worker / contractor from raw rows in range.
+4. Insert `archive_batches` row + summary rows.
+5. **Verify** by re-querying live totals in range and comparing to inserted summaries; on mismatch, rollback inserts and return error.
+6. Mark batch `status='verified'`. **Do not delete anything.**
 
-```
-attendance   +X
-bonuses      +Y
-discounts    −Z          (real discounts only, excludes advances)
-─────────────────
-sub-total     S
-advances     −A          (cross-workshop credit applied)
-holiday pay  +H          (if toggle on, live)
-debt deduct  −D          (if selected, live)
-─────────────────
-to be paid    P
-```
+### 3. Edge function: `delete-archived-batch`
 
-Card always shows P, broken down. If P=0 because advances exceed earnings, card shows "Advances exceed earnings — adjust before paying".
+- Input: `batch_id`.
+- Only allowed when `status='verified'`.
+- Skips rows that are unsafe to delete:
+  - `attendance` with `is_paid=false` OR linked to pending `payments`
+  - `payments` with `status='pending'`
+  - `debts` where `is_settled=false` (open debts) — only settled debts deletable
+  - `worker_adjustments` with `is_paid=false`
+  - any `contractor_payments` whose contractor still has open balance in active months
+- Deletes in FK-safe order: child tables first (`debt_payments`, `worker_adjustments`, `contractor_budget_purchases`, `workshop_files` storage+rows) then parents.
+- Records `rows_deleted` jsonb and sets `status='deleted'`, `deleted_at=now()`.
 
-### C. UI/efficiency in worker card
+The existing `archive-synced-data` function will be deprecated/removed.
 
-- One compact summary card (the block above) instead of the current scattered totals.
-- Per-workshop chips below it showing how P will be split across sites (matches dashboard rows).
-- Collapse the long "unpaid by workshop" tables behind a "Show breakdown" toggle on mobile (current scroll is heavy on 384px viewport).
-- Move the holiday-pay / debt-deduction toggles into the same card so they update P live before the pay dialog opens.
+### 4. Calculation layer update — "snapshots + live"
 
-### D. Verification
+Create `src/lib/archive-totals.ts` with cached fetchers:
+- `getArchivedWorkshopTotals(workshopId)` → sums all `workshop_archive_summaries` for that workshop
+- `getArchivedWorkerTotals(workerId)`
+- `getArchivedContractorTotals(contractorId)`
+- `getArchivedGlobalTotals()`
 
-After implementing:
-1. Reproduce: worker with 50k advance on site A, 30k earnings on site B → expect blocked pay with clear message, advance stays.
-2. Worker with 50k advance on site A, 80k earnings on site B → expect single 30k payment on site B, advance fully marked paid.
-3. Worker with 50k advance on site A, 30k on site B, 40k on site C → expect 30k+0+40k consumed; 50k advance fully cleared by sum of cross-credits; payments on B and C total 20k.
-4. Worker with holiday pay on + 10k debt deduction → card P == sum of dashboard payment rows, to the franc.
+Update these consumers to add archived summary values to their live computation:
+- `src/lib/balance-utils.ts` — leave user balances alone (transfers/payments/personal_payments for a user are not archived unless their dated rows fall in range; if they are, we add archived contributions back via a `user_archive_summaries` jsonb breakdown attached to `archive_batches.rows_archived` aggregated by `created_by`/`user_id`). To keep this safe I'll add a small `user_balance_archive_summaries` table mirroring the same formula components per user per batch.
+- `src/lib/worker-payment-utils.ts` — add archived hours/salary/adjustments
+- `src/lib/payment-display-utils.ts` — totals only, not row lists
+- Dashboard, Workers, Contractors, Debts pages — totals widgets read live + archived
 
-### Out of scope (this round)
+Detail/history views remain live-only (rows are gone; users see Google Drive link for detail).
 
-- Bonus/overtime sync, payment dashboard ↔ worker card edit/delete sync, worker debts repayment paths. We'll do these as separate rounds so each gets verified.
+### 5. UI changes in `GoogleDriveSyncCard.tsx`
 
-### Files touched
+Replace the current post-sync "delete?" AlertDialog with:
+- Success state shows: spreadsheet link, drive folder link, **per-table archived counts**, and three buttons:
+  - **Delete Archived Data** (calls `delete-archived-batch`, confirm dialog lists what will/won't be deleted)
+  - **View Archive Summaries** (opens new `ArchiveSummariesDialog`)
+  - **Done**
+- Block selecting an already-archived range.
 
-- `src/components/WorkerDetails.tsx` (logic + card UI)
-- `src/lib/worker-payment-utils.ts` (split-credit helper)
-- `src/i18n/locales/{en,fr,ar}.json` (new strings: "advances exceed earnings", "to be paid", per-workshop breakdown labels, "show breakdown")
+### 6. New component: `ArchiveSummariesDialog.tsx`
+
+Lists all `archive_batches` with: range, created, links, rows archived/deleted, status badge, totals-verified ✓, expandable per-workshop/worker/contractor totals.
+
+### 7. i18n — add keys for archive flow, verification, deletion safety messages in `en`, `fr`, `ar`.
+
+---
+
+## Phase 2 — Finished Workshop Backup & Removal
+
+### 1. Schema additions (same migration as Phase 1)
+
+- `workshops.status` text default `'active'` check in (`active`,`paused`,`finished`,`archived`)
+- `finished_workshop_archives` table:
+  - `workshop_id`, `workshop_name` (denormalized snapshot), `archived_at`, `archived_by`
+  - `drive_folder_url`, jsonb `spreadsheet_urls`, jsonb `final_totals`, jsonb `final_balances`
+  - `deleted_from_database` bool, `deleted_at`
+  - `backup_verified` bool
+
+### 2. Edge function: `backup-finished-workshop`
+
+- Requires `workshops.status='finished'`.
+- Exports **all** workshop-scoped rows (attendance, worker_adjustments, payments, contractor_payments, contractor_budget_purchases, income, workshop_files, related debts/debt_payments/personal_payments/transfers identified via `payment_id` link, holidays in date range).
+- Creates dedicated Drive folder tree: `Workshop_Backups/<name>/{Attendance,Payments,Workers,Contractors,Debts,Files,Reports,Financial_Summaries}`.
+- Generates CSV per table, a JSON snapshot, and a final summary report.
+- Computes & stores `final_totals` and `final_balances` (per worker, per contractor, overall).
+- Verifies row counts vs Drive uploads → sets `backup_verified=true`.
+
+### 3. Edge function: `delete-finished-workshop`
+
+- Allowed only when matching `finished_workshop_archives.backup_verified=true`.
+- Deletes only this workshop's transactional rows in FK-safe order.
+- Workers/contractors with rows in other workshops are kept (only the workshop-scoped rows are removed). Master profiles preserved.
+- Sets `workshops.status='archived'`, `finished_workshop_archives.deleted_from_database=true`.
+
+### 4. UI
+
+- `WorkshopSelector` / a new workshop management area: status badge + actions:
+  - **Mark as Finished** (admin, confirm)
+  - **Backup Finished Workshop** (calls function, progress UI)
+  - **View Workshop Backup Summary** (modal of `final_totals`, links, downloads)
+  - **Delete Finished Workshop Data** (only after `backup_verified`, double-confirm)
+- New page/section `Archived Workshops` listing `finished_workshop_archives` with restore-ready metadata (restore not implemented; schema preserves enough to reimport later).
+- Hide `status in ('archived')` workshops from active dashboards/selectors; keep visible in Archived list.
+
+### 5. Dashboard/global totals
+
+Include `finished_workshop_archives.final_totals` in global aggregates so global numbers don't drop when an archived workshop's rows are removed.
+
+### 6. i18n — add keys for finished/backup/restore/archived statuses in `en`,`fr`,`ar`.
+
+---
+
+## Safety guarantees (enforced in code + DB)
+
+- No deletion path runs without a verified summary row.
+- UNIQUE constraints on `archive_batches(from_date,to_date)` and `finished_workshop_archives(workshop_id) WHERE deleted_from_database=false` prevent duplicates.
+- Pre-delete filter functions exclude unpaid/pending/open rows.
+- All totals helpers always read `live + archived`, never just live.
+- Mobile-first layout for new dialogs (stacked cards, no horizontal scroll).
+- All new strings localized en/fr/ar with RTL.
+
+## Technical notes (for me)
+
+- Migrations: one combined migration for all new tables/columns/RLS.
+- Edge functions to add: `create-archive-snapshot`, `delete-archived-batch`, `backup-finished-workshop`, `delete-finished-workshop`. Remove `archive-synced-data`.
+- `sync-google-sheets` will be called internally by `create-archive-snapshot` (kept as-is).
+- New util `src/lib/archive-totals.ts` is the only place that reads summary tables; consumers import from it.
+- Toast duration 1000ms, AlertDialog for every destructive action (per project memory).
+
+## Deliverable order
+
+1. Migration (all new tables + workshop.status).
+2. `create-archive-snapshot` + `delete-archived-batch` edge functions.
+3. `archive-totals.ts` + integrate into balance/worker/payment utils + Dashboard.
+4. `GoogleDriveSyncCard` rewrite + `ArchiveSummariesDialog`.
+5. `backup-finished-workshop` + `delete-finished-workshop`.
+6. Workshop status UI + Archived Workshops page.
+7. i18n keys (en/fr/ar) for everything.
+8. Manual verification: run snapshot on a small range, confirm totals unchanged after delete.
+
+Please approve and I'll start with the migration.

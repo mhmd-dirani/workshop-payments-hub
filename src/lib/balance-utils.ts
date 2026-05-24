@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getArchivedUserBalances } from './archive-totals';
 
 export interface UserBalanceBreakdown {
   received: number;
@@ -48,7 +49,7 @@ async function fetchAllPages<T>(
  *    via a discount on their next salary), which is correct.
  */
 export async function fetchUserBalance(userId: string): Promise<UserBalanceBreakdown> {
-  const [transfers, payments, personalPayments] = await Promise.all([
+  const [transfers, payments, personalPayments, archived] = await Promise.all([
     fetchAllPages<{ amount: number | string }>((from, to) =>
       supabase.from('team_transfers').select('amount').eq('user_id', userId).order('id').range(from, to)
     ),
@@ -58,11 +59,13 @@ export async function fetchUserBalance(userId: string): Promise<UserBalanceBreak
     fetchAllPages<{ amount: number | string }>((from, to) =>
       supabase.from('personal_payments').select('amount').eq('user_id', userId).order('id').range(from, to)
     ),
+    getArchivedUserBalances([userId]),
   ]);
 
-  const received = transfers.reduce((s, r) => s + Number(r.amount), 0);
-  const workshopSpent = payments.reduce((s, r) => s + Number(r.amount), 0);
-  const personalSpent = personalPayments.reduce((s, r) => s + Number(r.amount), 0);
+  const arc = archived.get(userId) || { received: 0, workshopSpent: 0, personalSpent: 0 };
+  const received = transfers.reduce((s, r) => s + Number(r.amount), 0) + arc.received;
+  const workshopSpent = payments.reduce((s, r) => s + Number(r.amount), 0) + arc.workshopSpent;
+  const personalSpent = personalPayments.reduce((s, r) => s + Number(r.amount), 0) + arc.personalSpent;
   const totalSpent = workshopSpent + personalSpent;
 
   return {
@@ -83,7 +86,7 @@ export async function fetchAllUserBalances(
 ): Promise<Map<string, UserBalanceBreakdown>> {
   if (userIds.length === 0) return new Map();
 
-  const [transfersRes, paymentsRes, personalRes] = await Promise.all([
+  const [transfersRes, paymentsRes, personalRes, archivedMap] = await Promise.all([
     fetchAllPages<{ user_id: string; amount: number | string }>((from, to) =>
       supabase.from('team_transfers').select('user_id, amount').in('user_id', userIds).order('id').range(from, to)
     ),
@@ -99,19 +102,21 @@ export async function fetchAllUserBalances(
     fetchAllPages<{ user_id: string; amount: number | string }>((from, to) =>
       supabase.from('personal_payments').select('user_id, amount').in('user_id', userIds).order('id').range(from, to)
     ),
+    getArchivedUserBalances(userIds),
   ]);
 
   const result = new Map<string, UserBalanceBreakdown>();
   for (const id of userIds) {
+    const arc = archivedMap.get(id) || { received: 0, workshopSpent: 0, personalSpent: 0 };
     const received = transfersRes
       .filter((r) => r.user_id === id)
-      .reduce((s, r) => s + Number(r.amount), 0);
+      .reduce((s, r) => s + Number(r.amount), 0) + arc.received;
     const workshopSpent = paymentsRes
       .filter((r) => r.created_by === id)
-      .reduce((s, r) => s + Number(r.amount), 0);
+      .reduce((s, r) => s + Number(r.amount), 0) + arc.workshopSpent;
     const personalSpent = personalRes
       .filter((r) => r.user_id === id)
-      .reduce((s, r) => s + Number(r.amount), 0);
+      .reduce((s, r) => s + Number(r.amount), 0) + arc.personalSpent;
     const totalSpent = workshopSpent + personalSpent;
     result.set(id, {
       received,

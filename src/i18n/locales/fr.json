@@ -881,5 +881,24 @@
     "deleteSyncedData": "Supprimer de la base",
     "archiveDone": "Archivé",
     "archiveDoneDesc": "{{count}} enregistrements supprimés de la base."
+  },
+  "archive": {
+    "snapshotting": "Création de l’instantané d’archive…",
+    "snapshotDone": "Instantané d’archive créé",
+    "snapshotDoneDesc": "Totaux permanents enregistrés ({{label}}). Les totaux restent corrects même si vous supprimez les données.",
+    "snapshotFailed": "Échec de l’instantané",
+    "lastBatch": "Dernier instantané : {{label}} ✓ vérifié",
+    "viewSummaries": "Voir les archives",
+    "summariesTitle": "Résumés d’archive",
+    "summariesDesc": "Les totaux vérifiés sont préservés en permanence. Vous pouvez supprimer en toute sécurité les plages archivées pour libérer de l’espace sans perdre aucun total.",
+    "noBatches": "Aucun instantané d’archive.",
+    "rowsArchived": "{{count}} lignes dans l’instantané",
+    "rowsDeleted": "{{count}} lignes supprimées de la base",
+    "deleteArchived": "Supprimer les données archivées",
+    "deleteDone": "Données archivées supprimées",
+    "deleteDoneDesc": "Lignes supprimées ; totaux préservés via l’instantané.",
+    "deleteConfirmTitle": "Supprimer les lignes archivées ?",
+    "deleteConfirmDesc": "Supprimer définitivement les lignes historiques du {{from}} au {{to}}. Les totaux sont déjà préservés, les tableaux de bord resteront corrects. Les dettes ouvertes, paiements en attente et présences non payées seront conservés.",
+    "status": { "pending": "En attente", "verified": "Vérifié", "deleted": "Supprimé de la base" }
   }
 }

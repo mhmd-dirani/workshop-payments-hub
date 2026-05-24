@@ -4,19 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Cloud, ExternalLink, FolderOpen, Archive } from 'lucide-react';
+import { Loader2, Cloud, ExternalLink, FolderOpen, History } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import ArchiveSummariesDialog from './ArchiveSummariesDialog';
 
 function monthBounds(fromYm: string, toYm: string): { fromDate: string; toDate: string } | null {
   if (!/^\d{4}-\d{2}$/.test(fromYm) || !/^\d{4}-\d{2}$/.test(toYm)) return null;
@@ -32,7 +23,7 @@ export default function GoogleDriveSyncCard() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
-  const [archiving, setArchiving] = useState(false);
+  const [snapshotting, setSnapshotting] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<Record<string, number> | null>(null);
@@ -42,7 +33,8 @@ export default function GoogleDriveSyncCard() {
   const defaultYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const [fromMonth, setFromMonth] = useState<string>(defaultYm);
   const [toMonth, setToMonth] = useState<string>(defaultYm);
-  const [archivePrompt, setArchivePrompt] = useState<{ fromDate: string; toDate: string } | null>(null);
+  const [summariesOpen, setSummariesOpen] = useState(false);
+  const [lastBatchLabel, setLastBatchLabel] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -62,6 +54,8 @@ export default function GoogleDriveSyncCard() {
       return;
     }
     setSyncing(true);
+    let runSpreadsheetUrl: string | null = null;
+    let runFolderUrl: string | null = null;
     try {
       let fileOffset: number | null = 0;
       let filesMirrored = 0;
@@ -81,8 +75,8 @@ export default function GoogleDriveSyncCard() {
         });
         if (error) throw error;
         if (data?.error && typeof data?.filesSkipped !== 'number') throw new Error(data.error);
-        if (data?.spreadsheetUrl) setSpreadsheetUrl(data.spreadsheetUrl);
-        if (data?.folderUrl) setFolderUrl(data.folderUrl);
+        if (data?.spreadsheetUrl) { setSpreadsheetUrl(data.spreadsheetUrl); runSpreadsheetUrl = data.spreadsheetUrl; }
+        if (data?.folderUrl) { setFolderUrl(data.folderUrl); runFolderUrl = data.folderUrl; }
         if (data?.tablesExported && Object.keys(data.tablesExported).length) tablesExported = data.tablesExported;
         filesMirrored += typeof data?.filesMirrored === 'number' ? data.filesMirrored : 0;
         filesSkipped += typeof data?.filesSkipped === 'number' ? data.filesSkipped : 0;
@@ -92,35 +86,31 @@ export default function GoogleDriveSyncCard() {
       if (tablesExported) setLastResult(tablesExported);
       setLastFilesMirrored(filesMirrored);
       setLastFilesSkipped(filesSkipped);
-      toast({
-        title: filesSkipped > 0 ? t('errors.error') : t('gdrive.syncDone'),
-        description: filesSkipped > 0 ? t('gdrive.syncPartialDesc', { skipped: filesSkipped }) : t('gdrive.syncDoneDesc'),
-        variant: filesSkipped > 0 ? 'destructive' : 'default',
-      });
-      setArchivePrompt(bounds);
+      if (filesSkipped > 0) {
+        toast({ title: t('errors.error'), description: t('gdrive.syncPartialDesc', { skipped: filesSkipped }), variant: 'destructive' });
+        return;
+      }
+      toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
+
+      // Create archive snapshot (totals preserved). Does NOT delete data.
+      setSnapshotting(true);
+      try {
+        const { data: snap, error: snapErr } = await supabase.functions.invoke('create-archive-snapshot', {
+          body: { fromDate: bounds.fromDate, toDate: bounds.toDate, spreadsheetUrl: runSpreadsheetUrl, driveFolderUrl: runFolderUrl },
+        });
+        if (snapErr) throw snapErr;
+        if (snap?.error) throw new Error(snap.error);
+        setLastBatchLabel(snap?.label || null);
+        toast({ title: t('archive.snapshotDone'), description: t('archive.snapshotDoneDesc', { label: snap?.label || '' }) });
+      } catch (e: any) {
+        toast({ title: t('archive.snapshotFailed'), description: e.message, variant: 'destructive' });
+      } finally {
+        setSnapshotting(false);
+      }
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
     } finally {
       setSyncing(false);
-    }
-  };
-
-  const archive = async () => {
-    if (!archivePrompt) return;
-    setArchiving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('archive-synced-data', {
-        body: { fromDate: archivePrompt.fromDate, toDate: archivePrompt.toDate },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      const total: number = Object.values(data?.deletedCounts || {}).reduce<number>((a, b) => a + (Number(b) > 0 ? Number(b) : 0), 0);
-      toast({ title: t('gdrive.archiveDone'), description: t('gdrive.archiveDoneDesc', { count: total as number }) });
-      setArchivePrompt(null);
-    } catch (e: any) {
-      toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
-    } finally {
-      setArchiving(false);
     }
   };
 
@@ -146,9 +136,14 @@ export default function GoogleDriveSyncCard() {
             <Input id="gdrive-to" type="month" value={toMonth} onChange={(e) => setToMonth(e.target.value)} className="h-9" />
           </div>
         </div>
-        <Button onClick={sync} disabled={syncing} className="w-full gap-2">
-          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
-          {syncing ? t('gdrive.syncing') : t('gdrive.syncNow')}
+        <Button onClick={sync} disabled={syncing || snapshotting} className="w-full gap-2">
+          {(syncing || snapshotting) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+          {snapshotting ? t('archive.snapshotting') : syncing ? t('gdrive.syncing') : t('gdrive.syncNow')}
+        </Button>
+
+        <Button onClick={() => setSummariesOpen(true)} variant="outline" className="w-full gap-2">
+          <History className="w-4 h-4" />
+          {t('archive.viewSummaries')}
         </Button>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -176,34 +171,12 @@ export default function GoogleDriveSyncCard() {
             {lastFilesMirrored !== null && (
               <p>{t('gdrive.filesMirrored', { count: lastFilesMirrored, skipped: lastFilesSkipped ?? 0 })}</p>
             )}
+            {lastBatchLabel && <p className="text-emerald-700">{t('archive.lastBatch', { label: lastBatchLabel })}</p>}
           </div>
         )}
       </CardContent>
 
-      <AlertDialog open={archivePrompt !== null} onOpenChange={(o) => { if (!o && !archiving) setArchivePrompt(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Archive className="w-5 h-5 text-primary" />
-              {t('gdrive.archiveTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {archivePrompt ? t('gdrive.archiveDesc', { from: archivePrompt.fromDate, to: archivePrompt.toDate }) : ''}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={archiving}>{t('gdrive.keepData')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); archive(); }}
-              disabled={archiving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4 mr-2" />}
-              {t('gdrive.deleteSyncedData')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArchiveSummariesDialog open={summariesOpen} onOpenChange={setSummariesOpen} />
     </Card>
   );
 }
