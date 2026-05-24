@@ -12,6 +12,8 @@ const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/
 const SPREADSHEET_NAME = 'Workshop_Master_Database';
 const DASHBOARD_SHEET = 'Main Dashboard';
 const LEGACY_DASHBOARD_SHEET = 'Dashboard';
+const DEFAULT_FILE_BATCH_SIZE = 5;
+const MAX_FILE_BATCH_SIZE = 10;
 
 type Resolver = 'workshop' | 'worker' | 'user' | 'contractor' | 'contract' | 'debt' | 'payment' | 'contractorPayment';
 type TableSpec = {
@@ -265,6 +267,27 @@ function driveQueryLiteral(value: string) {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
+async function mergeDuplicateFolder(canonicalId: string, duplicateId: string, lovableKey: string, driveKey: string) {
+  let pageToken = '';
+  do {
+    const q = `${driveQueryLiteral(duplicateId)} in parents and trashed=false`;
+    const url = `${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=nextPageToken,files(id,name)&pageSize=1000${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+    const res = await fetch(url, { headers: driveHeaders(lovableKey, driveKey, false) });
+    if (!res.ok) throw new Error(`Duplicate folder scan failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    for (const child of data.files || []) {
+      const move = await fetch(`${DRIVE_GW}/files/${child.id}?addParents=${canonicalId}&removeParents=${duplicateId}&fields=id`, {
+        method: 'PATCH',
+        headers: driveHeaders(lovableKey, driveKey),
+        body: JSON.stringify({}),
+      });
+      if (!move.ok) console.warn('Duplicate folder child move failed:', child.id, await move.text());
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  await trashDriveFile(lovableKey, driveKey, duplicateId);
+}
+
 function driveFileName(row: any) {
   const date = row.created_at
     ? String(row.created_at).slice(0, 16).replace('T', ' ').replace(':', '-')
@@ -276,37 +299,33 @@ function driveFileName(row: any) {
 async function findOrCreateFolder(name: string, parentId: string | null, lovableKey: string, driveKey: string): Promise<string> {
   const qParent = parentId ? ` and ${driveQueryLiteral(parentId)} in parents` : '';
   const q = `name=${driveQueryLiteral(name)} and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, {
     headers: driveHeaders(lovableKey, driveKey, false),
   });
+  if (!search.ok) throw new Error(`Folder search failed for "${name}": ${search.status} ${await search.text()}`);
   const sj = await search.json();
-  if (sj.files?.length) return sj.files[0].id;
+  if (sj.files?.length) {
+    const canonical = sj.files[0];
+    for (const duplicate of sj.files.slice(1)) {
+      await mergeDuplicateFolder(canonical.id, duplicate.id, lovableKey, driveKey).catch((e) => console.warn('Duplicate folder merge failed:', duplicate.id, e));
+    }
+    return canonical.id;
+  }
 
   const create = await fetch(`${DRIVE_GW}/files`, {
     method: 'POST',
     headers: driveHeaders(lovableKey, driveKey),
     body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', ...(parentId ? { parents: [parentId] } : {}) }),
   });
+  if (!create.ok) throw new Error(`Folder create failed for "${name}": ${create.status} ${await create.text()}`);
   const cj = await create.json();
   if (!cj.id) throw new Error(`Folder create failed: ${JSON.stringify(cj)}`);
   return cj.id;
 }
 
-async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string) {
-  const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(folderId)} in parents and trashed=false`;
-  const existing = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
-    headers: driveHeaders(lovableKey, driveKey, false),
-  }).then((r) => r.json());
-
-  for (const file of existing.files || []) {
-    await fetch(`${DRIVE_GW}/files/${file.id}`, {
-      method: 'DELETE',
-      headers: driveHeaders(lovableKey, driveKey, false),
-    });
-  }
-
+async function uploadDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string, existingFileId?: string) {
   const boundary = `----lovable-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const metadata = { name, parents: [folderId] };
+  const metadata = existingFileId ? { name } : { name, parents: [folderId] };
   const fileBytes = new Uint8Array(await blob.arrayBuffer());
   const enc = new TextEncoder();
   const pre = enc.encode(
@@ -319,8 +338,11 @@ async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: 
   bodyBytes.set(fileBytes, pre.length);
   bodyBytes.set(post, pre.length + fileBytes.length);
 
-  const upload = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
-    method: 'POST',
+  const url = existingFileId
+    ? `${DRIVE_UPLOAD}/${existingFileId}?uploadType=multipart&fields=id,webViewLink`
+    : `${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`;
+  const upload = await fetch(url, {
+    method: existingFileId ? 'PATCH' : 'POST',
     headers: {
       Authorization: `Bearer ${lovableKey}`,
       'X-Connection-Api-Key': driveKey,
@@ -330,6 +352,29 @@ async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: 
   });
   if (!upload.ok) throw new Error(`Drive upload failed: ${upload.status} ${await upload.text()}`);
   return upload.json();
+}
+
+async function trashDriveFile(lovableKey: string, driveKey: string, fileId: string) {
+  await fetch(`${DRIVE_GW}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: driveHeaders(lovableKey, driveKey),
+    body: JSON.stringify({ trashed: true }),
+  });
+}
+
+async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string) {
+  const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(folderId)} in parents and trashed=false`;
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, {
+    headers: driveHeaders(lovableKey, driveKey, false),
+  });
+  if (!search.ok) throw new Error(`Drive duplicate lookup failed: ${search.status} ${await search.text()}`);
+  const existing = await search.json();
+  const files = existing.files || [];
+  const updated = await uploadDriveFile(lovableKey, driveKey, folderId, name, blob, mimeType, files[0]?.id);
+  for (const duplicate of files.slice(1)) {
+    await trashDriveFile(lovableKey, driveKey, duplicate.id).catch((e) => console.warn('Duplicate trash failed:', duplicate.id, e));
+  }
+  return updated;
 }
 
 Deno.serve(async (req) => {
@@ -361,7 +406,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    try { await req.json(); } catch { /* body is optional */ }
+    let options: any = {};
+    try { options = await req.json(); } catch { options = {}; }
+    const fileBatchSize = Math.max(1, Math.min(Number(options?.fileBatchSize) || DEFAULT_FILE_BATCH_SIZE, MAX_FILE_BATCH_SIZE));
+    const fileOffset = Math.max(0, Number(options?.fileOffset) || 0);
+    const requestedFileLimit = Number(options?.fileLimit);
+    const fileLimit = Number.isFinite(requestedFileLimit) && requestedFileLimit > 0 ? Math.floor(requestedFileLimit) : null;
 
     const fetchAll = async (table: string, cols = '*') => {
       const all: any[] = [];
@@ -496,113 +546,120 @@ Deno.serve(async (req) => {
     const clearRanges: string[] = [];
     const valueUpdates: { range: string; values: any[][] }[] = [];
 
-    for (const spec of TABLE_SPECS) {
-      const rows = await fetchAll(spec.table, '*');
-      const headers = spec.columns.map((c) => c.label);
-      const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
-      clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
-      valueUpdates.push({ range: rangeA1(spec.sheet, 'A1'), values: [headers, ...values] });
-      tablesExported[spec.sheet] = rows.length;
+    if (!options?.filesOnly) {
+      for (const spec of TABLE_SPECS) {
+        const rows = await fetchAll(spec.table, '*');
+        const headers = spec.columns.map((c) => c.label);
+        const values = rows.map((r) => spec.columns.map((c) => c.resolve ? resolveValue(r[c.key], c.resolve) : formatCell(r[c.key])));
+        clearRanges.push(rangeA1(spec.sheet, 'A:ZZ'));
+        valueUpdates.push({ range: rangeA1(spec.sheet, 'A1'), values: [headers, ...values] });
+        tablesExported[spec.sheet] = rows.length;
 
-      const sheetId = sheetIds.get(spec.sheet);
-      if (sheetId !== undefined) {
-        formattingRequests.push(
-          { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
-          { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: headers.length }, cell: { userEnteredFormat: { backgroundColor: { red: 0.05, green: 0.12, blue: 0.18 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true }, horizontalAlignment: 'CENTER', wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)' } },
-          { setBasicFilter: { filter: { range: { sheetId, startRowIndex: 0, endRowIndex: Math.max(rows.length + 1, 2), startColumnIndex: 0, endColumnIndex: headers.length } } } },
-          { autoResizeDimensions: { dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: headers.length } } },
-        );
-        spec.columns.forEach((column, index) => {
-          if (column.type === 'amount') {
-            formattingRequests.push({ repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } });
-          }
-        });
+        const sheetId = sheetIds.get(spec.sheet);
+        if (sheetId !== undefined) {
+          formattingRequests.push(
+            { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
+            { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: headers.length }, cell: { userEnteredFormat: { backgroundColor: { red: 0.05, green: 0.12, blue: 0.18 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true }, horizontalAlignment: 'CENTER', wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)' } },
+            { setBasicFilter: { filter: { range: { sheetId, startRowIndex: 0, endRowIndex: Math.max(rows.length + 1, 2), startColumnIndex: 0, endColumnIndex: headers.length } } } },
+            { autoResizeDimensions: { dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: headers.length } } },
+          );
+          spec.columns.forEach((column, index) => {
+            if (column.type === 'amount') {
+              formattingRequests.push({ repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } });
+            }
+          });
+        }
       }
-    }
 
-    const dashboardValues = buildDashboardValues(wsRows.map((w: any) => w.name).filter(Boolean));
-    clearRanges.push(rangeA1(DASHBOARD_SHEET, 'A:Z'));
-    valueUpdates.push({ range: rangeA1(DASHBOARD_SHEET, 'A1'), values: dashboardValues });
+      const dashboardValues = buildDashboardValues(wsRows.map((w: any) => w.name).filter(Boolean));
+      clearRanges.push(rangeA1(DASHBOARD_SHEET, 'A:Z'));
+      valueUpdates.push({ range: rangeA1(DASHBOARD_SHEET, 'A1'), values: dashboardValues });
 
-    const clearRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchClear`, {
-      method: 'POST',
-      headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      body: JSON.stringify({ ranges: clearRanges }),
-    });
-    if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
-
-    const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
-      method: 'POST',
-      headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
-    });
-    if (!writeRes.ok) throw new Error(`Write spreadsheet failed: ${writeRes.status} ${await writeRes.text()}`);
-
-    const dashId = sheetIds.get(DASHBOARD_SHEET);
-    if (dashId !== undefined) {
-      formattingRequests.push(
-        { updateSheetProperties: { properties: { sheetId: dashId, index: 0, gridProperties: { frozenRowCount: 4, hideGridlines: true } }, fields: 'index,gridProperties.frozenRowCount,gridProperties.hideGridlines' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 18 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
-        { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 10 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
-        { autoResizeDimensions: { dimensions: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 } } },
-      );
-    }
-
-    if (formattingRequests.length) {
-      const fmtRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      const clearRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchClear`, {
         method: 'POST',
         headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-        body: JSON.stringify({ requests: formattingRequests }),
+        body: JSON.stringify({ ranges: clearRanges }),
       });
-      if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
+      if (!clearRes.ok) throw new Error(`Clear spreadsheet failed: ${clearRes.status} ${await clearRes.text()}`);
+
+      const writeRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
+        method: 'POST',
+        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+        body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: valueUpdates }),
+      });
+      if (!writeRes.ok) throw new Error(`Write spreadsheet failed: ${writeRes.status} ${await writeRes.text()}`);
+
+      const dashId = sheetIds.get(DASHBOARD_SHEET);
+      if (dashId !== undefined) {
+        formattingRequests.push(
+          { updateSheetProperties: { properties: { sheetId: dashId, index: 0, gridProperties: { frozenRowCount: 4, hideGridlines: true } }, fields: 'index,gridProperties.frozenRowCount,gridProperties.hideGridlines' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.03, green: 0.09, blue: 0.13 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 18 }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.86, green: 0.93, blue: 0.97 }, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)' } },
+          { repeatCell: { range: { sheetId: dashId, startRowIndex: 4, startColumnIndex: 1, endColumnIndex: 10 }, cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } }, fields: 'userEnteredFormat.numberFormat' } },
+          { autoResizeDimensions: { dimensions: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 } } },
+        );
+      }
+
+      if (formattingRequests.length) {
+        const fmtRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+          body: JSON.stringify({ requests: formattingRequests }),
+        });
+        if (!fmtRes.ok) console.error('Spreadsheet formatting failed:', await fmtRes.text());
+      }
     }
 
     const workshopFiles = await fetchAll('workshop_files', 'id,workshop_id,file_name,file_path,file_type,payment_id,income_id,created_at');
-    const existingStoragePaths = new Set<string>();
-    for (const file of workshopFiles) {
-      const path = String(file.file_path || '');
-      const slashIndex = path.lastIndexOf('/');
-      if (slashIndex <= 0) continue;
-      const folder = path.slice(0, slashIndex);
-      const name = path.slice(slashIndex + 1);
-      if (!folder || !name) continue;
-      const { data: objects } = await admin.storage.from('workshop-files').list(folder, { search: name, limit: 100 });
-      if (objects?.some((object: any) => object.name === name)) existingStoragePaths.add(path);
-    }
+    const filesTotal = workshopFiles.length;
+    const filesForThisRun = fileLimit ? workshopFiles.slice(fileOffset, fileOffset + fileLimit) : workshopFiles;
     const folderCache = new Map<string, string>();
+    const folderPromiseCache = new Map<string, Promise<string>>();
+    const getCachedFolder = (key: string, create: () => Promise<string>) => {
+      const cached = folderCache.get(key);
+      if (cached) return Promise.resolve(cached);
+      const pending = folderPromiseCache.get(key);
+      if (pending) return pending;
+      const promise = create().then((id) => {
+        folderCache.set(key, id);
+        folderPromiseCache.delete(key);
+        return id;
+      }).catch((error) => {
+        folderPromiseCache.delete(key);
+        throw error;
+      });
+      folderPromiseCache.set(key, promise);
+      return promise;
+    };
     let filesMirrored = 0;
     let filesSkipped = 0;
-    for (const file of workshopFiles) {
-      try {
-        if (!existingStoragePaths.has(file.file_path)) {
+    const uploadOneFile = async (file: any) => {
+      const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
+      const workshopFolderId = await getCachedFolder(workshopName, () => findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY));
+      const category = fileDriveCategory(file);
+      const categoryCacheKey = `${workshopName}/${category}`;
+      const categoryFolderId = await getCachedFolder(categoryCacheKey, () => findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY));
+      const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
+      if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
+      await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, driveFileName(file), blob, file.file_type || 'application/octet-stream');
+    };
+
+    for (let i = 0; i < filesForThisRun.length; i += fileBatchSize) {
+      const batch = filesForThisRun.slice(i, i + fileBatchSize);
+      const results = await Promise.allSettled(batch.map(uploadOneFile));
+      results.forEach((result, index) => {
+        const file = batch[index];
+        if (result.status === 'fulfilled') {
+          filesMirrored += 1;
+        } else {
           filesSkipped += 1;
-          console.warn('Drive mirror skipped missing storage object:', file.file_path);
-          continue;
+          console.warn('Drive mirror skipped:', file.file_path, result.reason instanceof Error ? result.reason.message : String(result.reason));
         }
-        const workshopName = safeDriveName(workshopMap.get(file.workshop_id) || 'Unknown Workshop');
-        let workshopFolderId = folderCache.get(workshopName);
-        if (!workshopFolderId) {
-          workshopFolderId = await findOrCreateFolder(workshopName, folderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-          folderCache.set(workshopName, workshopFolderId);
-        }
-        const category = fileDriveCategory(file);
-        const categoryCacheKey = `${workshopName}/${category}`;
-        let categoryFolderId = folderCache.get(categoryCacheKey);
-        if (!categoryFolderId) {
-          categoryFolderId = await findOrCreateFolder(category, workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
-          folderCache.set(categoryCacheKey, categoryFolderId);
-        }
-        const { data: blob, error: dlErr } = await admin.storage.from('workshop-files').download(file.file_path);
-        if (dlErr || !blob) throw new Error(dlErr?.message || 'Storage file not found');
-        const niceFileName = driveFileName(file);
-        await replaceDriveFile(LOVABLE_API_KEY, DRIVE_API_KEY, categoryFolderId, niceFileName, blob, file.file_type || 'application/octet-stream');
-        filesMirrored += 1;
-      } catch (e) {
-        filesSkipped += 1;
-        console.warn('Drive mirror skipped:', file.file_path, e instanceof Error ? e.message : String(e));
-      }
+      });
     }
+
+    const filesProcessed = Math.min(fileOffset + filesForThisRun.length, filesTotal);
+    const nextFileOffset = filesProcessed < filesTotal ? filesProcessed : null;
 
     if (filesSkipped > 0) {
       return new Response(JSON.stringify({
@@ -615,6 +672,9 @@ Deno.serve(async (req) => {
         tablesExported,
         filesMirrored,
         filesSkipped,
+        filesTotal,
+        filesProcessed,
+        nextFileOffset,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -627,6 +687,9 @@ Deno.serve(async (req) => {
       tablesExported,
       filesMirrored,
       filesSkipped,
+      filesTotal,
+      filesProcessed,
+      nextFileOffset,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('sync-google-sheets error:', e);

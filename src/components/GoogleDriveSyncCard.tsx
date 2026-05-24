@@ -30,17 +30,38 @@ export default function GoogleDriveSyncCard() {
   const sync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
-        body: {},
+      let fileOffset: number | null = 0;
+      let filesMirrored = 0;
+      let filesSkipped = 0;
+      let tablesExported: Record<string, number> | null = null;
+
+      while (fileOffset !== null) {
+        const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
+          body: {
+            fileOffset,
+            fileLimit: 5,
+            fileBatchSize: 5,
+            filesOnly: fileOffset > 0,
+          },
+        });
+        if (error) throw error;
+        if (data?.error && typeof data?.filesSkipped !== 'number') throw new Error(data.error);
+        if (data?.spreadsheetUrl) setSpreadsheetUrl(data.spreadsheetUrl);
+        if (data?.folderUrl) setFolderUrl(data.folderUrl);
+        if (data?.tablesExported && Object.keys(data.tablesExported).length) tablesExported = data.tablesExported;
+        filesMirrored += typeof data?.filesMirrored === 'number' ? data.filesMirrored : 0;
+        filesSkipped += typeof data?.filesSkipped === 'number' ? data.filesSkipped : 0;
+        fileOffset = typeof data?.nextFileOffset === 'number' ? data.nextFileOffset : null;
+      }
+
+      if (tablesExported) setLastResult(tablesExported);
+      setLastFilesMirrored(filesMirrored);
+      setLastFilesSkipped(filesSkipped);
+      toast({
+        title: filesSkipped > 0 ? t('errors.error') : t('gdrive.syncDone'),
+        description: filesSkipped > 0 ? t('gdrive.syncPartialDesc', { skipped: filesSkipped }) : t('gdrive.syncDoneDesc'),
+        variant: filesSkipped > 0 ? 'destructive' : 'default',
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.spreadsheetUrl) setSpreadsheetUrl(data.spreadsheetUrl);
-      if (data?.folderUrl) setFolderUrl(data.folderUrl);
-      if (data?.tablesExported) setLastResult(data.tablesExported);
-      setLastFilesMirrored(typeof data?.filesMirrored === 'number' ? data.filesMirrored : null);
-      setLastFilesSkipped(typeof data?.filesSkipped === 'number' ? data.filesSkipped : null);
-      toast({ title: t('gdrive.syncDone'), description: t('gdrive.syncDoneDesc') });
     } catch (e: any) {
       toast({ title: t('errors.error'), description: e.message, variant: 'destructive' });
     } finally {

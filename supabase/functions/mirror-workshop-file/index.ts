@@ -13,6 +13,35 @@ function driveQueryLiteral(value: string) {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
+async function trashDriveFile(fileId: string, lovableKey: string, driveKey: string) {
+  await fetch(`${DRIVE_GW}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${lovableKey}`, 'X-Connection-Api-Key': driveKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  });
+}
+
+async function mergeDuplicateFolder(canonicalId: string, duplicateId: string, lovableKey: string, driveKey: string) {
+  const headers = { Authorization: `Bearer ${lovableKey}`, 'X-Connection-Api-Key': driveKey };
+  let pageToken = '';
+  do {
+    const q = `${driveQueryLiteral(duplicateId)} in parents and trashed=false`;
+    const res = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=nextPageToken,files(id,name)&pageSize=1000${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, { headers });
+    if (!res.ok) throw new Error(`Duplicate folder scan failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    for (const child of data.files || []) {
+      const move = await fetch(`${DRIVE_GW}/files/${child.id}?addParents=${canonicalId}&removeParents=${duplicateId}&fields=id`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!move.ok) console.warn('Duplicate folder child move failed:', child.id, await move.text());
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  await trashDriveFile(duplicateId, lovableKey, driveKey);
+}
+
 function safeDriveName(value: string) {
   return value.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Unknown Workshop';
 }
@@ -37,9 +66,16 @@ async function findOrCreateFolder(
   };
   const qParent = parentId ? ` and ${driveQueryLiteral(parentId)} in parents` : '';
   const q = `name=${driveQueryLiteral(name)} and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, { headers });
+  if (!search.ok) throw new Error(`Folder search failed for "${name}": ${search.status} ${await search.text()}`);
   const sj = await search.json();
-  if (sj.files && sj.files.length > 0) return sj.files[0].id;
+  if (sj.files && sj.files.length > 0) {
+    const canonical = sj.files[0];
+    for (const duplicate of sj.files.slice(1)) {
+      await mergeDuplicateFolder(canonical.id, duplicate.id, lovableKey, driveKey).catch((e) => console.warn('Duplicate folder merge failed:', duplicate.id, e));
+    }
+    return canonical.id;
+  }
 
   const create = await fetch(`${DRIVE_GW}/files`, {
     method: 'POST',
@@ -50,22 +86,22 @@ async function findOrCreateFolder(
       ...(parentId ? { parents: [parentId] } : {}),
     }),
   });
+  if (!create.ok) throw new Error(`Folder create failed for "${name}": ${create.status} ${await create.text()}`);
   const cj = await create.json();
   if (!cj.id) throw new Error(`Folder create failed: ${JSON.stringify(cj)}`);
   return cj.id;
 }
 
-async function deleteExistingDriveFiles(name: string, parentId: string, lovableKey: string, driveKey: string) {
+async function findExistingDriveFiles(name: string, parentId: string, lovableKey: string, driveKey: string) {
   const headers = {
     Authorization: `Bearer ${lovableKey}`,
     'X-Connection-Api-Key': driveKey,
   };
   const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(parentId)} in parents and trashed=false`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers });
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, { headers });
+  if (!search.ok) throw new Error(`Drive duplicate lookup failed: ${search.status} ${await search.text()}`);
   const sj = await search.json();
-  for (const file of sj.files || []) {
-    await fetch(`${DRIVE_GW}/files/${file.id}`, { method: 'DELETE', headers });
-  }
+  return sj.files || [];
 }
 
 Deno.serve(async (req) => {
@@ -139,14 +175,12 @@ Deno.serve(async (req) => {
     const workshopFolderId = await findOrCreateFolder(safeName, rootId, LOVABLE_API_KEY, DRIVE_API_KEY);
     const categoryFolderId = await findOrCreateFolder(normalizeFileCategory(fileCategory, storagePath), workshopFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
     const driveFileName = `${String(createdAt || new Date().toISOString()).slice(0, 16).replace('T', ' ').replace(':', '-')} - ${safeDriveName(fileName)}`;
-    await deleteExistingDriveFiles(driveFileName, categoryFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const existingFiles = await findExistingDriveFiles(driveFileName, categoryFolderId, LOVABLE_API_KEY, DRIVE_API_KEY);
+    const existingFileId = existingFiles[0]?.id;
 
     // Multipart upload
     const boundary = `----lovable-${Date.now()}`;
-    const metadata = {
-      name: driveFileName,
-      parents: [categoryFolderId],
-    };
+    const metadata = existingFileId ? { name: driveFileName } : { name: driveFileName, parents: [categoryFolderId] };
     const fileBytes = new Uint8Array(await blob.arrayBuffer());
     const enc = new TextEncoder();
     const pre = enc.encode(
@@ -159,8 +193,8 @@ Deno.serve(async (req) => {
     bodyBytes.set(fileBytes, pre.length);
     bodyBytes.set(post, pre.length + fileBytes.length);
 
-    const upload = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
-      method: 'POST',
+    const upload = await fetch(existingFileId ? `${DRIVE_UPLOAD}/${existingFileId}?uploadType=multipart&fields=id,webViewLink` : `${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
+      method: existingFileId ? 'PATCH' : 'POST',
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         'X-Connection-Api-Key': DRIVE_API_KEY,
@@ -173,6 +207,9 @@ Deno.serve(async (req) => {
       throw new Error(`Drive upload failed: ${upload.status} ${txt}`);
     }
     const uj = await upload.json();
+    for (const duplicate of existingFiles.slice(1)) {
+      await trashDriveFile(duplicate.id, LOVABLE_API_KEY, DRIVE_API_KEY).catch((err) => console.warn('Duplicate trash failed:', duplicate.id, err));
+    }
 
     return new Response(
       JSON.stringify({ success: true, driveFileId: uj.id, driveLink: uj.webViewLink, workshopFolderId, categoryFolderId }),
