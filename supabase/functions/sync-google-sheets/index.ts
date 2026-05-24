@@ -12,6 +12,8 @@ const DRIVE_UPLOAD = 'https://connector-gateway.lovable.dev/google_drive/upload/
 const SPREADSHEET_NAME = 'Workshop_Master_Database';
 const DASHBOARD_SHEET = 'Main Dashboard';
 const LEGACY_DASHBOARD_SHEET = 'Dashboard';
+const DEFAULT_FILE_BATCH_SIZE = 5;
+const MAX_FILE_BATCH_SIZE = 10;
 
 type Resolver = 'workshop' | 'worker' | 'user' | 'contractor' | 'contract' | 'debt' | 'payment' | 'contractorPayment';
 type TableSpec = {
@@ -276,9 +278,10 @@ function driveFileName(row: any) {
 async function findOrCreateFolder(name: string, parentId: string | null, lovableKey: string, driveKey: string): Promise<string> {
   const qParent = parentId ? ` and ${driveQueryLiteral(parentId)} in parents` : '';
   const q = `name=${driveQueryLiteral(name)} and mimeType='application/vnd.google-apps.folder' and trashed=false${qParent}`;
-  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, {
     headers: driveHeaders(lovableKey, driveKey, false),
   });
+  if (!search.ok) throw new Error(`Folder search failed for "${name}": ${search.status} ${await search.text()}`);
   const sj = await search.json();
   if (sj.files?.length) return sj.files[0].id;
 
@@ -287,26 +290,15 @@ async function findOrCreateFolder(name: string, parentId: string | null, lovable
     headers: driveHeaders(lovableKey, driveKey),
     body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', ...(parentId ? { parents: [parentId] } : {}) }),
   });
+  if (!create.ok) throw new Error(`Folder create failed for "${name}": ${create.status} ${await create.text()}`);
   const cj = await create.json();
   if (!cj.id) throw new Error(`Folder create failed: ${JSON.stringify(cj)}`);
   return cj.id;
 }
 
-async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string) {
-  const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(folderId)} in parents and trashed=false`;
-  const existing = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
-    headers: driveHeaders(lovableKey, driveKey, false),
-  }).then((r) => r.json());
-
-  for (const file of existing.files || []) {
-    await fetch(`${DRIVE_GW}/files/${file.id}`, {
-      method: 'DELETE',
-      headers: driveHeaders(lovableKey, driveKey, false),
-    });
-  }
-
+async function uploadDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string, existingFileId?: string) {
   const boundary = `----lovable-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const metadata = { name, parents: [folderId] };
+  const metadata = existingFileId ? { name } : { name, parents: [folderId] };
   const fileBytes = new Uint8Array(await blob.arrayBuffer());
   const enc = new TextEncoder();
   const pre = enc.encode(
@@ -319,8 +311,11 @@ async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: 
   bodyBytes.set(fileBytes, pre.length);
   bodyBytes.set(post, pre.length + fileBytes.length);
 
-  const upload = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`, {
-    method: 'POST',
+  const url = existingFileId
+    ? `${DRIVE_UPLOAD}/${existingFileId}?uploadType=multipart&fields=id,webViewLink`
+    : `${DRIVE_UPLOAD}?uploadType=multipart&fields=id,webViewLink`;
+  const upload = await fetch(url, {
+    method: existingFileId ? 'PATCH' : 'POST',
     headers: {
       Authorization: `Bearer ${lovableKey}`,
       'X-Connection-Api-Key': driveKey,
@@ -330,6 +325,29 @@ async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: 
   });
   if (!upload.ok) throw new Error(`Drive upload failed: ${upload.status} ${await upload.text()}`);
   return upload.json();
+}
+
+async function trashDriveFile(lovableKey: string, driveKey: string, fileId: string) {
+  await fetch(`${DRIVE_GW}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: driveHeaders(lovableKey, driveKey),
+    body: JSON.stringify({ trashed: true }),
+  });
+}
+
+async function replaceDriveFile(lovableKey: string, driveKey: string, folderId: string, name: string, blob: Blob, mimeType: string) {
+  const q = `name=${driveQueryLiteral(name)} and ${driveQueryLiteral(folderId)} in parents and trashed=false`;
+  const search = await fetch(`${DRIVE_GW}/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&pageSize=1000&orderBy=createdTime`, {
+    headers: driveHeaders(lovableKey, driveKey, false),
+  });
+  if (!search.ok) throw new Error(`Drive duplicate lookup failed: ${search.status} ${await search.text()}`);
+  const existing = await search.json();
+  const files = existing.files || [];
+  const updated = await uploadDriveFile(lovableKey, driveKey, folderId, name, blob, mimeType, files[0]?.id);
+  for (const duplicate of files.slice(1)) {
+    await trashDriveFile(lovableKey, driveKey, duplicate.id).catch((e) => console.warn('Duplicate trash failed:', duplicate.id, e));
+  }
+  return updated;
 }
 
 Deno.serve(async (req) => {
