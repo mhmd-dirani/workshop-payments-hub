@@ -448,16 +448,20 @@ Deno.serve(async (req) => {
       existing.clear();
       (meta.sheets || []).forEach((s: any) => existing.add(s.properties.title));
     }
-    const missing = allSheetTitles.filter((title) => !existing.has(title));
-    if (missing.length) {
+    for (const title of allSheetTitles) {
+      if (existing.has(title)) continue;
       const addRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
         method: 'POST',
         headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
-        body: JSON.stringify({ requests: missing.map((title) => ({ addSheet: { properties: { title } } })) }),
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
       });
-      if (!addRes.ok) throw new Error(`Add missing sheets failed: ${addRes.status} ${await addRes.text()}`);
-      meta = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}?fields=sheets.properties`, { headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY) }).then((r) => r.json());
+      if (!addRes.ok) {
+        const body = await addRes.text();
+        if (!body.includes('already exists')) throw new Error(`Add missing sheet "${title}" failed: ${addRes.status} ${body}`);
+      }
+      existing.add(title);
     }
+    meta = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}?fields=sheets.properties`, { headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY) }).then((r) => r.json());
     const sheetIds = new Map<string, number>((meta.sheets || []).map((s: any) => [s.properties.title, s.properties.sheetId]));
 
     let folderId: string | null = null;
