@@ -436,6 +436,18 @@ Deno.serve(async (req) => {
     if (!metaRes.ok) throw new Error(`Read spreadsheet metadata failed: ${metaRes.status} ${await metaRes.text()}`);
     let meta = await metaRes.json();
     const existing = new Set<string>((meta.sheets || []).map((s: any) => s.properties.title));
+    const legacyDashboard = (meta.sheets || []).find((s: any) => s.properties.title === LEGACY_DASHBOARD_SHEET);
+    if (!existing.has(DASHBOARD_SHEET) && legacyDashboard) {
+      const renameRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY),
+        body: JSON.stringify({ requests: [{ updateSheetProperties: { properties: { sheetId: legacyDashboard.properties.sheetId, title: DASHBOARD_SHEET, index: 0 }, fields: 'title,index' } }] }),
+      });
+      if (!renameRes.ok) throw new Error(`Rename dashboard sheet failed: ${renameRes.status} ${await renameRes.text()}`);
+      meta = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}?fields=sheets.properties`, { headers: gwHeaders(LOVABLE_API_KEY, SHEETS_API_KEY) }).then((r) => r.json());
+      existing.clear();
+      (meta.sheets || []).forEach((s: any) => existing.add(s.properties.title));
+    }
     const missing = allSheetTitles.filter((title) => !existing.has(title));
     if (missing.length) {
       const addRes = await fetch(`${SHEETS_GW}/spreadsheets/${spreadsheetId}:batchUpdate`, {
