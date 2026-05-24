@@ -105,7 +105,7 @@ export default function DeletionPreviewDialog({ open, onOpenChange, functionName
               <p className="text-sm font-semibold text-destructive mb-2">{t('archive.willBeDeleted')} ({totalDelete})</p>
               <ul className="text-xs space-y-0.5">
                 {Object.entries(toDelete).filter(([, v]) => Number(v) > 0).map(([k, v]) => (
-                  <li key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className="font-mono">{String(v)}</span></li>
+                  <li key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className="font-mono">{String(v as any)}</span></li>
                 ))}
                 {totalDelete === 0 && <li className="text-muted-foreground italic">{t('archive.nothingToDelete')}</li>}
               </ul>
@@ -115,7 +115,7 @@ export default function DeletionPreviewDialog({ open, onOpenChange, functionName
               <p className="text-sm font-semibold text-emerald-700 mb-2">{t('archive.willBeKept')} ({totalKeep})</p>
               <ul className="text-xs space-y-0.5">
                 {Object.entries(toKeep).map(([k, v]) => (
-                  <li key={k} className="flex justify-between"><span className="text-muted-foreground">{t(`archive.keep.${k}`, k)}</span><span className="font-mono">{String(v)}</span></li>
+                  <li key={k} className="flex justify-between"><span className="text-muted-foreground">{t(`archive.keep.${k}`, k)}</span><span className="font-mono">{String(v as any)}</span></li>
                 ))}
               </ul>
               {preview.masterDataPreserved && (
