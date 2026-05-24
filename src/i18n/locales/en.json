@@ -882,5 +882,28 @@
     "deleteSyncedData": "Delete from database",
     "archiveDone": "Archived",
     "archiveDoneDesc": "{{count}} records removed from the database."
+  },
+  "archive": {
+    "snapshotting": "Creating archive snapshot…",
+    "snapshotDone": "Archive snapshot created",
+    "snapshotDoneDesc": "Permanent totals snapshot saved ({{label}}). Totals are now safe even if you delete the data.",
+    "snapshotFailed": "Snapshot failed",
+    "lastBatch": "Last snapshot: {{label}} ✓ verified",
+    "viewSummaries": "View archive summaries",
+    "summariesTitle": "Archive Summaries",
+    "summariesDesc": "Verified totals are preserved permanently. You can safely delete archived ranges to free space without losing any totals.",
+    "noBatches": "No archive snapshots yet.",
+    "rowsArchived": "{{count}} rows in snapshot",
+    "rowsDeleted": "{{count}} rows deleted from database",
+    "deleteArchived": "Delete archived data",
+    "deleteDone": "Archived data deleted",
+    "deleteDoneDesc": "Database rows removed; totals preserved via snapshot.",
+    "deleteConfirmTitle": "Delete archived rows?",
+    "deleteConfirmDesc": "Permanently remove historical rows from {{from}} to {{to}}. Totals are already preserved in the snapshot, so dashboards will stay correct. Open debts, pending payments, and unpaid attendance will be kept.",
+    "status": {
+      "pending": "Pending",
+      "verified": "Verified",
+      "deleted": "Deleted from DB"
+    }
   }
 }
