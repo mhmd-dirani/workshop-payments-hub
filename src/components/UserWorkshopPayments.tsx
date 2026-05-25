@@ -52,12 +52,14 @@ export default function UserWorkshopPayments() {
     enabled: !!user && role !== 'admin',
   });
 
+  // Hook must run on every render — call before any early returns.
+  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(payments.map((p: any) => p.id));
+
   if (role === 'admin') return null;
   if (isLoading) return <Skeleton className="h-12 w-full" />;
   if (payments.length === 0) return null;
 
   const totalSpent = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(payments.map((p: any) => p.id));
 
   return (
     <Card className="shadow-card border-destructive/20">
