@@ -82,6 +82,15 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
 
   const isLoading = loadingWorkshop || loadingPersonal;
 
+  const filteredWorkshopPayments = workshopFilter === 'all'
+    ? workshopData?.payments || []
+    : workshopData?.payments.filter(p => p.workshop_id === workshopFilter) || [];
+
+  // Hook must run on every render — call before any early returns.
+  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(
+    filteredWorkshopPayments.map((p: any) => p.id)
+  );
+
   if (isLoading) {
     return (
       <Card>
@@ -112,13 +121,8 @@ export default function TeamSpendingHistory({ userId }: TeamSpendingHistoryProps
     );
   }
 
-  const filteredWorkshopPayments = workshopFilter === 'all' 
-    ? workshopData?.payments || []
-    : workshopData?.payments.filter(p => p.workshop_id === workshopFilter) || [];
-
   const workshopTotal = filteredWorkshopPayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const personalTotal = personalPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const { ReceiptButtons, PreviewDialog } = usePaymentReceipts(filteredWorkshopPayments.map((p: any) => p.id));
 
   return (
     <Card className="shadow-card border-destructive/20">
