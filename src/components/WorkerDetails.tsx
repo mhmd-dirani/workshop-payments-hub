@@ -1773,7 +1773,6 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       {/* Single Pay Button */}
       <Button
         onClick={openPayChoiceDialog}
-        disabled={paymentPlan.blocked && paymentPlan.totals.toBePaid <= 0}
         className="w-full bg-success text-success-foreground hover:bg-success/90 gap-2"
       >
         <Wallet className="w-4 h-4" />
