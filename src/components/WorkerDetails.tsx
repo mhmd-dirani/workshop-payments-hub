@@ -156,6 +156,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [debtDeductionEnabled, setDebtDeductionEnabled] = useState(false);
   const [selectedDebtForDeduction, setSelectedDebtForDeduction] = useState<string>('');
   const [includeHolidayPay, setIncludeHolidayPay] = useState(false);
+  const [selectedHolidayDates, setSelectedHolidayDates] = useState<Set<string>>(new Set());
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
   const [historyWorkshopFilter, setHistoryWorkshopFilter] = useState('all');
@@ -356,10 +357,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       attendance: unpaidAttendance as any,
       adjustments: unpaidAdjustments as any,
       workshopNames,
-      holidayPay: includeHolidayPay ? worker.hourly_rate : 0,
+      holidayPay: selectedHolidayDates.size * worker.hourly_rate,
       debtDeduction: debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0,
     });
-  }, [unpaidAttendance, unpaidAdjustments, includeHolidayPay, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
+  }, [unpaidAttendance, unpaidAdjustments, selectedHolidayDates, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
 
    // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
@@ -678,6 +679,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setDebtDeductionEnabled(false);
       setSelectedDebtForDeduction('');
       setIncludeHolidayPay(false);
+      setSelectedHolidayDates(new Set());
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
