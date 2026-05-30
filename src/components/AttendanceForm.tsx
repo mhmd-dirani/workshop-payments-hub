@@ -223,7 +223,7 @@ export default function AttendanceForm({
   // (only if no value entered yet, so manual edits are preserved)
   useEffect(() => {
     if (hasExtra && (!extraAmount || Number(extraAmount) === 0)) {
-      const suggested = Math.round((Number(hourlyRate) || 0) / 8 * 1.5);
+      const suggested = Math.round(((Number(hourlyRate) || 0) / 8 * 1.5) / 500) * 500;
       if (suggested > 0) {
         form.setValue('extra_amount', suggested, { shouldValidate: true });
       }

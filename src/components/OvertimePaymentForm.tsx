@@ -124,7 +124,7 @@ export default function OvertimePaymentForm() {
         ...prev,
         [workerId]: {
           selected: true,
-          amount: worker ? Math.round((worker.hourly_rate / 8) * 1.5) : 0,
+          amount: worker ? Math.round((worker.hourly_rate / 8) * 1.5 / 500) * 500 : 0,
         },
       };
     });
@@ -144,7 +144,7 @@ export default function OvertimePaymentForm() {
     } else {
       const all: Record<string, WorkerOvertime> = {};
       workers.forEach(w => {
-        all[w.id] = { selected: true, amount: Math.round((w.hourly_rate / 8) * 1.5) };
+        all[w.id] = { selected: true, amount: Math.round((w.hourly_rate / 8) * 1.5 / 500) * 500 };
       });
       setWorkerOvertime(all);
     }
