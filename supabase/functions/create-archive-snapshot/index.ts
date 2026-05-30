@@ -58,14 +58,25 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid date range' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Prevent duplicate / overlapping batches
-    const { data: overlap } = await admin
+    // Find overlapping batches. Only 'deleted' batches preserve totals for rows
+    // that are gone — those must not be overlapped. 'pending'/'verified' batches
+    // just mirror live data, so we replace them with a fresh snapshot.
+    const { data: overlaps } = await admin
       .from('archive_batches')
       .select('id, from_date, to_date, status')
-      .or(`and(from_date.lte.${toDate},to_date.gte.${fromDate})`)
-      .limit(1);
-    if (overlap && overlap.length) {
-      return new Response(JSON.stringify({ error: `Range overlaps existing batch ${overlap[0].from_date}..${overlap[0].to_date}` }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      .lte('from_date', toDate)
+      .gte('to_date', fromDate);
+    const blocking = (overlaps || []).find((b: any) => b.status === 'deleted');
+    if (blocking) {
+      return new Response(JSON.stringify({ error: `Range overlaps archived batch ${blocking.from_date}..${blocking.to_date}` }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const replaceIds = (overlaps || []).map((b: any) => b.id);
+    if (replaceIds.length) {
+      await admin.from('workshop_archive_summaries').delete().in('batch_id', replaceIds);
+      await admin.from('worker_archive_summaries').delete().in('batch_id', replaceIds);
+      await admin.from('contractor_archive_summaries').delete().in('batch_id', replaceIds);
+      await admin.from('user_balance_archive_summaries').delete().in('batch_id', replaceIds);
+      await admin.from('archive_batches').delete().in('id', replaceIds);
     }
 
     const label = rangeLabel(fromDate, toDate);
