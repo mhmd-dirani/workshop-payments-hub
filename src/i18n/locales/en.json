@@ -83,6 +83,7 @@
     "holidayNote": "Days marked as holiday will prompt during salary payment",
     "payHoliday": "Pay holiday?",
     "payHolidayDesc": "There is a holiday this week. Add 1 day salary?",
+    "payHolidayDescMulti": "Tick each holiday to add 1 day salary.",
     "holidayIncluded": "Holiday pay included",
     "holidayBonus": "Holiday bonus",
     "holidayBonusTitle": "Holiday Bonus",
