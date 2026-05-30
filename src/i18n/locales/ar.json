@@ -886,6 +886,8 @@
     "snapshotting": "جارٍ إنشاء لقطة الأرشيف…",
     "snapshotDone": "تم إنشاء لقطة الأرشيف",
     "snapshotDoneDesc": "تم حفظ المجاميع بشكل دائم ({{label}}). المجاميع آمنة حتى لو حذفت البيانات.",
+    "snapshotAlreadySaved": "الأرشيف محفوظ مسبقاً",
+    "snapshotAlreadySavedDesc": "هذه الفترة محفوظة بالفعل ضمن {{label}}، لذلك لم تكن هناك حاجة لإنشاء لقطة جديدة.",
     "snapshotFailed": "فشل إنشاء اللقطة",
     "lastBatch": "آخر لقطة: {{label}} ✓ تم التحقق",
     "viewSummaries": "عرض ملخصات الأرشيف",
