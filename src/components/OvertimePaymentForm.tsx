@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Loader2, Clock, Building2, Users, Check, CalendarHeart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,15 +43,6 @@ export default function OvertimePaymentForm() {
   const [selectedWorkshop, setSelectedWorkshop] = useState('');
   const [reason, setReason] = useState('');
   const [workerOvertime, setWorkerOvertime] = useState<Record<string, WorkerOvertime>>({});
-
-  // Overtime always books onto the previous Sunday (or selected date if it's Sunday).
-  const resolvedSunday = useMemo(() => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const local = new Date(y, (m || 1) - 1, d || 1);
-    const dow = local.getDay();
-    return dow === 0 ? local : addDays(local, -dow);
-  }, [selectedDate]);
-  const resolvedSundayStr = format(resolvedSunday, 'yyyy-MM-dd');
 
   const { data: workers = [], isLoading: loadingWorkers } = useQuery({
     queryKey: ['workers-active'],
@@ -133,7 +124,7 @@ export default function OvertimePaymentForm() {
         ...prev,
         [workerId]: {
           selected: true,
-          amount: worker?.hourly_rate || 0,
+          amount: worker ? Math.round((worker.hourly_rate / 8) * 1.5) : 0,
         },
       };
     });
@@ -153,7 +144,7 @@ export default function OvertimePaymentForm() {
     } else {
       const all: Record<string, WorkerOvertime> = {};
       workers.forEach(w => {
-        all[w.id] = { selected: true, amount: w.hourly_rate };
+        all[w.id] = { selected: true, amount: Math.round((w.hourly_rate / 8) * 1.5) };
       });
       setWorkerOvertime(all);
     }
@@ -180,7 +171,7 @@ export default function OvertimePaymentForm() {
         return {
           worker_id: workerId,
           workshop_id: selectedWorkshop,
-          work_date: resolvedSundayStr,
+          work_date: selectedDate,
           hours_worked: 1,
           hourly_rate: data.amount, // Use the overtime amount as hourly_rate to satisfy CHECK > 0
           has_extra: false,
@@ -282,15 +273,6 @@ export default function OvertimePaymentForm() {
             <span className="text-xs font-medium text-primary">
               {t('attendance.dateIsHoliday', { defaultValue: 'This date is marked as a holiday' })}
             </span>
-          </div>
-        )}
-
-        {resolvedSundayStr !== selectedDate && (
-          <div className="text-[11px] text-muted-foreground bg-muted/40 border border-border/60 rounded-md px-2 py-1.5">
-            {t('attendance.overtimeBookedOnSunday', {
-              defaultValue: 'Will be recorded on Sunday {{date}}',
-              date: format(resolvedSunday, 'EEE, dd/MM/yyyy'),
-            })}
           </div>
         )}
 

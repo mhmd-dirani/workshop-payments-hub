@@ -84,6 +84,13 @@
     "payHoliday": "هل تدفع العطلة؟",
     "payHolidayDesc": "يوجد يوم عطلة هذا الأسبوع. هل تريد إضافة راتب يوم واحد؟",
     "holidayIncluded": "تم تضمين أجر العطلة"
+    ,
+    "holidayBonus": "علاوة العطلة",
+    "holidayBonusTitle": "علاوة العطلة",
+    "holidayBonusShort": "علاوة العطلة",
+    "holidayBonusTiny": "علاوة",
+    "holidayBonusDesc": "ضع علامة لكل عامل في كل يوم عطلة لمنحه أجر يوم كامل (حتى لو كان غائباً).",
+    "noHolidaysThisWeek": "لا توجد عطل محددة هذا الأسبوع. حدد يوماً كعطلة أولاً أعلاه."
   },
   "common": {
     "loading": "جاري التحميل...",

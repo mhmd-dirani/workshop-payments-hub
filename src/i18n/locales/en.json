@@ -83,7 +83,13 @@
     "holidayNote": "Days marked as holiday will prompt during salary payment",
     "payHoliday": "Pay holiday?",
     "payHolidayDesc": "There is a holiday this week. Add 1 day salary?",
-    "holidayIncluded": "Holiday pay included"
+    "holidayIncluded": "Holiday pay included",
+    "holidayBonus": "Holiday bonus",
+    "holidayBonusTitle": "Holiday Bonus",
+    "holidayBonusShort": "Holiday Bonus",
+    "holidayBonusTiny": "Bonus",
+    "holidayBonusDesc": "Tick each worker for each holiday to grant a full-day bonus (even if absent).",
+    "noHolidaysThisWeek": "No holidays marked this week. Mark a day as holiday above first."
   },
   "common": {
     "loading": "Loading...",

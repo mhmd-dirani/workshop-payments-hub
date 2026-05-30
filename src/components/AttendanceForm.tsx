@@ -217,6 +217,19 @@ export default function AttendanceForm({
 
   const hasExtra = form.watch('has_extra');
   const extraAmount = form.watch('extra_amount');
+  const hourlyRate = form.watch('hourly_rate');
+
+  // When the user toggles "Worked Extra" on, pre-fill with daily_salary / 8 * 1.5
+  // (only if no value entered yet, so manual edits are preserved)
+  useEffect(() => {
+    if (hasExtra && (!extraAmount || Number(extraAmount) === 0)) {
+      const suggested = Math.round((Number(hourlyRate) || 0) / 8 * 1.5);
+      if (suggested > 0) {
+        form.setValue('extra_amount', suggested, { shouldValidate: true });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasExtra]);
   const baseSalary = form.watch('hours_worked') * form.watch('hourly_rate');
   const dailySalary = baseSalary + (hasExtra ? Number(extraAmount) : 0);
   const selectedWorker = workers.find(w => w.id === form.watch('worker_id'));

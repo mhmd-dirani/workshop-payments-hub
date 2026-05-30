@@ -84,6 +84,13 @@
     "payHoliday": "Payer le jour férié ?",
     "payHolidayDesc": "Il y a un jour férié cette semaine. Ajouter 1 jour de salaire ?",
     "holidayIncluded": "Salaire jour férié inclus"
+    ,
+    "holidayBonus": "Prime jour férié",
+    "holidayBonusTitle": "Prime de jour férié",
+    "holidayBonusShort": "Prime férié",
+    "holidayBonusTiny": "Prime",
+    "holidayBonusDesc": "Cochez chaque ouvrier pour chaque jour férié afin de lui accorder une journée complète (même absent).",
+    "noHolidaysThisWeek": "Aucun jour férié marqué cette semaine. Marquez d'abord un jour comme férié ci-dessus."
   },
   "common": {
     "loading": "Chargement...",

@@ -2594,7 +2594,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     className="w-full justify-start gap-3 h-auto py-3"
                     onClick={() => {
                       setOvertimeType('hours');
-                      setOvertimeAmount('');
+                      setOvertimeAmount(String(Math.round((worker.hourly_rate / 8) * 1.5)));
                       setOvertimeHours('1');
                     }}
                   >
@@ -2635,7 +2635,16 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                         type="number"
                         min="1"
                         value={overtimeHours}
-                        onChange={(e) => setOvertimeHours(e.target.value)}
+                        onChange={(e) => {
+                          const h = e.target.value;
+                          setOvertimeHours(h);
+                          const hoursNum = parseFloat(h) || 0;
+                          if (hoursNum > 0) {
+                            setOvertimeAmount(
+                              String(Math.round((worker.hourly_rate / 8) * 1.5 * hoursNum))
+                            );
+                          }
+                        }}
                         placeholder="1"
                       />
                     </div>
