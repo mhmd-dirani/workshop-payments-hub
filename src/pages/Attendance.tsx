@@ -5,8 +5,9 @@ import Layout from '@/components/Layout';
 import QuickAttendanceForm from '@/components/QuickAttendanceForm';
 import OvertimePaymentForm from '@/components/OvertimePaymentForm';
 import HolidayToggle from '@/components/HolidayToggle';
+import HolidayBonusForm from '@/components/HolidayBonusForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, CalendarHeart } from 'lucide-react';
 
 export default function Attendance() {
   const { t } = useTranslation();
@@ -43,7 +44,7 @@ export default function Attendance() {
         <HolidayToggle />
 
         <Tabs defaultValue="entry" className="space-y-4">
-          <TabsList className="grid w-full max-w-lg grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="entry" className="gap-1 text-xs md:text-sm px-1 md:px-3">
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="hidden sm:inline">{t('attendance.entry')}</span>
@@ -54,6 +55,11 @@ export default function Attendance() {
               <span className="hidden sm:inline">{t('attendance.overtime')}</span>
               <span className="sm:hidden">{t('attendance.overtimeShort')}</span>
             </TabsTrigger>
+            <TabsTrigger value="holiday-bonus" className="gap-1 text-xs md:text-sm px-1 md:px-3">
+              <CalendarHeart className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">{t('attendance.holidayBonusShort', { defaultValue: 'Holiday Bonus' })}</span>
+              <span className="sm:hidden">{t('attendance.holidayBonusTiny', { defaultValue: 'Bonus' })}</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="entry">
@@ -62,6 +68,10 @@ export default function Attendance() {
 
           <TabsContent value="overtime">
             <OvertimePaymentForm />
+          </TabsContent>
+
+          <TabsContent value="holiday-bonus">
+            <HolidayBonusForm />
           </TabsContent>
 
         </Tabs>
