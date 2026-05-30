@@ -83,6 +83,7 @@
     "holidayNote": "Les jours fériés déclencheront une question lors du paiement du salaire",
     "payHoliday": "Payer le jour férié ?",
     "payHolidayDesc": "Il y a un jour férié cette semaine. Ajouter 1 jour de salaire ?",
+    "payHolidayDescMulti": "Cochez chaque jour férié pour ajouter 1 jour de salaire.",
     "holidayIncluded": "Salaire jour férié inclus"
     ,
     "holidayBonus": "Prime jour férié",

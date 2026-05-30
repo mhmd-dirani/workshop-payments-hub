@@ -156,6 +156,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
   const [debtDeductionEnabled, setDebtDeductionEnabled] = useState(false);
   const [selectedDebtForDeduction, setSelectedDebtForDeduction] = useState<string>('');
   const [includeHolidayPay, setIncludeHolidayPay] = useState(false);
+  const [selectedHolidayDates, setSelectedHolidayDates] = useState<Set<string>>(new Set());
   // History filters - default to 'all' so partial payments always show
   const [historyTimeFilter, setHistoryTimeFilter] = useState('all');
   const [historyWorkshopFilter, setHistoryWorkshopFilter] = useState('all');
@@ -356,10 +357,10 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       attendance: unpaidAttendance as any,
       adjustments: unpaidAdjustments as any,
       workshopNames,
-      holidayPay: includeHolidayPay ? worker.hourly_rate : 0,
+      holidayPay: selectedHolidayDates.size * worker.hourly_rate,
       debtDeduction: debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0,
     });
-  }, [unpaidAttendance, unpaidAdjustments, includeHolidayPay, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
+  }, [unpaidAttendance, unpaidAdjustments, selectedHolidayDates, debtDeductionEnabled, debtDeductionAmount, worker.hourly_rate]);
 
    // Unpaid overtime entries (description-based)
   const unpaidOvertimeEntries = unpaidAttendance.filter(
@@ -678,6 +679,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
       setDebtDeductionEnabled(false);
       setSelectedDebtForDeduction('');
       setIncludeHolidayPay(false);
+      setSelectedHolidayDates(new Set());
       toast({ title: t('workers.paymentCreated'), description: t('workers.paymentCreatedDesc') });
     },
     onError: (error: Error) => {
@@ -2383,22 +2385,48 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 {/* Holiday pay prompt */}
                 {hasHolidayThisWeek && (
                   <div className="border border-primary/30 rounded-lg p-3 space-y-2 bg-primary/5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="holidayPay"
-                        checked={includeHolidayPay}
-                        onChange={(e) => setIncludeHolidayPay(e.target.checked)}
-                        className="rounded border-primary"
-                      />
-                      <label htmlFor="holidayPay" className="text-xs font-medium text-primary flex items-center gap-1.5">
-                        <CalendarHeart className="w-3.5 h-3.5" />
-                        {t('attendance.payHoliday')}
-                      </label>
+                    <div className="flex items-center gap-1.5 text-primary text-xs font-medium">
+                      <CalendarHeart className="w-3.5 h-3.5" />
+                      {t('attendance.payHoliday')}
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      {t('attendance.payHolidayDesc')} (+{worker.hourly_rate.toLocaleString('fr-FR')} CFA)
+                      {t('attendance.payHolidayDescMulti', { defaultValue: 'Tick each holiday to add 1 day salary.' })} (+{worker.hourly_rate.toLocaleString('fr-FR')} CFA/{t('attendance.day', { defaultValue: 'day' })})
                     </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {weekHolidays.map((h: any) => {
+                        const dateStr = h.holiday_date;
+                        const checked = selectedHolidayDates.has(dateStr);
+                        const [y, m, d] = String(dateStr).split('-').map(Number);
+                        const local = new Date(y, (m || 1) - 1, d || 1);
+                        return (
+                          <button
+                            key={dateStr}
+                            type="button"
+                            onClick={() => {
+                              setSelectedHolidayDates(prev => {
+                                const next = new Set(prev);
+                                if (next.has(dateStr)) next.delete(dateStr);
+                                else next.add(dateStr);
+                                return next;
+                              });
+                            }}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] transition-colors ${
+                              checked
+                                ? 'bg-primary/15 border-primary/50 text-primary'
+                                : 'bg-card hover:bg-muted/40 border-border'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              readOnly
+                              className="h-3 w-3 pointer-events-none"
+                            />
+                            <span className="font-mono">{format(local, 'EEE dd/MM')}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -2477,7 +2505,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                 {/* Final total */}
                 {(() => {
                   const deduction = debtDeductionEnabled ? (parseFloat(debtDeductionAmount) || 0) : 0;
-                  const holiday = includeHolidayPay ? worker.hourly_rate : 0;
+                  const holiday = selectedHolidayDates.size * worker.hourly_rate;
                   const finalAmount = totalOwed + holiday - deduction;
                   return (
                     <>
