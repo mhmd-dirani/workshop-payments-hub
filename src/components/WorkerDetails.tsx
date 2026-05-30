@@ -2594,7 +2594,7 @@ export default function WorkerDetails({ worker, onBack }: WorkerDetailsProps) {
                     className="w-full justify-start gap-3 h-auto py-3"
                     onClick={() => {
                       setOvertimeType('hours');
-                      setOvertimeAmount('');
+                      setOvertimeAmount(String(Math.round((worker.hourly_rate / 8) * 1.5)));
                       setOvertimeHours('1');
                     }}
                   >
