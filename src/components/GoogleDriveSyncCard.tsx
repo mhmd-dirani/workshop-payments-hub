@@ -101,7 +101,12 @@ export default function GoogleDriveSyncCard() {
         if (snapErr) throw snapErr;
         if (snap?.error) throw new Error(snap.error);
         setLastBatchLabel(snap?.label || null);
-        toast({ title: t('archive.snapshotDone'), description: t('archive.snapshotDoneDesc', { label: snap?.label || '' }) });
+        toast({
+          title: snap?.alreadyArchived ? t('archive.snapshotAlreadySaved') : t('archive.snapshotDone'),
+          description: snap?.alreadyArchived
+            ? t('archive.snapshotAlreadySavedDesc', { label: snap?.label || '' })
+            : t('archive.snapshotDoneDesc', { label: snap?.label || '' }),
+        });
       } catch (e: any) {
         toast({ title: t('archive.snapshotFailed'), description: e.message, variant: 'destructive' });
       } finally {
