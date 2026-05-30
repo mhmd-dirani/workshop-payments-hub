@@ -886,6 +886,8 @@
     "snapshotting": "Création de l’instantané d’archive…",
     "snapshotDone": "Instantané d’archive créé",
     "snapshotDoneDesc": "Totaux permanents enregistrés ({{label}}). Les totaux restent corrects même si vous supprimez les données.",
+    "snapshotAlreadySaved": "Archive déjà enregistrée",
+    "snapshotAlreadySavedDesc": "Cette période est déjà préservée dans {{label}}, aucun nouvel instantané n’était nécessaire.",
     "snapshotFailed": "Échec de l’instantané",
     "lastBatch": "Dernier instantané : {{label}} ✓ vérifié",
     "viewSummaries": "Voir les archives",

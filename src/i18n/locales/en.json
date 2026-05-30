@@ -887,6 +887,8 @@
     "snapshotting": "Creating archive snapshot…",
     "snapshotDone": "Archive snapshot created",
     "snapshotDoneDesc": "Permanent totals snapshot saved ({{label}}). Totals are now safe even if you delete the data.",
+    "snapshotAlreadySaved": "Archive already saved",
+    "snapshotAlreadySavedDesc": "This date range is already preserved in {{label}}, so no new snapshot was needed.",
     "snapshotFailed": "Snapshot failed",
     "lastBatch": "Last snapshot: {{label}} ✓ verified",
     "viewSummaries": "View archive summaries",

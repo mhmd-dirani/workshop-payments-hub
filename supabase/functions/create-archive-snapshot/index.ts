@@ -15,6 +15,13 @@ function rangeLabel(fromDate: string, toDate: string): string {
   return `${months[fm - 1]}_${fy}_${months[tm - 1]}_${ty}`;
 }
 
+function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 const ps = 1000;
 async function fetchAll(admin: any, table: string, select: string, dateCol: string | null, fromDate: string, toDate: string): Promise<any[]> {
   const rows: any[] = [];
@@ -58,9 +65,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid date range' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Find overlapping batches. Only 'deleted' batches preserve totals for rows
-    // that are gone — those must not be overlapped. 'pending'/'verified' batches
-    // just mirror live data, so we replace them with a fresh snapshot.
+    // Find overlapping batches. Deleted batches already preserve totals for rows
+    // that are gone. If the requested range is fully inside an already-deleted
+    // archive, reuse that existing snapshot instead of failing the whole sync.
+    // Partial overlaps stay blocked because a new mixed snapshot would double-count
+    // the deleted portion while missing the original rows.
     const { data: overlaps } = await admin
       .from('archive_batches')
       .select('id, from_date, to_date, status')
@@ -68,7 +77,28 @@ Deno.serve(async (req) => {
       .gte('to_date', fromDate);
     const blocking = (overlaps || []).find((b: any) => b.status === 'deleted');
     if (blocking) {
-      return new Response(JSON.stringify({ error: `Range overlaps archived batch ${blocking.from_date}..${blocking.to_date}` }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const insideExistingArchive = blocking.from_date <= fromDate && blocking.to_date >= toDate;
+      if (insideExistingArchive) {
+        const [ws, wk, con, ub] = await Promise.all([
+          admin.from('workshop_archive_summaries').select('id', { count: 'exact', head: true }).eq('batch_id', blocking.id),
+          admin.from('worker_archive_summaries').select('id', { count: 'exact', head: true }).eq('batch_id', blocking.id),
+          admin.from('contractor_archive_summaries').select('id', { count: 'exact', head: true }).eq('batch_id', blocking.id),
+          admin.from('user_balance_archive_summaries').select('id', { count: 'exact', head: true }).eq('batch_id', blocking.id),
+        ]);
+        return jsonResponse({
+          success: true,
+          alreadyArchived: true,
+          batchId: blocking.id,
+          label: rangeLabel(blocking.from_date, blocking.to_date),
+          rowsArchived: {},
+          workshopSummaries: ws.count || 0,
+          workerSummaries: wk.count || 0,
+          contractorSummaries: con.count || 0,
+          userBalanceSummaries: ub.count || 0,
+        });
+      }
+
+      return jsonResponse({ error: `Range overlaps archived batch ${blocking.from_date}..${blocking.to_date}` }, 409);
     }
     const replaceIds = (overlaps || []).map((b: any) => b.id);
     if (replaceIds.length) {
