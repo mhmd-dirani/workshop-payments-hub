@@ -221,7 +221,7 @@ export default function AttendanceForm({
 
   // When the user toggles "Worked Extra" on, pre-fill with daily_salary / 8 * 1.5
   // (only if no value entered yet, so manual edits are preserved)
-  React.useEffect(() => {
+  useEffect(() => {
     if (hasExtra && (!extraAmount || Number(extraAmount) === 0)) {
       const suggested = Math.round((Number(hourlyRate) || 0) / 8 * 1.5);
       if (suggested > 0) {
